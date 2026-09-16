@@ -2,13 +2,14 @@
 module.exports = function (d, M, L) {
   const { h1, h1n, h2, h3, p, note, ul, ol, table, kvTable, spacer, flat } = L;
   const join = (a, sep = ' · ') => (a || []).join(sep);
+  const fmtT = n => new Intl.NumberFormat('es-AR', { maximumFractionDigits: 0 }).format(Math.round(+n || 0));
   const out = [];
 
   /* ───────── 1. Introducción ───────── */
   out.push(h1n('1. Introducción'));
   out.push(h2('1.1 Propósito del documento'));
   out.push(p('Este Diseño Funcional (FD) describe **qué debe hacer el nuevo sistema core de TyS** para administrar la **orden de servicio** de una terminal portuaria y logística multiempresa: desde que Comercial transforma un negocio en una orden, pasando por la planificación de recursos, la ejecución en muelle y balanza, hasta el cierre de depósito y las comparativas de costos. Es la referencia funcional para el equipo de proyecto, las áreas usuarias y los proveedores que evaluarán el fit/gap del ERP.'));
-  out.push(p(`La versión 2.0 se deriva **íntegramente de la maqueta navegable ${d.version}** ("TyS · Maqueta ERP v2 — Orden de servicio"), que el grupo recorrió y ajustó en las revisiones del 15 y 16 de septiembre de 2026. Todo lo que aquí se describe está implementado y se puede verificar en la maqueta; los **casos guiados** del capítulo 14 son el recorrido de aceptación de cada comportamiento.`));
+  out.push(p(`La versión 2.0 se deriva **íntegramente de la maqueta navegable ${d.version}** ("TyS · Maqueta ERP v2 — Orden de servicio"), que el grupo recorrió y ajustó en las revisiones del 15 y 16 de septiembre de 2026. Todo lo que aquí se describe está implementado y se puede verificar en la maqueta; los **casos guiados** del capítulo 15 son el recorrido de aceptación de cada comportamiento.`));
   out.push(h2('1.2 Alcance'));
   out.push(p('El alcance funcional de esta versión comprende:'));
   out.push(ul([
@@ -23,7 +24,7 @@ module.exports = function (d, M, L) {
     'La **master data** completa según el modelo v3.1 (39 maestros), su ciclo de vida, permisos por maestro y rol, ABM genérico y registro de cambios.',
     'La **habilitación de módulos** por rol, entidad y BU.',
   ]));
-  out.push(p('Quedan fuera de esta versión, y se enumeran en el capítulo 16 como definiciones pendientes: la facturación y aprobación de cargos adicionales, los circuitos específicos de Depósitos, Mantenimiento, Administración y Corporate, la integración con balanzas físicas y con el sistema contable, y la ubicación organizativa definitiva de Logística de arribo y Máster data.'));
+  out.push(p('Quedan fuera de esta versión, y se enumeran en el capítulo 17 como definiciones pendientes: la facturación y aprobación de cargos adicionales, los circuitos específicos de Depósitos, Mantenimiento, Administración y Corporate, la integración con balanzas físicas y con el sistema contable, y la ubicación organizativa definitiva de Logística de arribo y Máster data.'));
   out.push(h2('1.3 Fuentes y documentos relacionados'));
   out.push(table(['Fuente', 'Versión', 'Uso en este documento'], [
     ['Maqueta navegable "TyS · Maqueta ERP v2 — Orden de servicio"', d.version, 'Fuente de verdad: pantallas, reglas, datos de demostración y casos guiados. Publicada en claude.ai y en Vercel; código en el repositorio Git.'],
@@ -35,8 +36,8 @@ module.exports = function (d, M, L) {
   ], [0.4, 0.14, 0.46], { size: 17 }));
   out.push(spacer());
   out.push(h2('1.4 Cómo leer este documento'));
-  out.push(p('Los capítulos 2 a 5 describen la estructura (organización, roles, servicios y la orden). Los capítulos 6 a 8 describen el comportamiento (proceso, estados y reglas). Los capítulos 9 a 12 describen la configuración (master data, módulos, costos e integraciones). Los capítulos 13 a 16 contienen el escenario de demostración, los casos de aceptación, los supuestos y las definiciones pendientes. Los anexos reproducen las matrices completas extraídas de la maqueta.'));
-  out.push(p('Las referencias **S1…S22** y **A1…A5** remiten a los supuestos del capítulo 15: decisiones de diseño tomadas para poder construir la maqueta y que el grupo debe confirmar o corregir. Las referencias **M-xx** remiten a los maestros del modelo de master data (Anexo C). Los textos marcados con "(revisión dd/mm)" indican la sesión en la que el grupo definió ese comportamiento.'));
+  out.push(p('Los capítulos 2 a 5 describen la estructura (organización, roles, servicios y la orden). Los capítulos 6 a 8 describen el comportamiento (proceso, estados y reglas). Los capítulos 9 a 13 describen la configuración (master data, módulos, costos e integraciones). Los capítulos 14 a 17 contienen el escenario de demostración, los casos de aceptación, los supuestos y las definiciones pendientes. Los anexos reproducen las matrices completas extraídas de la maqueta.'));
+  out.push(p('Las referencias **S1…S22** y **A1…A5** remiten a los supuestos del capítulo 16: decisiones de diseño tomadas para poder construir la maqueta y que el grupo debe confirmar o corregir. Las referencias **M-xx** remiten a los maestros del modelo de master data (Anexo C). Los textos marcados con "(revisión dd/mm)" indican la sesión en la que el grupo definió ese comportamiento.'));
   out.push(note('Estado del documento: **base de referencia vigente** del proyecto. Reemplaza al FD v1.1 y a la app web v1.1 como fuente de verdad funcional. Cualquier elemento de los documentos previos que no esté contemplado aquí, o que lo contradiga, se considera superado hasta que se revalide.'));
 
   /* ───────── 2. Estructura organizativa ───────── */
@@ -72,7 +73,7 @@ module.exports = function (d, M, L) {
   out.push(h2('3.1 Contexto activo'));
   out.push(p('Toda la aplicación trabaja con un **contexto activo** formado por tres selectores en la barra superior: **entidad** (una entidad fiscal o "Grupo (consolidado)"), **unidad de negocio** ("Todas las BU" o una BU de la entidad) y **rol**. El contexto filtra las órdenes, las bandejas, los recursos y el menú visible (capítulo 10). En la maqueta el selector de rol permite recorrer los casos como cada participante; en el sistema real el rol proviene del usuario autenticado (M-38).'));
   out.push(h2('3.2 Roles'));
-  out.push(p('El circuito define **cuatro roles de etapa** y **dos roles de soporte** que no tienen etapa en el workflow de la orden y la consultan únicamente para visualizarla.'));
+  out.push(p('El circuito define **cuatro roles de etapa** y **tres roles de soporte** que no tienen etapa en el workflow de la orden y la consultan únicamente para visualizarla.'));
   out.push(table(['Rol', 'Nombre', 'Etapa del workflow', 'Estados que trabaja', 'Usuario de demostración'], d.roles.map(r => [r.id, r.nombre, r.etapa ? `Etapa ${r.etapa}` : 'Soporte (sin etapa)', r.etapas.length ? join(r.etapas, ' · ') : 'Consulta las órdenes', r.usuario]), [0.08, 0.24, 0.16, 0.34, 0.18]));
   out.push(spacer());
   out.push(ul([
@@ -82,6 +83,7 @@ module.exports = function (d, M, L) {
     '**Depósito (DEP)** — sigue los ingresos, registra merma / excedente y cierra el operativo cuando el servicio usa depósito (rol de cierre configurable por servicio, A5).',
     '**Logística de arribo (LAR)** — administra el lineup, los cupos de camiones y los operativos ferroviarios; no interviene en las operaciones (supuesto S10).',
     '**Máster data (MD)** — hace el ABM de la master data, otorga o quita permisos por maestro a cada rol y valida las altas de los demás roles (supuesto S17).',
+    '**Responsable de área (ARE)** — administra la capacidad de su sector (Logística, Rental, Depósitos, RRHH, Portería y balanza): ve la capacidad total y la comprometida, hace el ABM de sus recursos por el workflow de la master data y reserva capacidad para operativos futuros (supuestos S23 y S24, capítulo 10 bis).',
   ]));
   out.push(h2('3.3 Resumen de permisos sobre la master data'));
   out.push(p(`Cada rol tiene, para cada uno de los ${d.permisosMD.length} maestros, un nivel de permiso: no lo visualiza, solo consulta o puede ABM (capítulo 9.5). La matriz completa está en el Anexo A; el resumen inicial de demostración es:`));
@@ -116,6 +118,10 @@ module.exports = function (d, M, L) {
   out.push(h2('4.3 Medios y orígenes operativos'));
   out.push(p('Cada medio determina de dónde toma la orden su **origen operativo**: el registro que aporta cliente, producto, toneladas, fechas y calidad. Lineup, cupos y operativos ferroviarios los administra **Logística de arribo**; las solicitudes internas / externas son el origen de los servicios de las demás BU (Depósitos, Mantenimiento, Administración); Interna / Externa no tienen origen operativo y se completan con el detalle del servicio.'));
   out.push(table(['Medio', 'Origen operativo', 'Qué aporta a la orden'], d.medios.map(m => [m.nombre, m.origenNombre || 'Detalle del servicio', ({ BUQ: 'Escala del buque: ETA / ETB / ETC, muelle previsto, cargas por cliente, producto, BL, toneladas y calidad, equipos propios del buque (grúas o bombas).', CAM: 'Franja horaria, cantidad de camiones, cliente, producto, toneladas y calidad.', FER: 'Día del operativo, formación, cliente, producto, toneladas y calidad.', SOL: 'Solicitante, descripción, ventana y condiciones de la solicitud.', INT: 'Cliente = otra BU de la entidad (y, como supuesto, empresas del grupo); detalle de Rental o Logística.', EXT: 'Cliente = nómina de clientes; detalle de Rental o Logística.' })[m.id] || '']), [0.14, 0.22, 0.64]));
+  out.push(spacer());
+  out.push(h3('Nominación del lineup desde el operativo'));
+  out.push(p('La escala del lineup (M-17) distingue las **toneladas nominadas totales del buque** —que pueden incluir carga para otras terminales del río— de las **toneladas para TyS**. Estas últimas, junto con la marca `nominado_a_tys` y el `operativo_vinculado`, **se alimentan de la creación de la orden** (revisión 16/09): al crear una orden sobre una carga de la escala se completan con las toneladas de las órdenes y sus números; al anularla se revierten, y una escala sin órdenes figura como no nominada. Se ve en la tarjeta de la escala en Logística de arribo, en la sección Origen del expediente y en Datos maestros › M-17.'));
+  out.push(table(['Escala', 'Buque', 'Alcance', 't nominadas del buque', 't para TyS', 'Nominada', 'Operativo vinculado'], d.lineupNominacion.map(l => [l.id, l.buque, l.alcance, fmtT(l.totalBuque), fmtT(l.paraTys), l.nominado ? 'Sí' : 'No', l.operativo]), [0.14, 0.2, 0.17, 0.13, 0.11, 0.08, 0.17], { size: 16 }));
   out.push(spacer());
   out.push(h2('4.4 Matriz de ejecución'));
   out.push(p('La matriz **Servicio × Componente → BU ejecutora** es configurable en Administración (M-36). Define a qué BU se imputa cada línea de la orden. Valores iniciales (revisión 15/09): **Descarga y Carga → Operaciones**, Transporte → Logística, Depósito → Depósitos; las grúas las provee Maquinarias como recurso interno (S1, S20).'));
@@ -193,15 +199,19 @@ module.exports = function (d, M, L) {
   out.push(p('**Objetivo:** definir cómo se realizará el servicio y reservar los recursos dentro de la ventana del servicio.'));
   out.push(table(['Recurso', 'Selección y regla'], [
     ['Muelle', 'Muelle de descarga / carga de la entidad (M-25). Se valida superposición con otras reservas en la ventana.'],
-    ['Equipos de descarga / carga', 'Solo **grúas o sistemas de bombeo** (M-11). El tipo lo define el estado físico del producto en la master data (M-07.tipo): líquido → bombas; sólido, incluido embolsado → grúas. Se elige primero si son **del muelle** (inventario de la terminal) o **del buque** (declarados en el lineup por Logística de arribo, seleccionados por defecto). Los del buque no consumen equipos del muelle, no generan superposición, no tienen costo para la terminal y se computan como recurso de tercero (S14).'],
-    ['Depósito', 'Destino de la mercadería (M-10); mercadería no nacionalizada → solo depósitos fiscales habilitados; se controla capacidad disponible y compatibilidad con el producto.'],
+    ['Equipos de descarga / carga', 'Solo **grúas o sistemas de bombeo** (M-11). El tipo lo define el estado físico del producto en la master data (M-07.tipo): líquido → bombas; sólido, incluido embolsado → grúas. Se elige primero si son **del muelle** (inventario de la terminal) o **del buque** (declarados en el lineup por Logística de arribo, seleccionados por defecto). **La selección es excluyente:** con un origen no se ofrecen los equipos del otro, y los del buque se listan unidad por unidad para elegir cuántos se usan. Los del buque no consumen equipos del muelle, no generan superposición, no tienen costo para la terminal y se computan como recurso de tercero (S14).'],
+    ['Depósito destino', 'Se elige recorriendo la **distribución de la planta**: planta (M-09) → depósito (M-10) → celda / tanque / galpón / silo (M-10a) → **box** → **mini box**; se puede parar en cualquier nivel y el destino es el último elegido, con su propia capacidad. Mercadería no nacionalizada → solo depósitos fiscales habilitados; se controla capacidad disponible y compatibilidad con el producto (S29).'],
     ['Balanza', 'Balanza del circuito (M-26); no nacionalizada → solo balanzas con habilitación fiscal vigente.'],
-    ['Personal propio', 'Puestos y cantidad por turno (M-12).'],
-    ['Personal externo (manos)', 'Manos de proveedores por categoría y cantidad, con composición por roles (M-13).'],
-    ['Logística', 'Camiones internos o de transportista, palas y tolvas; para Rental / Logística, las maquinarias o camiones del detalle vienen precargados.'],
-    ['Turnos', `Turnos completos de ${d.parametros.horasTurno} h según el régimen M-33; la cantidad de turnos resulta de las toneladas y el ritmo efectivo (eficiencia ${Math.round(d.parametros.eficienciaEquipo * 100)} % sobre la capacidad nominal).`],
+    ['Personal propio', 'Puestos y cantidad (M-05). Un puesto **puede estar afectado a más de un operativo**: cuando la demanda simultánea supera la dotación, el sistema calcula el **% de afectación** (dotación / demanda total), lo muestra en cada puesto y prorratea su costo; el porcentaje se congela al confirmar el plan (S25).'],
+    ['Personal externo (manos)', '**Manos completas** por categoría (M-13) y, sobre esa composición, el ajuste **puesto por puesto**: se agregan o desafectan personas de cualquier puesto, esté o no en la mano asignada, al costo por persona y turno derivado de la mano (S30).'],
+    ['Logística (flota)', 'Camiones propios y de transportista, por unidad completa; bloque separado de la maquinaria. Para Rental / Logística, las maquinarias o camiones del detalle vienen precargados (S31).'],
+    ['Maquinaria', 'Palas, autoelevadores, minicargadora, retroexcavadora, grupo electrógeno, tolvas y cintas, cada una con **% de uso** para la orden: el remanente queda disponible para otro operativo de la misma ventana y el costo se prorratea (S31). Cada maquinaria se **despliega en sus unidades** (M-12a: interno, marca, modelo, año, capacidad, ancho y alto) y solo se ofrecen las que **entran por el acceso del destino** y están operativas; la cantidad sale de las unidades elegidas (S34).'],
+    ['Habilitación de puerto', 'Rubro con el costo por operativo que fija cada puerto en la master data (M-09); el Planificador lo incluye o lo excluye (S32).'],
+    ['Turnos', `**Cantidad de turnos** que fija el Planificador —el sistema propone la calculada por el ritmo, con eficiencia ${Math.round(d.parametros.eficienciaEquipo * 100)} % sobre la capacidad nominal— y régimen tomado de la **tabla de turnos M-33**: duración y catálogo T1…T4, ocupados en secuencia desde el inicio de la ventana (S26).`],
   ], [0.22, 0.78]));
   out.push(spacer());
+  out.push(h3('Presentación del producto y ámbito de los recursos'));
+  out.push(p('El formulario encabeza con el **producto y su presentación** —granel sólido, líquido a granel en tanque, embolsado en big bag o bolsa—, su familia, su estado físico y su densidad, porque la presentación define qué equipos, manos y depósitos son compatibles (S35). Cada recurso, además, lleva una marca de **ámbito**: Operaciones, Depósito o compartido entre los dos; el ámbito se arrastra a la ejecución y define qué rol puede asignarlo, modificarlo o liberarlo (S33).'));
   out.push(h3('Validaciones'));
   out.push(p('Disponibilidad en la ventana, superposición de reservas, capacidad, compatibilidad con el producto, habilitación fiscal, vigencia del método seguro de cada recurso (M-34) y reglas del circuito. Un recurso vencido con acción "bloquear el recurso" no se ofrece; dentro del aviso se ofrece con observaciones.'));
   out.push(h3('Recurso no disponible → solicitud a la BU dueña'));
@@ -218,29 +228,34 @@ module.exports = function (d, M, L) {
   out.push(p('El sistema verifica las habilitaciones: una orden puede estar planificada y recibida por Operaciones pero permanecer **pendiente de habilitación** para iniciar (nacionalización o método seguro). Operaciones puede **ajustar los recursos planificados** (muelle, equipos, depósito, balanza, personal, manos, logística) con las mismas validaciones del Planificador; el plan aceptado se conserva como **plan inicial** para la comparativa.'));
   out.push(h3('Durante la ejecución'));
   out.push(ul([
+    '**Operaciones registra la calidad de la mercadería** (S28): llega declarada en el origen y Operaciones carga la efectiva, eligiéndola de la matriz de calidad del producto (M-23) o escribiéndola, con motivo, responsable y hora; queda en la orden y alimenta la comparativa por calidad.',
     'Los **tickets de balanza** registran fecha, hora, toneladas y balanza; actualizan las toneladas acumuladas y el ritmo (t/h y t/turno) frente al ritmo contractual.',
     'Operaciones hace **ABM de los recursos** —personal, maquinarias, depósitos, balanzas, muelle, logística—: alta, modificación de cantidad, reemplazo y baja; cada cambio registra recurso, momento, responsable y motivo (lista de motivos de modificación) y queda disponible para la comparativa.',
     'Las **demoras** registran causa (M-29), inicio y fin, responsabilidad (propia, tercero, fuerza mayor), tercero involucrado, gasto asociado y si es recuperable.',
     'Al incorporar recursos adicionales se puede indicar si el **gasto es atribuible al cliente**, con motivo y respaldo; la atribución queda registrada y su aprobación y facturación quedan por definir (pendiente 5).',
     `Al finalizar, un faltante entre lo previsto y lo acumulado mayor que la tolerancia (${d.tolerancias.find(t => t.id === 'TOL-DIF-FIN')?.valor} %) alerta y registra el desvío.`,
   ]));
+  out.push(h3('Operaciones y Depósito en simultáneo'));
+  out.push(p('Mientras se descarga el buque la mercadería ya entra a depósito, así que **las dos etapas trabajan la misma orden al mismo tiempo** (S35): la orden en ejecución aparece en la bandeja de Depósito como "ingreso en curso" y ambos roles pueden asignar, modificar y liberar recursos —cada uno sobre los de su ámbito y sobre los compartidos—, con la traza del rol que hizo cada movimiento. Operaciones sigue siendo quien registra tickets, demoras y calidad y quien finaliza el operativo.'));
   out.push(p('**Acción principal:** «Finalizar operativo y enviar a cierre» (a Depósito o al rol de cierre del servicio). **Devolver:** de Planificada a Pendiente de planificación (libera reservas, plan a historial) o de En ejecución a Planificada solo si no hay tickets.'));
 
   out.push(h2('6.4 Etapa 4 — Depósito (rol de cierre)'));
-  out.push(p('**Objetivo:** acompañar los ingresos y realizar el cierre final. Depósito ve el progreso mientras Operaciones ejecuta, sin esperar el traspaso formal.'));
+  out.push(p('**Objetivo:** acompañar los ingresos y realizar el cierre final. Depósito ve el progreso mientras Operaciones ejecuta, sin esperar el traspaso formal, y **gestiona los recursos del ingreso** —los de su ámbito y los compartidos— desde el panel *Recursos del ingreso* de la sección Depósito (S35).'));
   out.push(table(['Comparación', 'Qué permite evaluar'], [
     ['Circuito recomendado vs ejecución real', 'Diferencias de eficiencia, recursos, tiempo y costo respecto de la mejor combinación calculada.'],
     ['Planificación inicial vs ejecución real', 'Cambios durante el operativo (ABM de recursos, demoras) y su impacto.'],
     ['Recursos propios y de terceros: necesario vs aplicado', 'Cuánto recurso propio y de terceros exigía el plan y cuánto se aplicó, por muelle, mercadería, calidad y destino. Propios: muelle, equipos, camiones internos, palas y tolvas, personal propio, depósito y balanza; terceros: manos de proveedores, camiones de transportista y equipos del buque (S11).'],
   ], [0.3, 0.7]));
   out.push(spacer());
-  out.push(p(`**Merma o excedente.** Depósito agrega manualmente la merma o el excedente para cerrar; debe estar dentro de la tolerancia del instrumento contractual (o de la tolerancia general ${d.parametros.toleranciaMermaPct} % si el instrumento no fija la suya, M-20). Fuera de tolerancia, el cierre requiere autorización de Comercial (S12).`));
+  out.push(p(`**Merma o excedente (S27).** No se cargan a mano: se aplican los que resultan de **lo que declara la balanza al finalizar el operativo** (toneladas previstas en la orden − toneladas pesadas). La pantalla de cierre muestra previsto, pesado y la diferencia. Si supera la tolerancia del instrumento contractual —o la tolerancia general ${d.parametros.toleranciaMermaPct} % si el instrumento no fija la suya (M-20)—, el cierre requiere autorización de Comercial (S12).`));
   out.push(p('**Acción principal:** «Cerrar operativo». Para servicios sin ingreso físico a depósito (carga, descarga costado vapor) cierra el rol configurado en el servicio (Operaciones), según A5. **Devolver:** a En ejecución, para que Operaciones registre lo que falte.'));
 
   out.push(h2('6.5 Rol de soporte — Logística de arribo'));
   out.push(p('Administra los tres orígenes operativos de los servicios a terceros: **lineup** (escalas de buques con ETA / ETB / ETC, muelle previsto, cargas por cliente / producto / BL con toneladas y calidad, equipos propios del buque), **cupos de camiones** (franja, cantidad, cliente, producto, toneladas) y **operativos ferroviarios** (día, formación, cliente, producto, toneladas), con alta, modificación, estado y **registro de cambios** (quién, cuándo, qué, motivo). Los cambios de fecha de arribo hechos por el Planificador aparecen aquí con la orden como motivo. Logística de arribo no interviene en las operaciones y consulta las órdenes solo para visualizarlas; los demás roles consultan los arribos (S10). La pantalla muestra las escalas como tarjetas legibles en escritorio y móvil.'));
 
-  out.push(h2('6.6 Rol de soporte — Máster data'));
+  out.push(h2('6.6 Rol de soporte — Responsable de área'));
+  out.push(p('Cada área administra la capacidad de su propio sector desde el módulo **Mi área**: ve su capacidad total y la comprometida, hace el ABM de sus recursos —con el mismo formulario y el mismo workflow que la master data: el alta nace en validación y Máster data la publica— y **reserva capacidad para operativos futuros** referenciando un lineup, un cupo o un operativo ferroviario. Esas reservas se informan expresamente al Planificador y a Operaciones, y el área las revalida cuando la planificación elige otra opción. El detalle está en el capítulo 10 bis.'));
+  out.push(h2('6.7 Rol de soporte — Máster data'));
   out.push(p('Es el dueño funcional de la master data: hace el ABM de todos los maestros y de las listas del modelo (convenciones, reglas, definiciones, decisiones), administra la matriz de permisos maestro × rol, **valida y publica o rechaza** desde su Workflow las altas y modificaciones que otros roles con permiso ABM dejaron "en validación", y consulta el registro de cambios completo. El detalle está en el capítulo 9.'));
 
   return flat(out);

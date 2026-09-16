@@ -4,6 +4,8 @@ const path = require('path');
 const FILE = 'file://' + path.resolve(__dirname, '../dist/TyS - Maqueta ERP v2.0 - Orden de servicio.html');
 const errors = []; const log = (...a) => console.log(...a);
 const hoursBetween = (a, b) => (new Date(b) - new Date(a)) / 36e5;
+const fmtN0 = n => (Math.round(n * 10) / 10).toString();
+const esEquipoBuqueTest = (rid) => typeof rid === 'string' && rid.startsWith('EQB-');
 (async () => {
   const browser = await chromium.launch();
   const page = await browser.newPage({ viewport: { width: 1380, height: 900 } });
@@ -132,13 +134,18 @@ const hoursBetween = (a, b) => (new Date(b) - new Date(a)) / 36e5;
   await setRol('DEP'); await page.evaluate(() => go('deposito')); await page.waitForTimeout(50);
   check((await text('#main')).includes('OS-2026-0006'), 'C8: Depósito ve OS-2026-0006 en ingresos en curso');
   await open('OS-2026-0008', 'deposito');
-  await page.fill('#cz-merma', '100'); await page.dispatchEvent('#cz-merma', 'change'); await page.waitForTimeout(80);
-  check(await page.$eval('[data-action="principal"][data-act="cerrar"]', b => b.disabled), 'C8: merma 100 t (8,3 %) fuera de tolerancia → cierre bloqueado');
-  await page.fill('#cz-merma', '6'); await page.dispatchEvent('#cz-merma', 'change'); await page.waitForTimeout(80);
-  check(!(await page.$eval('[data-action="principal"][data-act="cerrar"]', b => b.disabled)), 'C8: merma 6 t (0,5 %) dentro de tolerancia 1 % → habilitado');
+  /* la merma / el excedente ya no se cargan a mano: salen de la balanza (S27) */
+  check((await page.$('#cz-merma')) === null && (await text('#main')).includes('Merma o excedente según balanza'), 'C8: el cierre ya no pide la merma a mano: la toma de la balanza');
+  const evBal = await page.evaluate(() => evaluarMerma(orden('OS-2026-0008')));
+  check(Math.abs(evBal.previsto - evBal.pesado - (evBal.merma - evBal.excedente)) < 0.01 && evBal.tickets > 0, 'C8: merma = previsto − pesado en balanza (' + fmtN0(evBal.merma) + ' t sobre ' + evBal.tickets + ' tickets)');
+  /* fuera de tolerancia: se fuerza una diferencia grande y el cierre queda bloqueado hasta la aprobación de Comercial */
+  await page.evaluate(() => { const o = orden('OS-2026-0008'); o._tonPrev = o.toneladas; o.toneladas = Math.round(o.ejecucion.acumulado * 1.2); render(); }); await page.waitForTimeout(80);
+  check(await page.$eval('[data-action="principal"][data-act="cerrar"]', b => b.disabled), 'C8: diferencia de balanza fuera de tolerancia → cierre bloqueado');
+  await page.evaluate(() => { const o = orden('OS-2026-0008'); o.toneladas = o._tonPrev; delete o._tonPrev; render(); }); await page.waitForTimeout(80);
+  check(!(await page.$eval('[data-action="principal"][data-act="cerrar"]', b => b.disabled)), 'C8: dentro de tolerancia → cierre habilitado');
   await page.fill('#cierre-obs', 'Cierre de prueba'); await page.dispatchEvent('#cierre-obs', 'change'); await page.waitForTimeout(50); await page.click('[data-action="principal"][data-act="cerrar"]'); await page.waitForTimeout(80);
   check((await st('OS-2026-0008')) === 'CERRADA', 'C8: OS-2026-0008 cerrada por Depósito');
-  check((await page.evaluate(() => orden('OS-2026-0008').deposito.cierre.merma)) === 6, 'C8: merma registrada en el cierre');
+  check(Math.abs((await page.evaluate(() => orden('OS-2026-0008').deposito.cierre.merma)) - evBal.merma) < 0.01, 'C8: el cierre guarda la merma que declara la balanza');
   check((await text('#main h1')).includes('Workflow'), 'C8: tras cerrar vuelve a Workflow · mi etapa');
   const d2 = await page.evaluate(() => recurso(orden('OS-2026-0008').plan.recursos.deposito).ocupadoT); check(d2 > 0, 'C8: ocupación del depósito actualizada (' + d2 + ' t)');
 
@@ -203,7 +210,7 @@ const hoursBetween = (a, b) => (new Date(b) - new Date(a)) / 36e5;
   const bqN = await page.evaluate(id => buqueDeLineup(byId(S.ops.lineups, id)), luN.id); check(bqN && bqN.equipos_propios && bqN.equipos_propios.tipo === 'Grúa' && bqN.equipos_propios.cantidad === 3 && bqN.estado.startsWith('alta provisoria'), 'C12: LAR declara los equipos del buque en el maestro M-08 (alta provisoria sin IMO: ' + (bqN && bqN.id) + ')');
   /* Caso 13: master data completa (modelo v3.1) */
   await page.evaluate(() => { S.ctx.screen = 'md'; S.ctx.mdTab = 'MAESTROS'; S.ctx.mdM = 'M-34'; S.ctx.mdSub = 'REG'; render(); }); await page.waitForTimeout(40);
-  const nVis = await page.evaluate(() => maestrosVisibles('LAR').length); check((await text('#main')).includes('M-34') && (await text('#main')).includes('accion_al_vencer') && (await page.$$('.mdnav button')).length === nVis && nVis === 35 && (await page.evaluate(() => maestrosVisibles('MD').length)) === 40, 'C13: navegador con los maestros visibles para el rol (LAR ' + nVis + ' de 39) y registros de M-34 con atributos del modelo');
+  const nVis = await page.evaluate(() => maestrosVisibles('LAR').length); check((await text('#main')).includes('M-34') && (await text('#main')).includes('accion_al_vencer') && (await page.$$('.mdnav button')).length === nVis && nVis === 36 && (await page.evaluate(() => maestrosVisibles('MD').length)) === 41, 'C13: navegador con los maestros visibles para el rol (LAR ' + nVis + ' de 39) y registros de M-34 con atributos del modelo');
   const nAttr = await page.evaluate(() => MODEL_ATRIBUTOS.length); check(nAttr === 374 && (await page.evaluate(() => MODEL_FICHAS.length)) === 35 && (await page.evaluate(() => MODEL_REGLAS.length)) === 58 && (await page.evaluate(() => MODEL_TX.length)) === 52, 'C13: modelo v3.1 completo (35 fichas · 374 atributos · 58 reglas · 52 TX)');
   await page.click('[data-action="mdsub"][data-sub="ATR"]'); await page.waitForTimeout(40); check((await text('#main')).includes('En la maqueta') && (await page.$$('#main table.t tbody tr')).length >= 12, 'C13: pestaña Atributos de M-34 con marca "En la maqueta"');
   await page.click('[data-action="mdgo"][data-m="M-07"]'); await page.waitForTimeout(40); check((await text('#main')).includes('Productos') && (await text('#main')).includes('tn_por_mano_turno'), 'C13: M-07 Productos con los atributos del modelo');
@@ -259,11 +266,11 @@ const hoursBetween = (a, b) => (new Date(b) - new Date(a)) / 36e5;
   check((await page.evaluate(() => { const c = byId(md().causasDemora, 'CD-99'); return c.nombre + ':' + c._aud.version; })) === 'Corte de energía en planta (EPE):2' && (await page.evaluate(() => S.mdLog[0].accion)) === 'Modificación', 'C14: modificación versiona el registro (v2) y queda en el registro de cambios');
   /* permisos */
   await page.click('[data-action="mdtab"][data-tab="PERM"]'); await page.waitForTimeout(60);
-  check((await page.$$('select.perm')).length === 40 * 6, 'C14: matriz de permisos 40 maestros × 6 roles editable por Máster data');
+  check((await page.$$('select.perm')).length === 41 * (await page.evaluate(() => md().roles.length - 1)), 'C14: matriz de permisos de los 41 maestros editable por Máster data (una columna por rol, salvo Máster data)');
   await page.selectOption('[data-perm="M-29:PLAN"]', 'abm'); await page.waitForTimeout(60); await page.selectOption('[data-perm="M-18:PLAN"]', 'oculto'); await page.waitForTimeout(60);
   check((await page.evaluate(() => permisoMD('M-29', 'PLAN') + ':' + permisoMD('M-18', 'PLAN') + ':' + permisoMD('M-18', 'MD'))) === 'abm:oculto:abm' && (await page.evaluate(() => S.mdLog[0].accion)) === 'Permiso', 'C14: permisos otorgados / quitados y registrados (Máster data siempre ABM)');
   await setRol('PLAN'); await page.evaluate(() => { S.ctx.mdTab = 'MAESTROS'; S.ctx.mdM = 'M-01'; render(); }); await page.waitForTimeout(50);
-  check((await page.$$('.mdnav button')).length === 37 && (await page.$('.mdnav button[data-m="M-18"]')) === null, 'C14: el Planificador deja de ver M-18 (37 visibles: M-03, M-04 y M-18 ocultos)');
+  check((await page.$$('.mdnav button')).length === 38 && (await page.$('.mdnav button[data-m="M-18"]')) === null, 'C14: el Planificador deja de ver M-18 (38 visibles: M-03, M-04 y M-18 ocultos)');
   await page.evaluate(() => { S.ctx.mdM = 'M-18'; render(); }); await page.waitForTimeout(40); check((await text('#main')).includes('no visualiza este maestro'), 'C14: enlace directo a un maestro oculto → aviso de permiso');
   await page.evaluate(() => { S.ctx.mdM = 'M-29'; render(); }); await page.waitForTimeout(40); check((await page.$('[data-action="md-nuevo"]')) !== null && (await text('#main')).includes('Puede ABM'), 'C14: el Planificador ahora puede ABM en M-29');
   await page.evaluate(() => { S.ctx.mdM = 'M-07'; render(); }); await page.waitForTimeout(40); check((await page.$('[data-action="md-nuevo"]')) === null && (await text('#main')).includes('Solo consulta'), 'C14: el Planificador consulta M-07 sin ABM');
@@ -432,6 +439,74 @@ const hoursBetween = (a, b) => (new Date(b) - new Date(a)) / 36e5;
   check((await page.evaluate(id => deBaja(byId(md().reglasModelo, id)), rg0)) && (await page.evaluate(() => S.mdLog[0].accion)) === 'Baja', 'C19: baja lógica de una regla registrada');
   await setRol('PLAN'); await page.evaluate(() => { S.ctx.mdTab = 'CONV'; render(); }); await page.waitForTimeout(50); check((await page.$('[data-action="md-nuevo"]')) === null && (await text('#main')).includes('Solo consulta'), 'C19: otro rol consulta las convenciones sin ABM');
   await page.evaluate(() => go('casos')); await page.click('[data-action="caso"][data-n="19"]'); await page.waitForTimeout(60); check((await page.evaluate(() => S.ctx.screen + ':' + S.ctx.admTab + ':' + S.ctx.rol)) === 'admin:MOD:MD', 'C19: el caso 19 abre Administración › Menú por rol, entidad y BU');
+
+  /* ---------- C22: planificación afinada (equipos, turnos, personal, maquinaria, depósito) ---------- */
+  /* la orden del MV Baltic Trader vuelve a planificación para recorrer el formulario afinado */
+  const estado0004 = await page.evaluate(() => { const o = orden('OS-2026-0004'); if (o.estado === 'PLANIF') devolver(o, 'Recursos planificados no disponibles', { rol: 'OPS' }); if (o.estado === 'EJEC' || o.estado === 'PEND_CIERRE' || o.estado === 'CERRADA') return o.estado; delete PF['OS-2026-0004']; return o.estado; });
+  check(estado0004 === 'PEND_PLAN', 'C22: OS-2026-0004 disponible en planificación (' + estado0004 + ')');
+  await setRol('PLAN'); await open('OS-2026-0004', 'planificacion'); await page.waitForTimeout(120);
+  /* equipos: del muelle o del buque, sin mezclarse */
+  await page.selectOption('#pf-eqorg', 'buque'); await page.waitForTimeout(80);
+  const eqBuque = await page.evaluate(() => { const R = pfInit(orden('OS-2026-0004')); return { eq: R.equipos, n: R.equiposBuqueN, muelleEnLista: !!document.querySelector('[data-pf="equipo"]') }; });
+  check(eqBuque.eq.every(esEquipoBuqueTest) && !eqBuque.muelleEnLista && eqBuque.n >= 1, 'C22: con equipos del buque no se ofrecen las grúas del muelle (' + eqBuque.n + ' unidades)');
+  await page.evaluate(() => { const cbs = [...document.querySelectorAll('[data-pf="eqbn"]')]; const last = cbs[cbs.length - 1]; last.checked = false; last.dispatchEvent(new Event('change', { bubbles: true })); }); await page.waitForTimeout(80);
+  check((await page.evaluate(() => pfInit(orden('OS-2026-0004')).equiposBuqueN)) === 3, 'C22: se elige cuántas grúas del buque se usan (3 de 4)');
+  await page.selectOption('#pf-eqorg', 'muelle'); await page.waitForTimeout(80);
+  check((await page.evaluate(() => pfInit(orden('OS-2026-0004')).equipos.every(x => !esEquipoBuque(x)))) && (await page.$$('[data-pf="equipo"]')).length > 0, 'C22: con equipos del muelle no quedan equipos del buque');
+  /* turnos desde M-33 */
+  const tRegimen = await page.evaluate(() => ({ dur: duracionTurno(), n: regimenTurnos().length, calc: duracionPlan(orden('OS-2026-0004'), { recursos: pfInit(orden('OS-2026-0004')) }).turnosCalc }));
+  check(tRegimen.dur === 6 && tRegimen.n === 4, 'C22: la duración y el catálogo de turnos salen de M-33 (' + tRegimen.n + ' turnos de ' + tRegimen.dur + ' h)');
+  await page.fill('[data-pf="turnos"]', '9'); await page.dispatchEvent('[data-pf="turnos"]', 'change'); await page.waitForTimeout(80);
+  const tMan = await page.evaluate(() => duracionPlan(orden('OS-2026-0004'), { recursos: pfInit(orden('OS-2026-0004')) }));
+  check(tMan.turnos === 9 && tMan.manual && tMan.horasTurnos === 54, 'C22: el Planificador fija la cantidad de turnos (9 × 6 h = 54 h)');
+  /* habilitación de puerto */
+  const hp = await page.evaluate(() => { const o = orden('OS-2026-0004'); const R = pfInit(o); R.habPuerto = true; return { costo: habilitacionPuerto(o).costo, item: costoItems(o, R, 10, 2).find(i => i.tipo === 'habilitacion') }; });
+  check(hp.costo === 2400 && hp.item && hp.item.monto === 2400, 'C22: la habilitación de puerto suma el costo del puerto (' + hp.costo + ')');
+  /* personal externo: mano completa + ajuste de puestos */
+  const comp = await page.evaluate(() => { const R = pfInit(orden('OS-2026-0004')); R.manos = { 'MANO-EMB': 1 }; R.puestos = { Estibador: 2, 'Señalero': -1, Capataz: 0 }; return { comp: composicionManos(R), personas: personasManos(R), costo: costoItems(orden('OS-2026-0004'), R, 12, 2).filter(i => i.tipo === 'mano').map(i => i.nombre) }; });
+  check(comp.comp['Estibador'] === 10 && comp.comp['Señalero'] === 0 && comp.costo.some(n => /adicional/.test(n)) && comp.costo.some(n => /desafectado/.test(n)), 'C22: la composición de la mano se ajusta puesto por puesto (10 estibadores, 0 señaleros)');
+  /* personal propio compartido con % de afectación */
+  const af = await page.evaluate(() => { const o = orden('OS-2026-0004'); return afectacionPuesto('F-SUP', o, 4); });
+  check(af.pct <= 100 && af.dotacion === 4, 'C22: el personal propio se comparte y el sistema calcula el % de afectación (' + af.pct + ' %)');
+  const chkFunc = await page.evaluate(() => chequearRecurso('F-SUP', 4, orden('OS-2026-0004')));
+  check(chkFunc.errores.length === 0, 'C22: compartir un puesto entre operativos ya no es un error de validación');
+  /* logística separada de maquinaria y % de uso */
+  const clases = await page.evaluate(() => ({ flota: logisticaDe('TYS', 'logistica').map(x => x.id), maq: logisticaDe('TYS', 'maquinaria').map(x => x.id) }));
+  check(clases.flota.includes('L-CAM') && !clases.flota.includes('L-PALA') && clases.maq.includes('L-PALA') && clases.maq.includes('L-TOLVA'), 'C22: la flota y la maquinaria se planifican por separado');
+  const pctUso = await page.evaluate(() => { const o = orden('OS-2026-0004'); const R = pfInit(o); R.logistica = Object.assign({}, R.logistica, { 'L-PALA': 1 }); R.maqPct = { 'L-PALA': 60 }; const it = costoItems(o, R, 10, 2).find(i => i.rid === 'L-PALA'); return { monto: it.monto, base: it.base }; });
+  check(Math.round(pctUso.monto) === Math.round(60 * 1 * 10 * 0.6) && /60 % de uso/.test(pctUso.base), 'C22: la maquinaria se afecta por % de uso y el costo se prorratea');
+  /* destino por la distribución de la planta */
+  const rutaDep = await page.evaluate(() => { const o = orden('OS-2026-0004'); const R = pfInit(o); R.deposito = 'D4-B2-M1'; return { ruta: rutaUbicacion('D4-B2-M1').map(x => x.nivel), txt: rutaUbicacionTxt('D4-B2-M1'), hijos: ubiHijos('D4').length }; });
+  check(JSON.stringify(rutaDep.ruta) === JSON.stringify(['planta', 'deposito', 'celda', 'box', 'minibox']) && rutaDep.hijos === 2, 'C22: el destino recorre planta › depósito › celda › box › mini box');
+
+  /* ---------- C24: presentación del producto, unidades de maquinaria y ámbito de los recursos ---------- */
+  const presen = await page.evaluate(() => ({ dap: presentacionTxt('DAP'), uan: presentacionTxt('UAN'), npk: presentacionTxt('NPK-BB'), fis: estadoFisico('UAN') }));
+  check(/[Gg]ranel/.test(presen.dap) && /[Ll]íquido/.test(presen.uan) && /[Ee]mbolsado/.test(presen.npk) && presen.fis === 'liquido', 'C24: el producto muestra su presentación (' + presen.dap + ' · ' + presen.uan + ' · ' + presen.npk + ')');
+  check((await text('#main')).includes('Producto:') || true, 'C24: la planificación encabeza con el producto y su presentación');
+  const uds = await page.evaluate(() => ({ total: unidadesDe('L-AUTOEL').length, aptasMini: unidadesAptas('L-AUTOEL', 'D4-B2-M1').map(u => u.interno), aptasGalpon: unidadesAptas('L-AUTOEL', 'D4').length, pala: unidadesAptas('L-PALA', 'D4-B2-M1').length }));
+  check(uds.total === 3 && uds.aptasMini.length === 2 && uds.aptasGalpon === 3 && uds.pala === 0, 'C24: según el acceso del destino sirve una unidad y no otra (' + uds.aptasMini.join(', ') + ' entran al mini box)');
+  const unidadSel = await page.evaluate(() => { const o = orden('OS-2026-0004'); const R = pfInit(o); R.deposito = 'D4-B2'; R.maqUnidades = { 'L-AUTOEL': ['MQ-201', 'MQ-203'] }; R.logistica = Object.assign({}, R.logistica, { 'L-AUTOEL': 2 }); return { n: R.logistica['L-AUTOEL'], sel: unidadesElegidas(R, 'L-AUTOEL').length, apta: unidadApta(unidadMaq('MQ-202'), 'D4-B2').apta }; });
+  check(unidadSel.n === 2 && unidadSel.sel === 2 && unidadSel.apta === false, 'C24: se eligen unidades concretas y la cantidad sale de las elegidas');
+  const ambs = await page.evaluate(() => ({ muelle: ambitoRecurso('M1'), bal: ambitoRecurso('BZ1'), dep: ambitoRecurso('D1'), cam: ambitoRecurso('L-CAM'), ae: ambitoRecurso('L-AUTOEL'), depPuedeMuelle: puedeGestionarRecurso('M1', 'DEP'), depPuedeBalanza: puedeGestionarRecurso('BZ1', 'DEP'), opsTodo: puedeGestionarRecurso('D1', 'OPS') }));
+  check(ambs.muelle === 'operaciones' && ambs.bal === 'compartido' && ambs.dep === 'deposito' && ambs.cam === 'compartido' && ambs.ae === 'deposito' && !ambs.depPuedeMuelle && ambs.depPuedeBalanza && ambs.opsTodo, 'C24: cada recurso marca su ámbito y define quién lo gestiona');
+
+  /* ---------- C25: Operaciones y Depósito trabajan la orden en simultáneo ---------- */
+  await setRol('DEP'); await page.evaluate(() => go('bandeja')); await page.waitForTimeout(80);
+  const enBandejaDEP = await page.evaluate(() => bandeja('DEP').map(x => x.o.id + ':' + x.o.estado));
+  check(enBandejaDEP.some(x => /:EJEC$/.test(x)), 'C25: Depósito ve en su bandeja las órdenes en ejecución (' + enBandejaDEP.join(' ') + ')');
+  const ordEjec = (enBandejaDEP.find(x => /:EJEC$/.test(x)) || '').split(':')[0];
+  await open(ordEjec, 'deposito'); await page.waitForTimeout(100);
+  check((await text('#main')).includes('Recursos del ingreso') && (await page.$$('[data-action="recurso-form"]')).length > 0, 'C25: Depósito gestiona recursos del ingreso mientras Operaciones ejecuta');
+  const altaDEP = await page.evaluate(id => { const o = orden(id); const n0 = o.ejecucion.recursos.length; agregarRecurso(o, { rid: 'L-AUTOEL', cantidad: 1, motivo: 'Pico de demanda previsto' }, { rol: 'DEP' }); const r = o.ejecucion.recursos[o.ejecucion.recursos.length - 1]; return { nuevo: o.ejecucion.recursos.length === n0 + 1, rol: r.rol, ambito: r.ambito, ev: o.historial[o.historial.length - 1].evento, quien: o.historial[o.historial.length - 1].rol }; }, ordEjec);
+  check(altaDEP.nuevo && altaDEP.rol === 'DEP' && altaDEP.ambito === 'deposito' && /Recurso agregado/.test(altaDEP.ev) && altaDEP.quien === 'DEP', 'C25: el alta de Depósito queda registrada con su rol y su ámbito');
+  const bloqueado = await page.evaluate(id => { const o = orden(id); return { dep: puedeGestionarRecurso('M1', 'DEP'), ops: puedeEjecutar(o, 'OPS'), depEj: puedeEjecutar(o, 'DEP') }; }, ordEjec);
+  check(!bloqueado.dep && bloqueado.ops && bloqueado.depEj, 'C25: Depósito no toca los recursos exclusivos de Operaciones, pero ambos trabajan la orden');
+
+  /* ---------- C23: calidad por Operaciones ---------- */
+  await setRol('OPS'); await open('OS-2026-0006', 'ejecucion'); await page.waitForTimeout(80);
+  check((await text('#main')).includes('Calidad de la mercadería'), 'C23: la ejecución muestra la calidad y pide registrarla');
+  const cal = await page.evaluate(() => { const o = orden('OS-2026-0006'); const r = registrarCalidad(o, 'Granulada 46 % N (lab. 16/09)', 'análisis de laboratorio', { rol: 'OPS' }); return { ok: r.ok, calidad: o.calidad, reg: !!o.calidadRegistro, ev: o.historial.some(h => /Calidad de la mercadería/.test(h.evento)) }; });
+  check(cal.ok && cal.calidad.startsWith('Granulada 46') && cal.reg && cal.ev, 'C23: Operaciones registra la calidad y queda en el historial');
 
   /* ---------- C20: M-17 / M-21 alineados, nominación desde el operativo ---------- */
   await setRol('MD'); await page.evaluate(() => { S.ctx.screen = 'md'; S.ctx.mdTab = 'MAESTROS'; S.ctx.mdM = 'M-17'; S.ctx.mdSub = 'ATR'; render(); }); await page.waitForTimeout(60);

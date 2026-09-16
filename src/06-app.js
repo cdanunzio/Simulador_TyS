@@ -76,6 +76,9 @@ function closeModal() { document.getElementById('modal-root').innerHTML = ''; _m
 function mv(id) { const el = document.getElementById(id); if (!el) return null; return el.type === 'checkbox' ? el.checked : el.value; }
 
 /* ---------- acciones sobre la orden ---------- */
+/* Operaciones y Depósito pueden trabajar la orden en ejecución a la vez, cada uno en su ámbito (S35) */
+function requiereEjecutor(o) { if (puedeEjecutar(o)) return true; toast(o.estado === 'EJEC' ? 'Durante la ejecución la gestionan Operaciones y Depósito. Cambiá el rol activo.' : 'La orden no está en ejecución.', 'warn'); return false; }
+function requiereAmbito(o, idx) { const r = o.ejecucion?.recursos?.[idx]; if (!r) return false; if (puedeGestionarRecurso(r.rid, S.ctx.rol)) return true; toast(recNombre(r.rid) + ' es un recurso de ' + ambitoInfo(ambitoRecurso(r.rid)).nombre + ': lo gestiona ese rol.', 'warn'); return false; }
 function requiereRol(rol) { if (S.ctx.rol !== rol) { toast('Esta acción corresponde a ' + rolName(rol) + '. Cambiá el rol activo en la barra superior.', 'warn'); return false; } return true; }
 function accionPrincipalRun(o, act) {
   const c = condiciones(o);
@@ -104,24 +107,24 @@ function accionPrincipalRun(o, act) {
     else fin();
   } else if (act === 'cerrar') {
     const rc = rolCierre(o); if (!requiereRol(rc)) return;
-    const merma = +mv('cz-merma') || 0, exc = +mv('cz-exc') || 0; const ev = evaluarMerma(o, merma, exc);
-    if (merma && exc) { toast('Registrá merma o excedente, no ambos', 'crit'); return; }
+    /* la merma / el excedente salen de lo pesado en balanza: no se cargan a mano (revisión 16/09, S27) */
+    const ev = evaluarMerma(o);
     if (!ev.dentro && !mv('cz-aprob')) { toast('Fuera de la tolerancia contractual (' + fmtN(ev.tol, 1) + ' %): requiere aprobación de Comercial', 'crit'); return; }
     if (!ev.dentro && !mv('cz-aprob-ref')) { toast('Indicá la referencia de la aprobación de Comercial', 'crit'); return; }
-    cerrar(o, mv('cierre-obs') || '', { merma, excedente: exc, aprobacionComercial: !ev.dentro ? mv('cz-aprob-ref') : null }); S.ctx.cz = null;
-    toast(o.id + ' cerrada' + (merma ? ' · merma ' + fmtN(merma, 1) + ' t' : exc ? ' · excedente ' + fmtN(exc, 1) + ' t' : '') + ' · comparativas congeladas', 'ok'); go('bandeja');
+    cerrar(o, mv('cierre-obs') || '', { aprobacionComercial: !ev.dentro ? mv('cz-aprob-ref') : null }); S.ctx.cz = null;
+    toast(o.id + ' cerrada' + (ev.merma ? ' · merma ' + fmtN(ev.merma, 1) + ' t según balanza' : ev.excedente ? ' · excedente ' + fmtN(ev.excedente, 1) + ' t según balanza' : ' · sin diferencia de balanza') + ' · comparativas congeladas', 'ok'); go('bandeja');
   }
 }
 
 /* ---------- formularios modales de ejecución ---------- */
 function formRecurso(o) {
-  const E = o.entidad; const grp = (label, list, f) => '<optgroup label="' + label + '">' + list.map(x => '<option value="' + x.id + '">' + esc(f(x)) + '</option>').join('') + '</optgroup>';
+  const E = o.entidad; const soloMios = l => l.filter(x => puedeGestionarRecurso(x.id)); const grp = (label, list, f) => '<optgroup label="' + label + '">' + list.map(x => '<option value="' + x.id + '">' + esc(f(x)) + '</option>').join('') + '</optgroup>';
   const eqb = equiposBuqueDe(o); const eqInfo = tipoEquipoInfo(tipoEquipoPara(o));
-  const body = field('Recurso', '<select id="m-rid">' + grp(eqInfo.nombre + ' del muelle (según el producto)', equiposMuelleDe(o), e => e.id + ' · ' + e.nombre + ' · ' + e.capacidadTh + ' t/h · ' + e.estado) + (eqb ? grp('Equipos del buque', [eqb], e => e.nombre + ' · sin costo para la terminal') : '') + grp('Logística (propia y de terceros)', md().logistica.filter(l => l.entidad === E && mdUsable(l)), l => l.nombre + ' · ' + fmtUSD(l.costoHora) + '/h') + grp('Personal externo', md().manos.filter(mdUsable), m => m.nombre + ' · ' + fmtUSD(m.costoTurno) + '/turno') + grp('Personal propio', md().funciones.filter(mdUsable), f => f.nombre + ' · ' + fmtUSD(f.costoTurno) + '/turno') + grp('Depósitos (reemplaza al destino activo)', md().depositos.filter(d => d.entidad === E && mdUsable(d)), d => d.nombre + ' · ' + fmtT(d.capacidadT - d.ocupadoT) + ' t libres' + (d.fiscal ? ' · fiscal' : '')) + grp('Balanzas (reemplaza a la activa)', md().balanzas.filter(b => b.entidad === E && mdUsable(b)), b => b.nombre) + grp('Muelles (reemplaza al activo)', md().muelles.filter(m => m.entidad === E && mdUsable(m)), m => m.nombre) + '</select>') +
+  const body = field('Recurso', '<select id="m-rid">' + grp(eqInfo.nombre + ' del muelle (según el producto)', soloMios(equiposMuelleDe(o)), e => e.id + ' · ' + e.nombre + ' · ' + e.capacidadTh + ' t/h · ' + e.estado) + (eqb ? grp('Equipos del buque', [eqb], e => e.nombre + ' · sin costo para la terminal') : '') + grp('Logística (flota)', soloMios(logisticaDe(E, 'logistica').filter(mdUsable)), l => l.nombre + ' · ' + fmtUSD(l.costoHora) + '/h') + grp('Maquinaria', soloMios(logisticaDe(E, 'maquinaria').filter(mdUsable)), l => l.nombre + ' · ' + fmtUSD(l.costoHora) + '/h' + (unidadesDe(l.id).length ? ' · ' + unidadesDe(l.id).length + ' unidades' : '')) + grp('Personal externo (manos)', soloMios(md().manos.filter(mdUsable)), m => m.nombre + ' · ' + fmtUSD(m.costoTurno) + '/turno') + grp('Personal propio', soloMios(md().funciones).filter(mdUsable), f => f.nombre + ' · ' + fmtUSD(f.costoTurno) + '/turno') + grp('Depósitos y ubicaciones (reemplaza al destino activo)', soloMios(md().depositos.filter(d => d.entidad === E && mdUsable(d))), d => d.nombre + ' · ' + fmtT(d.capacidadT - d.ocupadoT) + ' t libres' + (d.fiscal ? ' · fiscal' : '')) + grp('Balanzas (reemplaza a la activa)', soloMios(md().balanzas.filter(b => b.entidad === E && mdUsable(b))), b => b.nombre) + grp('Muelles (reemplaza al activo)', md().muelles.filter(m => m.entidad === E && mdUsable(m)), m => m.nombre) + '</select>') +
     '<div class="form-grid">' + field('Cantidad', '<input type="number" id="m-cant" value="1" min="1">') + field('Motivo', sel('m-motivo', md().motivosModificacion.map(x => ({ v: x, t: x })), md().motivosModificacion[0])) + '</div>' +
     '<label class="field chk"><input type="checkbox" id="m-atrib"><span>El gasto es <b>atribuible al cliente</b> (queda pendiente de aprobación por Comercial) ' + sup('S5') + '</span></label>' +
     field('Respaldo (referencia, mail, acta)', '<input id="m-resp" placeholder="p. ej. mail del cliente 14/09 solicitando mayor ritmo">') +
-    '<p class="help">Se registra recurso, momento (reloj simulado ' + fmtDT(o.ejecucion.reloj) + '), responsable (' + esc(userOf('OPS')) + ') y motivo; la disponibilidad se verifica para el próximo turno (' + md().parametros.horasTurno + ' h). Los cambios se comparan con la planificación inicial al cierre.</p>';
+    '<p class="help">Se registra recurso, momento (reloj simulado ' + fmtDT(o.ejecucion.reloj) + '), responsable (' + esc(userOf(S.ctx.rol)) + ', ' + esc(rolName(S.ctx.rol)) + ') y motivo; el listado muestra solo los recursos que ' + esc(rolName(S.ctx.rol)) + ' puede asignar (su ámbito y los compartidos); la disponibilidad se verifica para el próximo turno (' + md().parametros.horasTurno + ' h). Los cambios se comparan con la planificación inicial al cierre.</p>';
   modal({ title: 'Agregar recurso al operativo', body, ok: 'Agregar', onOk: () => {
     const rid = mv('m-rid'); const n = +mv('m-cant') || 1; const ch = chequearRecurso(rid, n, { ...o, toneladas: Math.max(0, (o.toneladas || 0) - (o.ejecucion.acumulado || 0)), ventana: { inicio: o.ejecucion.reloj, fin: addHours(o.ejecucion.reloj, md().parametros.horasTurno) } });
     if (ch.errores.length) { toast(ch.errores[0], 'crit'); return false; }
@@ -130,7 +133,8 @@ function formRecurso(o) {
       const idxAct = o.ejecucion.recursos.findIndex(r => (r.tipo || recursoTipo(r.rid)) === tipo && !r.hasta);
       if (idxAct >= 0) { if (o.ejecucion.recursos[idxAct].rid === rid) { toast(recNombre(rid) + ' ya es el ' + tipo + ' activo', 'warn'); return false; } reemplazarRecurso(o, idxAct, rid, { motivo: mv('m-motivo'), atribuible: mv('m-atrib'), respaldo: mv('m-resp'), cantidad: 1 }); toast(tipo + ' reemplazado por ' + recNombre(rid), 'ok'); return; }
     }
-    const rec = agregarRecurso(o, { rid, cantidad: n, motivo: mv('m-motivo'), atribuible: mv('m-atrib'), respaldo: mv('m-resp') });
+    if (!puedeGestionarRecurso(rid)) { toast(recNombre(rid) + ' es un recurso de ' + ambitoInfo(ambitoRecurso(rid)).nombre + ': lo asigna ese rol.', 'crit'); return false; }
+    const rec = agregarRecurso(o, { rid, cantidad: n, motivo: mv('m-motivo'), atribuible: mv('m-atrib'), respaldo: mv('m-resp') }, { rol: S.ctx.rol });
     toast(recNombre(rid) + ' agregado' + (rec.atribuibleCliente ? ' · cargo pendiente de aprobación' : ''), 'ok');
   } });
 }
@@ -140,7 +144,7 @@ function formModificar(o, idx) {
     const n = +mv('m-cant'); if (isNaN(n) || n < 0) { toast('Cantidad inválida', 'crit'); return false; }
     if (n === (r.cantidad || 1)) { toast('La cantidad no cambió', 'warn'); return false; }
     if (n > 0) { const ch = chequearRecurso(r.rid, Math.max(0, n - (r.cantidad || 1)), { ...o, ventana: { inicio: o.ejecucion.reloj, fin: addHours(o.ejecucion.reloj, md().parametros.horasTurno) } }); if (ch.errores.length && n > (r.cantidad || 1)) { toast(ch.errores[0], 'crit'); return false; } }
-    modificarCantidad(o, idx, n, { motivo: mv('m-motivo'), atribuible: mv('m-atrib'), respaldo: mv('m-resp') });
+    modificarCantidad(o, idx, n, { motivo: mv('m-motivo'), atribuible: mv('m-atrib'), respaldo: mv('m-resp') }, { rol: S.ctx.rol });
     toast(recNombre(r.rid) + ': ' + (r.cantidad || 1) + ' → ' + n, 'ok');
   } });
 }
@@ -152,13 +156,13 @@ function formReemplazar(o, idx) {
     const rid = mv('m-rid'); if (!rid) { toast('No hay otro recurso de este tipo', 'crit'); return false; }
     const n = +mv('m-cant') || r.cantidad || 1;
     const ch = chequearRecurso(rid, n, { ...o, toneladas: Math.max(0, (o.toneladas || 0) - (o.ejecucion.acumulado || 0)), ventana: { inicio: o.ejecucion.reloj, fin: addHours(o.ejecucion.reloj, md().parametros.horasTurno) } }); if (ch.errores.length) { toast(ch.errores[0], 'crit'); return false; }
-    reemplazarRecurso(o, idx, rid, { motivo: mv('m-motivo'), atribuible: mv('m-atrib'), respaldo: mv('m-resp'), cantidad: n });
+    reemplazarRecurso(o, idx, rid, { motivo: mv('m-motivo'), atribuible: mv('m-atrib'), respaldo: mv('m-resp'), cantidad: n }, { rol: S.ctx.rol });
     toast(recNombre(r.rid) + ' → ' + recNombre(rid), 'ok');
   } });
 }
 function formLiberar(o, idx) {
   const r = o.ejecucion.recursos[idx];
-  modal({ title: 'Liberar ' + esc(recNombre(r.rid)), body: field('Motivo', sel('m-motivo', md().motivosModificacion.map(x => ({ v: x, t: x })), 'Fin de la necesidad operativa')) + '<p class="help">Queda registrado recurso, momento (' + fmtDT(o.ejecucion.reloj) + '), responsable y motivo.</p>', ok: 'Liberar', onOk: () => { liberarRecurso(o, idx, mv('m-motivo')); toast(recNombre(r.rid) + ' liberado', 'ok'); } });
+  modal({ title: 'Liberar ' + esc(recNombre(r.rid)), body: field('Motivo', sel('m-motivo', md().motivosModificacion.map(x => ({ v: x, t: x })), 'Fin de la necesidad operativa')) + '<p class="help">Queda registrado recurso, momento (' + fmtDT(o.ejecucion.reloj) + '), responsable y motivo.</p>', ok: 'Liberar', onOk: () => { liberarRecurso(o, idx, mv('m-motivo'), { rol: S.ctx.rol }); toast(recNombre(r.rid) + ' liberado', 'ok'); } });
 }
 function formDemora(o) {
   const ex = o.ejecucion; const causas = md().causasDemora.filter(mdUsable);
@@ -240,6 +244,24 @@ function formLineup(lu) {
     toast(lu2.id + ' · ' + lu2.buque + ' registrado', 'ok');
   } });
 }
+/* ---------- calidad de la mercadería registrada por Operaciones (revisión 16/09, S28) ---------- */
+function formCalidad(o) {
+  const cals = calidadesDe(o.producto); const g = origenInfo(o);
+  const opts = [...new Set([...(o.calidad ? [o.calidad] : []), ...cals.map(c => c.calidad)])].map(v => ({ v, t: v }));
+  const body = alertBox('info', '<div><b>' + esc(prod(o.producto)?.nombre || '—') + '</b> · calidad declarada en el origen: ' + esc(calidadDeOrigen(o.origen) || 'sin declarar') + (g ? ' (' + esc(g.tipo) + ' ' + esc(g.id) + ')' : '') + '. Operaciones registra la calidad efectiva de la mercadería; queda en la orden y alimenta la comparativa por calidad ' + sup('S28') + '.</div>') +
+    '<div class="form-grid">' + (opts.length ? field('Calidad (matriz M-23)', sel('m-cal', [...opts, { v: '__otra', t: '— otra (la escribo) —' }], o.calidad || opts[0].v)) : '') +
+    field('Calidad' + (opts.length ? ' (si elegiste "otra")' : ''), '<input id="m-cal-txt" value="' + esc(opts.length ? '' : (o.calidad || '')) + '" placeholder="p. ej. Granulada 46 % N">') +
+    field('Motivo / observación', '<input id="m-cal-mot" placeholder="p. ej. análisis de laboratorio del 16/09">') + '</div>' +
+    (cals.length ? '<p class="help">Parámetros del producto en la matriz de calidad: ' + cals.map(c => '<b>' + esc(c.calidad) + '</b> (' + esc(c.parametro) + ': ' + esc(c.rangos) + ')').join(' · ') + '</p>' : '<p class="help">El producto no tiene calidades cargadas en la matriz M-23: escribila y Máster data la incorporará.</p>');
+  modal({ title: 'Calidad de la mercadería · ' + esc(o.id), body, ok: 'Registrar calidad', onOk: () => {
+    const selv = mv('m-cal'); const txt = (mv('m-cal-txt') || '').trim();
+    const val = (!selv || selv === '__otra') ? txt : selv;
+    const r = registrarCalidad(o, val, mv('m-cal-mot'), { rol: S.ctx.rol });
+    if (!r.ok) { toast(r.motivo, 'crit'); return false; }
+    toast(r.sinCambio ? 'La calidad no cambió' : o.id + ' · calidad registrada: ' + val, r.sinCambio ? 'info' : 'ok');
+  } });
+}
+
 /* ---------- reservas de capacidad de las áreas (revisión 16/09, S24) ---------- */
 function origenesReservables() {
   const E = S.ctx.entidad; const out = [];
@@ -443,6 +465,7 @@ function onClick(e) {
     case 'anular': if (o) formAnular(o); break;
     /* ---- Mi área: capacidad y reservas (revisión 16/09) ---- */
     case 'area-tab': S.ctx.areaTab = d.t; render({ keep: true }); break;
+    case 'calidad-form': { const o = orden(d.id); if (!o) break; if (!requiereRol('OPS')) break; formCalidad(o); break; }
     case 'ra-nueva': if (S.ctx.rol !== 'ARE' && S.ctx.rol !== 'MD') { toast('Las reservas de capacidad las hace el área (rol Responsable de área).', 'warn'); break; } formReservaArea(d.rid || null); break;
     case 'ra-liberar': formLiberarReserva(d.id); break;
     case 'ra-revalidar': formRevalidarReserva(d.id); break;
@@ -469,10 +492,11 @@ function onClick(e) {
     case 'pf-regen': if (o) { o.recomendacion = recomendar(o); PF[o.id] = o.recomendacion && !o.recomendacion.sinOpciones ? clone(o.recomendacion.recursos) : pfInit(o); logEv(o, 'Recomendación regenerada', o.recomendacion?.sinOpciones ? 'sin combinación factible' : resumenRecursos(o.recomendacion.recursos), { rol: 'PLAN' }); toast('Recomendación regenerada', 'ok'); render({ keep: true }); } break;
     case 'simular': if (o && requiereRol('OPS')) { const n = simular(o, +d.h); toast(n ? n + ' tickets simulados · acumulado ' + fmtT(o.ejecucion.acumulado) + ' t' : (o.ejecucion.acumulado >= o.toneladas ? 'La descarga ya está completa' : 'Sin equipos activos: no hay ritmo de descarga'), n ? 'ok' : 'warn'); render({ keep: true }); } break;
     case 'ticket-form': if (o && requiereRol('OPS')) formTicket(o); break;
-    case 'recurso-form': if (o && requiereRol('OPS')) formRecurso(o); break;
-    case 'liberar-form': if (o && requiereRol('OPS')) formLiberar(o, +d.idx); break;
-    case 'modificar-form': if (o && requiereRol('OPS')) formModificar(o, +d.idx); break;
-    case 'reemplazar-form': if (o && requiereRol('OPS')) formReemplazar(o, +d.idx); break;
+    case 'recurso-form': if (o && requiereEjecutor(o)) formRecurso(o); break;
+    case 'liberar-form': if (o && requiereEjecutor(o) && requiereAmbito(o, +d.idx)) formLiberar(o, +d.idx); break;
+    case 'modificar-form': if (o && requiereEjecutor(o) && requiereAmbito(o, +d.idx)) formModificar(o, +d.idx); break;
+    case 'reemplazar-form': if (o && requiereEjecutor(o) && requiereAmbito(o, +d.idx)) formReemplazar(o, +d.idx); break;
+    case 'go-sec': if (o) openOrden(o.id, d.sec); break;
     case 'demora-form': if (o && requiereRol('OPS')) formDemora(o); break;
     case 'cargo': if (o && requiereRol('COM')) { resolverCargo(o, d.ref, d.dec); toast('Cargo ' + d.dec.toLowerCase(), 'ok'); render({ keep: true }); } break;
     case 'w-guardar': wGuardar(false); break;
@@ -518,8 +542,31 @@ function onChange(e) {
       if (el.value === 'buque') { R.equipos = eqb ? [eqb.id] : []; if (R.funciones) delete R.funciones['F-GRU']; }
       else { R.equipos = (R.equipos || []).filter(x => !esEquipoBuque(x)); if (!R.equipos.length && rec && origenEquipos(rec) === 'muelle') R.equipos = [...rec.equipos]; R.funciones = R.funciones || {}; if (tipoEquipoPara(o) === 'Grúa' && !R.funciones['F-GRU']) R.funciones['F-GRU'] = Math.max(1, R.equipos.length); }
     }
+    else if (d.pf === 'eqbn') { const eqb = equiposBuqueDe(o); const n = +el.value || 1; R.equiposBuqueN = el.checked ? n : n - 1; if (R.equiposBuqueN < 1) R.equiposBuqueN = 1; if (eqb) R.equipos = [eqb.id]; }
+    else if (d.pf === 'turnos') { const n = Math.max(1, Math.min(60, +el.value || 1)); R.turnos = n; }
+    else if (d.pf === 'habPuerto') R.habPuerto = !!el.checked;
     else if (['muelle', 'deposito', 'balanza'].includes(d.pf)) R[d.pf] = el.value || null;
-    else { const [k, id] = d.pf.split(':'); const map = { mano: 'manos', func: 'funciones', log: 'logistica' }[k]; R[map] = R[map] || {}; R[map][id] = Math.max(0, +el.value || 0); }
+    else { const [k, id] = d.pf.split(':');
+      if (k === 'maqpct') { R.maqPct = R.maqPct || {}; R.maqPct[id] = Math.max(1, Math.min(100, +el.value || 100)); }
+      else if (k === 'maqu') { /* unidades concretas de una maquinaria (S34): la cantidad sale de las elegidas */
+        const [maq, uid] = d.pf.split(':').slice(1); R.maqUnidades = R.maqUnidades || {}; const lst = new Set(R.maqUnidades[maq] || []);
+        if (el.checked) lst.add(uid); else lst.delete(uid);
+        R.maqUnidades[maq] = [...lst]; R.logistica = R.logistica || {};
+        if (R.maqUnidades[maq].length) { R.logistica[maq] = R.maqUnidades[maq].length; R.maqPct = R.maqPct || {}; if (R.maqPct[maq] == null) R.maqPct[maq] = 100; }
+        else { delete R.maqUnidades[maq]; }
+      }
+      else if (k === 'puesto') { R.puestos = R.puestos || {}; const v = Math.round(+el.value || 0); if (v) R.puestos[id] = v; else delete R.puestos[id]; }
+      else { const map = { mano: 'manos', func: 'funciones', log: 'logistica' }[k]; R[map] = R[map] || {}; R[map][id] = Math.max(0, +el.value || 0); if (k === 'log' && !R[map][id] && R.maqPct) delete R.maqPct[id]; }
+    }
+    render({ keep: true }); return;
+  }
+  if (d.depsel !== undefined) { /* destino en depósito por la distribución de la planta (S29) */
+    const o = orden(S.ctx.orderId); if (!o) return; const R = pfInit(o, S.ctx.ajusteId === o.id ? 'ajuste' : undefined);
+    const v = el.value || '';
+    if (d.depsel === 'planta' || d.depsel === 'deposito') {
+      /* al cambiar de planta o de depósito se limpia el destino: hay que volver a elegir la ubicación */
+      R.deposito = null; S.ctx.depNav = { planta: d.depsel === 'planta' ? v : (S.ctx.depNav?.planta || ''), deposito: d.depsel === 'deposito' ? v : '' };
+    } else { R.deposito = v || (d.depsel === 'box' ? (rutaUbicacion(R.deposito).find(x => x.nivel === 'celda')?.id || null) : d.depsel === 'minibox' ? (rutaUbicacion(R.deposito).find(x => x.nivel === 'box')?.id || null) : null); }
     render({ keep: true }); return;
   }
   if (d.det !== undefined) { /* detalle del servicio de Rental / Logística (S21) */
@@ -540,7 +587,7 @@ function onChange(e) {
     if (d.w === 'servicio' || d.w === 'bu' || d.w === 'dest' || d.w === 'producto') wAutoFill();
     render({ keep: true }); return;
   }
-  if (d.cz !== undefined) { const o = orden(S.ctx.orderId); if (!o) return; const cz = (S.ctx.cz && S.ctx.cz.id === o.id) ? S.ctx.cz : { id: o.id, merma: +mv('cz-merma') || 0, excedente: +mv('cz-exc') || 0, aprob: false, aprobRef: '', obs: '' }; cz.merma = +mv('cz-merma') || 0; cz.excedente = +mv('cz-exc') || 0; cz.aprob = !!mv('cz-aprob'); cz.aprobRef = mv('cz-aprob-ref') || ''; cz.obs = mv('cierre-obs') || ''; S.ctx.cz = cz; render({ keep: true }); return; }
+  if (d.cz !== undefined) { const o = orden(S.ctx.orderId); if (!o) return; const cz = (S.ctx.cz && S.ctx.cz.id === o.id) ? S.ctx.cz : { id: o.id, aprob: false, aprobRef: '', obs: '' }; cz.aprob = !!mv('cz-aprob'); cz.aprobRef = mv('cz-aprob-ref') || ''; cz.obs = mv('cierre-obs') || ''; S.ctx.cz = cz; render({ keep: true }); return; }
   if (d.arrestado) { if (S.ctx.rol !== 'LAR') { toast('Solo Logística de arribo modifica el estado de los arribos', 'warn'); render({ keep: true }); return; } const [tipo, id] = d.arrestado.split(':'); cambiarEstadoArribo(tipo, id, el.value); toast(id + ' → ' + el.value, 'ok'); render({ keep: true }); return; }
   if (d.cierre) { const s = srv(d.cierre); s.cierre = el.value; s.cierreSup = true; toast(s.nombre + ' cierra en ' + rolName(el.value), 'ok'); render({ keep: true }); return; }
   if (d.mat) { const [E, c] = d.mat.split(':'); md().matrizEjecucion[E][c] = el.value; toast('Matriz actualizada: ' + compName(c) + ' → ' + buName(el.value), 'ok'); save(); return; }

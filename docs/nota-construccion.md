@@ -1,4 +1,4 @@
-# Maqueta ERP v2 — Orden de servicio multiempresa — Nota de construcción (15/09/2026, actualizada a v2.10)
+# Maqueta ERP v2 — Orden de servicio multiempresa — Nota de construcción (15/09/2026, actualizada a v2.12)
 
 Primer entregable de la nueva base del proyecto (ver `claude/maqueta-v2-orden-de-servicio-spec.md`). Reemplaza a la app web v1.1 "TyS - Sistema de gestión operativa FD". El FD v2.0 (Word) y el Excel de master data v2.0 se derivan de esta maqueta.
 
@@ -6,7 +6,7 @@ Primer entregable de la nueva base del proyecto (ver `claude/maqueta-v2-orden-de
 
 | Entrega | Detalle |
 |---|---|
-| Página publicada | Artefacto "Maqueta ERP TyS v2.0" (link privado, compartible desde el menú de la página). Se actualiza en el mismo link con cada revisión (v1 base · v2 servicio antes que BU · v3 = v2.1 arribos, adendas, propios/terceros · v4–v5 = v2.2 LAR consulta, vuelta a mi etapa, ABM en ejecución, ajuste pre-inicio, merma/excedente · v6 = v2.2.1 método seguro desde master data · v7 = v2.3 solicitud de habilitación a la BU dueña · v8 = v2.4 equipos según el producto, origen muelle / buque y cambio de fecha de arribo · v9 = v2.5 master data completa según el modelo v3.1 · v10 = v2.6 rol Máster data con ABM y permisos por maestro, devolver / anular en cada etapa · v11 = v2.7 toneladas y fechas del servicio por Comercial, módulos por rol / sector, descarga a cargo de Operaciones · v12 = v2.8 Rental y Logística: medio interna / externa, cliente según el medio, detalle del servicio con maquinarias / camión, origen-destino y km automáticos · v13 = v2.8.1 diseño responsive para teléfono y tablet · v14 = v2.9 menú de Operación por rol, entidad y BU con simulador; ABM de convenciones, reglas, definiciones y decisiones por Máster data · v15 = v2.9.1 Logística de arribo en tarjetas legibles · v16 = v2.10 M-17 y M-21 alineados, nominación del lineup alimentada por el operativo, módulo Mi área con capacidad y ABM por sector, y reservas de capacidad para operativos futuros con revalidación). |
+| Página publicada | Artefacto "Maqueta ERP TyS v2.0" (link privado, compartible desde el menú de la página). Se actualiza en el mismo link con cada revisión (v1 base · v2 servicio antes que BU · v3 = v2.1 arribos, adendas, propios/terceros · v4–v5 = v2.2 LAR consulta, vuelta a mi etapa, ABM en ejecución, ajuste pre-inicio, merma/excedente · v6 = v2.2.1 método seguro desde master data · v7 = v2.3 solicitud de habilitación a la BU dueña · v8 = v2.4 equipos según el producto, origen muelle / buque y cambio de fecha de arribo · v9 = v2.5 master data completa según el modelo v3.1 · v10 = v2.6 rol Máster data con ABM y permisos por maestro, devolver / anular en cada etapa · v11 = v2.7 toneladas y fechas del servicio por Comercial, módulos por rol / sector, descarga a cargo de Operaciones · v12 = v2.8 Rental y Logística: medio interna / externa, cliente según el medio, detalle del servicio con maquinarias / camión, origen-destino y km automáticos · v13 = v2.8.1 diseño responsive para teléfono y tablet · v14 = v2.9 menú de Operación por rol, entidad y BU con simulador; ABM de convenciones, reglas, definiciones y decisiones por Máster data · v15 = v2.9.1 Logística de arribo en tarjetas legibles · v16 = v2.10 M-17 y M-21 alineados, nominación del lineup alimentada por el operativo, módulo Mi área con capacidad y ABM por sector, y reservas de capacidad para operativos futuros con revalidación · v17 = v2.11 planificación afinada (equipos excluyentes, personal externo por puesto, personal propio con % de afectación, flota separada de maquinaria con % de uso, habilitación de puerto, turnos desde M-33 y destino por la distribución de la planta), calidad registrada por Operaciones y cierre con la merma que declara la balanza · v18 = v2.12 presentación del producto, unidades de maquinaria con control de acceso del destino, ámbito de cada recurso y trabajo simultáneo de Operaciones y Depósito). |
 | Archivo | `TyS - Maqueta ERP v2.9 - Orden de servicio.html` — archivo único HTML+CSS+JS, sin dependencias externas (solo tipografía IBM Plex desde Google Fonts, con fallback). Mismo build que la página. |
 | Estado | En `localStorage` del navegador; botón **Reiniciar demo** vuelve al escenario inicial. Las fechas del escenario son relativas al día de apertura (la demo no envejece). Un cambio de versión de la maqueta reinicia el estado guardado. |
 
@@ -95,6 +95,40 @@ Tres puntos de corte en `src/01-head.html`: **escritorio** (> 1180 px, barra lat
 ## Repositorio y despliegue (16/09)
 
 El código quedó preparado como repositorio git (rama `main`, commit inicial v2.8) para subir a GitHub y desplegar en Vercel: `package.json` (scripts build / test / start, sin dependencias de producción), `vercel.json` (sin framework, `bash build.sh` como build, `public/` como salida, install vacío), `.gitignore` (dist/, public/, node_modules/, capturas), `.gitattributes`, workflow `.github/workflows/ci.yml` (build + Playwright + `test/walk.js` en cada push y PR, con el archivo único como artefacto) y README con los pasos. `build.sh` ahora también escribe `public/index.html`. Entregado como `tys-maqueta-erp - repositorio git (v2.8).zip`. Cada push a `main` redeploya producción en Vercel; los PR generan vistas previas.
+
+## Presentación, unidades de maquinaria y trabajo simultáneo (17/09, v2.12)
+
+**Presentación del producto (S35).** `presentacionProducto` / `presentacionTxt` normalizan el valor de M-07 (`granel`, `tanque`, `big bag`) a una etiqueta legible y lo combinan con familia, estado físico y densidad; se muestran en el encabezado del formulario del Planificador y en Expediente › Resumen.
+
+**Unidades de maquinaria (S34).** Nuevo maestro **M-12a `maquinariaUnidades`** (18 unidades de demostración con interno, marca, modelo, año, capacidad, ancho y alto) y atributo `acceso` (ancho, alto, tipo) en cada ubicación de M-10a. `unidadApta(u, ubi)` compara medidas contra el acceso del destino y el estado de la unidad; `maquinariaBlock` despliega cada maquinaria en un `<details>` con sus unidades (`data-pf="maqu:<maq>:<unidad>"` → `R.maqUnidades`), deshabilita las que no entran y deriva la cantidad de las elegidas. M-12a y el acceso de M-10a se ven en Datos maestros.
+
+**Ámbito de los recursos (S33).** Cada recurso lleva `ambito` ('operaciones' | 'deposito' | 'compartido'); `ambitoRecurso`, `AMBITOS`, `ambChip` y `ambLeyenda` lo muestran en la planificación, en la tabla de ejecución (columna nueva) y en el panel de Depósito.
+
+**Trabajo simultáneo (S35).** `puedeEjecutar(o, rol)` habilita a Operaciones y a Depósito mientras la orden está en ejecución y `puedeGestionarRecurso(rid, rol)` limita cada uno a su ámbito y a los compartidos; `requiereEjecutor` / `requiereAmbito` controlan las acciones. `agregarRecurso`, `modificarCantidad`, `reemplazarRecurso` y `liberarRecurso` reciben el rol y lo guardan en el movimiento (`rol`, `ambito`) y en el historial. `bandeja('DEP')` incluye las órdenes en ejecución con depósito y `secDeposito` suma el panel *Recursos del ingreso* con su propio ABM; el selector de alta filtra por ámbito.
+
+Casos guiados 24 y 25, supuestos S33–S35, 304 comprobaciones.
+
+## Planificación afinada, calidad y cierre por balanza (16/09, v2.11)
+
+**Equipos excluyentes.** `equiposBlock` con origen *buque* lista las grúas del buque **unidad por unidad** (`data-pf="eqbn"` → `R.equiposBuqueN`) y no ofrece las del muelle; con origen *muelle* se filtran los `EQB-*`. `ritmoPlan` usa `capacidadUnidad × equiposBuqueN`.
+
+**Personal externo (S30).** `M.puestosMano` se deriva en `extendSeed` de la composición y el costo de cada mano (costo por persona y turno). El planificador asigna manos completas (`R.manos`) y ajusta la composición con `R.puestos = { <puesto>: ±n }` (`data-pf="puesto:<rol>"`); `composicionManos` / `personasManos` calculan el efectivo y `costoItems` agrega o descuenta los ajustes.
+
+**Personal propio compartido (S25).** `afectacionPuesto(rid, o, n)` = dotación / demanda simultánea; la superposición deja de ser error (pasa a aviso), el planificador ve el % por puesto y `costoItems` lo prorratea. `congelarAfectacion` guarda `recursos.afectacion` al confirmar o ajustar el plan.
+
+**Flota y maquinaria (S31).** Cada registro de M-12 lleva `clase` ('logistica' | 'maquinaria'); `claseRecurso`, `esMaquinaria` y `logisticaDe(entidad, clase)` alimentan dos bloques separados (`flotaBlock`, `maquinariaBlock`). La maquinaria lleva `R.maqPct[id]` (% de uso): `cantidadEnOrden` devuelve la cantidad efectiva (cantidad × %), de modo que el remanente queda disponible para otra orden, y el costo se prorratea. El módulo Mi área distingue los mismos dos tipos.
+
+**Turnos (S26).** `regimenTurnos()` y `duracionTurno()` leen M-33; `duracionPlan` devuelve `turnosCalc` (propuesto por el ritmo) y respeta `R.turnos` cuando el Planificador lo fija; `turnosBlock` muestra la secuencia de turnos ocupados desde el inicio de la ventana.
+
+**Habilitación de puerto (S32).** `costo_habilitacion_puerto` por planta / puerto en M-09; `habilitacionPuerto(o)` lo resuelve desde el puerto del origen y `costoItems` agrega el ítem cuando `R.habPuerto`.
+
+**Destino por la distribución (S29).** M-10a suma `nivel` ('celda' | 'box' | 'minibox') y `padreUbi`, con boxes y mini boxes sembrados bajo el galpón embolsado y la celda 1. `rutaUbicacion`, `ubiHijos` y `depositoCascada` arman los selectores planta › depósito › celda › box › mini box (`data-depsel`), y el destino es el último nivel elegido.
+
+**Calidad (S28).** `registrarCalidad(o, calidad, motivo)` con traza en el historial; botón y aviso en Expediente › Ejecución y formulario `formCalidad` con las calidades de M-23 del producto.
+
+**Cierre por balanza (S27).** `evaluarMerma(o)` pasa a calcularse solo desde `previsto − pesado`; se eliminan los campos manuales del cierre y `cerrar` ya no recibe merma / excedente. La aprobación de Comercial fuera de tolerancia se mantiene.
+
+Casos guiados 22 y 23, supuestos S25–S32, 295 comprobaciones. Además, en móvil las grillas de dos columnas pasan a `minmax(0,1fr)` para que las tablas anchas no desborden la tarjeta.
 
 ## Áreas, reservas y nominación del lineup (16/09, v2.10)
 

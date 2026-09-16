@@ -2,6 +2,8 @@
 module.exports = function (d, M, L) {
   const { h1, h2, h3, p, note, ul, ol, table, kvTable, spacer, flat } = L;
   const join = (a, sep = ' · ') => (a || []).join(sep);
+  const fmtFecha = t => { const x = new Date(t); const p2 = n => String(n).padStart(2, '0'); return p2(x.getDate()) + '/' + p2(x.getMonth() + 1) + ' ' + p2(x.getHours()) + ':' + p2(x.getMinutes()); };
+  const fmtT = n => new Intl.NumberFormat('es-AR', { maximumFractionDigits: 0 }).format(Math.round(+n || 0));
   const out = [];
   const modN = id => (d.modulos.find(m => m.id === id) || {}).nombre || id;
   const rolN = id => (d.roles.find(r => r.id === id) || {}).nombre || id;
@@ -62,42 +64,83 @@ module.exports = function (d, M, L) {
   out.push(h2('10.4 Diseño responsive'));
   out.push(p('La interfaz se adapta a tres cortes: **escritorio** (> 1180 px, menú lateral fijo), **tablet** (≤ 1180 px, tablas con ancho natural y desplazamiento horizontal) y **móvil** (≤ 860 px: menú en cajón lateral con botón hamburguesa, selectores de contexto dentro del cajón, formularios modales como hoja inferior, tarjetas apiladas en Logística de arribo y grillas de dos columnas). Los requisitos de uso en planta —muelle, balanza y depósito desde tablet o teléfono— se cubren con esta adaptación.'));
 
+  /* ───────── 11. Áreas, capacidad y reservas ───────── */
+  out.push(h1('11. Áreas: capacidad propia y reservas de capacidad'));
+  out.push(p('Además del circuito de la orden, cada **área** administra la capacidad que le pertenece y puede comprometerla por anticipado para un operativo futuro. Es el módulo **Mi área** (revisión 16/09, supuestos S23 y S24).'));
+  out.push(h2('11.1 Áreas y su sector'));
+  out.push(p('El maestro **M-39 Áreas operativas y capacidad** define, para cada área, la entidad, el departamento al que reporta, las unidades de negocio cuyos recursos administra y los **tipos de recurso** de su sector. De ahí salen su capacidad total y los maestros sobre los que hace el ABM.'));
+  out.push(table(['Área', 'Entidad', 'Departamento', 'BU', 'Tipos de recurso', 'Maestros', 'Recursos', 'Capacidad'], d.areas.map(a => [a.nombre, a.entidad, a.departamento, join(a.bus, ', ') || 'todas', join(a.tipos, ' · '), join([...new Set(a.maestros)], ' · '), String(a.recursos.length), [...new Set(a.recursos.map(r => r.um))].map(um => fmtT(a.recursos.filter(r => r.um === um).reduce((x, r) => x + r.capacidad, 0)) + ' ' + um).join(' · ')]), [0.13, 0.08, 0.13, 0.13, 0.15, 0.1, 0.08, 0.2], { size: 16 }));
+  out.push(spacer());
+  out.push(note('**Muelles y equipos de descarga / carga todavía no tienen área dueña asignada**: es una de las definiciones pendientes (capítulo 17, punto 23).'));
+  out.push(h2('11.2 Qué ve y qué hace el área'));
+  out.push(table(['Función', 'Detalle'], [
+    ['Capacidad del sector', 'Por recurso: **capacidad total** (unidades, toneladas o personas según el tipo), **comprometido** —pico de uso por órdenes planificadas o en ejecución en los próximos 14 días, con las órdenes que lo toman—, **reservado por el área** y **libre**.'],
+    ['ABM de sus recursos', 'Alta, modificación y baja lógica con el mismo formulario genérico y el mismo **workflow de la master data**: lo que carga el área nace *en validación* y Máster data lo publica o lo rechaza; la baja se rechaza si el recurso está reservado por una orden planificada o en ejecución.'],
+    ['Reservas para operativos futuros', 'Compromete capacidad referenciando un lineup, un cupo o un operativo ferroviario (11.3).'],
+    ['Bandeja propia', 'Workflow · mi etapa del rol muestra las reservas **a revalidar** y las altas del área pendientes de publicar.'],
+  ], [0.22, 0.78]));
+  out.push(spacer());
+  out.push(h2('11.3 Reservas de capacidad'));
+  out.push(p('La reserva indica **recurso, cantidad, operativo de referencia, ventana y motivo**. La ventana se propone desde el origen (ETB → ETC del lineup, franja del cupo, día del operativo ferroviario) y es editable. Estados:'));
+  out.push(table(['Estado', 'Qué significa', 'Quién lo produce'], [
+    ['Reservada', 'Vigente: la capacidad está comprometida para ese operativo y se informa en la planificación.', 'El área, al crearla o al mantenerla tras revalidar.'],
+    ['Aplicada', 'La planificación —o el ajuste de Operaciones— tomó lo reservado.', 'El motor, al confirmar el plan o el ajuste.'],
+    ['A revalidar', 'La asignación eligió otra opción, tomó menos de lo reservado o la orden se anuló: vuelve a la bandeja del área.', 'El motor; lo resuelve el área.'],
+    ['Liberada', 'El área liberó la capacidad, que vuelve a estar disponible para cualquier operativo.', 'El área.'],
+  ], [0.14, 0.56, 0.3]));
+  out.push(spacer());
+  out.push(h2('11.4 Cómo se informa a la planificación y a la ejecución'));
+  out.push(ul([
+    'En la **planificación** y en el **ajuste de recursos de Operaciones** de toda orden de ese origen, un aviso encabeza la asignación: *Capacidad reservada por las áreas para este operativo*, con el recurso, la cantidad, el área, el motivo y si la asignación actual lo toma.',
+    'El botón **Usar lo reservado por las áreas** vuelca lo reservado en la asignación en curso.',
+    'Al **confirmar** el plan o el ajuste, cada reserva queda *Aplicada* o pasa a *A revalidar*, y el cambio se registra en el historial de la orden y en el de la reserva (quién, cuándo, qué pasó).',
+    'El área revalida desde su bandeja: **liberar** la capacidad, o **mantener la reserva** y pedir que se revise el plan (vuelve a *Reservada* y el Planificador la ve otra vez al abrir la orden).',
+    'Una reserva de **otro** operativo sobre el mismo recurso se informa como **aviso** en la validación (no bloquea, S24).',
+    'Anular la orden deja las reservas de ese origen a revalidar.',
+  ]));
+  out.push(h2('11.5 Reservas del escenario de demostración'));
+  out.push(table(['Reserva', 'Área', 'Recurso', 'Cant.', 'Operativo de referencia', 'Ventana', 'Motivo', 'Estado'], d.reservas.map(r => [r.id, r.area, r.recurso, fmtT(r.cantidad), r.origen, fmtFecha(r.desde) + ' → ' + fmtFecha(r.hasta), r.motivo, r.estado + (r.orden ? ' · ' + r.orden : '')]), [0.08, 0.11, 0.15, 0.07, 0.19, 0.14, 0.15, 0.11], { size: 15 }));
+  out.push(spacer());
+  out.push(p('Motivos de reserva: ' + join(d.motivosReserva, '; ') + '. Motivos de liberación: ' + join(d.motivosLiberacion, '; ') + '.'));
+
   /* ───────── 11. Costos y comparativas ───────── */
-  out.push(h1('11. Costos, cargos y comparativas'));
-  out.push(h2('11.1 Ítems de costo'));
+  out.push(h1('12. Costos, cargos y comparativas'));
+  out.push(h2('12.1 Ítems de costo'));
   out.push(p('Cada orden calcula tres vistas de costo con la misma estructura de ítems: **recomendado** (combinación automática), **plan** (planificación aceptada, congelada como plan inicial) y **real** (recursos aplicados, tickets y demoras).'));
   out.push(table(['Ítem', 'Base de cálculo', 'Clasificación'], [
     ['Muelle', 'Turnos × costo por turno del muelle.', 'Propio'],
     ['Equipos de descarga / carga (grúas o bombas)', 'Horas efectivas × costo horario; los equipos del buque no tienen costo para la terminal.', 'Propio (muelle) · Tercero (buque)'],
     ['Depósito', 'Toneladas × tarifa diaria × días estimados / reales.', 'Propio'],
     ['Balanza', 'Turnos × costo por turno.', 'Propio'],
-    ['Personal propio', 'Puestos × turnos × costo por turno.', 'Propio'],
-    ['Manos de proveedores', 'Manos × turnos × costo por mano.', 'Tercero'],
-    ['Camiones internos, palas y tolvas', 'Unidades × horas × costo horario.', 'Propio'],
+    ['Personal propio', 'Puestos × turnos × costo por turno × **% de afectación** cuando el puesto se comparte con otros operativos (S25).', 'Propio'],
+    ['Manos de proveedores', 'Manos × turnos × costo por mano, más o menos los **puestos agregados o desafectados** a la composición, al costo por persona y turno (S30).', 'Tercero'],
+    ['Camiones internos (flota)', 'Unidades × horas × costo horario.', 'Propio'],
+    ['Maquinaria (palas, tolvas, cintas, autoelevadores…)', 'Unidades × horas × costo horario × **% de uso** de la orden (S31).', 'Propio'],
+    ['Habilitación de puerto', 'Costo por operativo del puerto del origen, tomado de M-09 (S32).', 'Tercero'],
     ['Camiones de transportista', 'Unidades × horas × costo horario.', 'Tercero'],
     ['Km de traslado (Rental) / Km de camión (Logística)', 'Km × tarifa por km (parámetros 8.1).', 'Según el recurso'],
     ['Demoras con gasto', 'Gasto declarado en la demora; recuperable o no.', 'Según responsabilidad'],
   ], [0.3, 0.5, 0.2], { size: 17 }));
   out.push(spacer());
-  out.push(h2('11.2 Imputación'));
+  out.push(h2('12.2 Imputación'));
   out.push(p('Cada línea de la orden se imputa a la **BU ejecutora** del componente según la matriz de ejecución y a su centro de costo (M-35); la relación prestador / destinatario define la forma de imputar o facturar (transferencia interna, factura intercompany, factura a cliente). Las tarifas por componente provienen del instrumento contractual congelado en la orden.'));
-  out.push(h2('11.3 Cargos adicionales'));
+  out.push(h2('12.3 Cargos adicionales'));
   out.push(p('Al incorporar un recurso o registrar una demora, Operaciones indica si el **gasto es atribuible al cliente**, con motivo y respaldo. La atribución queda registrada en Costos y cargos; el circuito de aprobación y facturación es una definición pendiente (5).'));
-  out.push(h2('11.4 Comparativas'));
+  out.push(h2('12.4 Comparativas'));
   out.push(p('Disponibles en el expediente y en el módulo Comparativas para toda orden desde Planificada; al cierre se completan con el real. Las dimensiones de análisis son muelle, mercadería, calidad y destino; la unidad de medida de la comparativa propios / terceros (horas-recurso, turnos, costo) es la definición pendiente 11.'));
 
   /* ───────── 12. Eventos e integraciones ───────── */
-  out.push(h1('12. Transacciones, eventos e integraciones'));
+  out.push(h1('13. Transacciones, eventos e integraciones'));
   out.push(p(`El modelo v3.1 cataloga **${M.TX.length} transacciones** (TX) agrupadas por etapa del circuito, cada una con los maestros que toca y el **evento** que dispara, y **${M.EV.length} eventos** (EV) que alimentan el bus de eventos integradores del modelo TO-BE (registración contable automática, capa analítica y modelos de IA). En el sistema se consultan en Datos maestros › Transacciones y eventos; cada maestro muestra las transacciones que lo usan.`));
-  out.push(h2('12.1 Eventos'));
+  out.push(h2('13.1 Eventos'));
   out.push(table(['Código', 'Etapa', 'Evento', 'Qué dispara'], M.EV.map(e => [e.codigo, e.etapa, e.nombre, e.dispara]), [0.1, 0.08, 0.32, 0.5], { size: 16 }));
   out.push(spacer());
-  out.push(h2('12.2 Eventos propios del circuito de la orden'));
+  out.push(h2('13.2 Eventos propios del circuito de la orden'));
   out.push(p('Además del catálogo del modelo, el circuito de la orden produce eventos que deben quedar disponibles para la integración: orden creada / enviada a planificación, planificación confirmada (plan inicial congelado), solicitud de habilitación a BU dueña emitida / respondida, fecha de arribo modificada, operativo iniciado, ticket registrado, recurso agregado / modificado / dado de baja, demora registrada, operativo finalizado, cierre con merma / excedente, orden devuelta, orden anulada, instrumento / adenda creado, nacionalización registrada, registro de master data creado / validado / rechazado / dado de baja, permiso o módulo modificado. Cada uno lleva orden, usuario, rol, fecha y hora y los datos que cambiaron (historial del expediente y registro de cambios).'));
-  out.push(h2('12.3 Transacciones'));
+  out.push(h2('13.3 Transacciones'));
   out.push(table(['Código', 'Etapa', 'Transacción', 'Maestros', 'Evento'], M.TX.map(t => [t.codigo, t.etapa, t.transaccion, t.maestros, t.evento]), [0.08, 0.17, 0.35, 0.16, 0.24], { size: 15 }));
   out.push(spacer());
-  out.push(h2('12.4 Integraciones previstas'));
+  out.push(h2('13.4 Integraciones previstas'));
   out.push(table(['Integración', 'Alcance en esta versión', 'Pendiente'], [
     ['Balanzas físicas', 'Los tickets se registran manualmente o se simulan.', 'Captura automática de peso, ticket fiscal.'],
     ['Sistema contable / ERP financiero', 'Imputación por BU, centro de costo y relación calculada en la orden.', 'Asiento automático por evento; factura intercompany y a cliente.'],
@@ -108,12 +151,12 @@ module.exports = function (d, M, L) {
   out.push(spacer());
 
   /* ───────── 13. Escenario de demostración ───────── */
-  out.push(h1('13. Escenario de demostración'));
+  out.push(h1('14. Escenario de demostración'));
   out.push(p('El sistema se entrega con un escenario relativo al día de apertura (las fechas se calculan como desplazamientos, por eso la demostración no envejece) que cubre todos los estados y casos. **Reiniciar demo** vuelve al escenario inicial.'));
-  out.push(h2('13.1 Órdenes'));
+  out.push(h2('14.1 Órdenes'));
   out.push(table(['Orden', 'Estado', 'Servicio', 'Medio', 'Destinatario', 'Producto', 't', 'Relación', 'Entidad / BU'], d.ordenesSeed.map(o => [o.id, o.estado, o.servicio, o.medio, o.destinatario, o.producto || '—', o.toneladas ? String(o.toneladas) : '—', o.relacion, o.entidad + (o.bu && o.bu !== '—' ? ' / ' + o.bu : '')]), [0.11, 0.13, 0.15, 0.08, 0.15, 0.13, 0.06, 0.08, 0.11], { size: 15 }));
   out.push(spacer());
-  out.push(h2('13.2 Recursos'));
+  out.push(h2('14.2 Recursos'));
   out.push(table(['Tipo', 'Recursos'], [
     ['Muelles', join(d.recursos.muelles, ' · ')],
     ['Equipos de descarga / carga', join(d.recursos.equipos, ' · ')],
@@ -125,8 +168,8 @@ module.exports = function (d, M, L) {
   out.push(spacer());
 
   /* ───────── 14. Casos de aceptación ───────── */
-  out.push(h1('14. Casos de aceptación (recorridos guiados)'));
-  out.push(p('Los diecinueve casos guiados de la maqueta son la base del plan de pruebas de aceptación (UAT): cada uno indica el rol con el que se inicia, los pasos y el resultado esperado. Los recorridos están automatizados sobre la maqueta (más de 250 comprobaciones) y deben reproducirse sobre el sistema real.'));
+  out.push(h1('15. Casos de aceptación (recorridos guiados)'));
+  out.push(p('Los veintiún casos guiados de la maqueta son la base del plan de pruebas de aceptación (UAT): cada uno indica el rol con el que se inicia, los pasos y el resultado esperado. Los recorridos están automatizados sobre la maqueta (más de 250 comprobaciones) y deben reproducirse sobre el sistema real.'));
   for (const c of d.casos) {
     out.push(h3(`Caso ${c.n} — ${c.titulo}`));
     out.push(kvTable([['Rol inicial', c.rol], ['Resultado esperado', c.esperado]], 0.22));
@@ -135,14 +178,14 @@ module.exports = function (d, M, L) {
   }
 
   /* ───────── 15. Supuestos ───────── */
-  out.push(h1('15. Supuestos de diseño (S1–S22, A1–A5)'));
+  out.push(h1('16. Supuestos de diseño (S1–S24, A1–A5)'));
   out.push(p('Decisiones tomadas para poder construir la maqueta sin esperar cada definición. Cada supuesto indica el pendiente que origina, el supuesto adoptado, qué impacta y dónde se ve en el sistema. **Deben confirmarse o corregirse con el grupo**; un cambio de supuesto se traduce en un cambio de configuración o de regla identificable.'));
   out.push(table(['Id', 'Origen', 'Tema', 'Supuesto adoptado', 'Impacto', 'Dónde se ve'], d.supuestos.map(s => [s.id, s.origen, s.tema, s.supuesto, s.impacto, s.donde]), [0.05, 0.09, 0.14, 0.4, 0.14, 0.18], { size: 15 }));
   out.push(spacer());
 
   /* ───────── 16. Definiciones pendientes ───────── */
-  out.push(h1('16. Definiciones pendientes para completar el alcance'));
-  out.push(p('Las decisiones que más influyen en el diseño, en el orden en que se fueron identificando. Las 1–7 provienen de la definición original; las 8–22 se agregaron en las revisiones del 15 y 16 de septiembre y tienen un supuesto de trabajo asociado.'));
+  out.push(h1('17. Definiciones pendientes para completar el alcance'));
+  out.push(p('Las decisiones que más influyen en el diseño, en el orden en que se fueron identificando. Las 1–7 provienen de la definición original; las 8–24 se agregaron en las revisiones del 15 y 16 de septiembre y tienen un supuesto de trabajo asociado.'));
   out.push(...ol([
     'Qué BU ejecuta cada servicio de TyS y TT (S1; Descarga y Carga → Operaciones desde la revisión 15/09, S20).',
     'Qué significa "mejor combinación" y cómo se calcula (S2).',
@@ -166,9 +209,11 @@ module.exports = function (d, M, L) {
     'BU Operaciones: alcance (¿también la carga de buques?), recursos que le pertenecen frente a Logística y Maquinarias, y quién administra la habilitación de módulos (S20).',
     'Rental y Logística: si las empresas del grupo entran en "Interna" o en un tercer medio; inventario definitivo de maquinarias y tarifas; fuente de las distancias y tarifa por km; si el origen / destino admite direcciones libres (S21).',
     'Menú por entidad y BU: si la restricción por BU se aplica también con "Todas las BU" (unión o intersección), quién administra las tres matrices, si Configuración debe tener dimensión entidad; gobierno de las listas del modelo (quién aprueba una regla o convención nueva, versionado frente al Excel v3.1) (S22).',
+    'Áreas operativas: qué área es dueña de los **muelles y de los equipos de descarga / carga** (hoy sin asignar), inventario y capacidad definitiva de cada sector, quién autoriza el ABM de cada área y si el área activa debe derivarse del usuario; confirmar además el nombre del atributo `eta_` de M-17, que llegó truncado en la planilla (S23).',
+    'Reservas de capacidad de un área: si deben **bloquear** la asignación en lugar de advertir, quién resuelve el conflicto entre el área y el Planificador, si la reserva caduca al vencer su ventana y si se admiten reservas sin operativo de referencia (S24).',
   ]));
   out.push(spacer());
-  out.push(h2('16.1 Definiciones adicionales propuestas (A1–A5)'));
+  out.push(h2('17.1 Definiciones adicionales propuestas (A1–A5)'));
   out.push(table(['#', 'Definición', 'Por qué importa', 'Opciones visibles / criterio adoptado'], [
     ['A1', 'Estructura de la orden para servicios combinados', 'Determina cómo se imputa a las BU ejecutoras un servicio que el cliente contrata como uno solo.', '(a) Orden única con líneas de servicio por BU —adoptado en la maqueta—; (b) orden madre + sub-órdenes internas; (c) una orden por servicio.'],
     ['A2', 'Cardinalidad origen operativo ↔ orden', 'Un lineup puede tener varios clientes / productos / BL; una carga puede requerir más de una orden.', 'Adoptado: una carga admite N órdenes con advertencia y toneladas por remanente.'],
@@ -177,28 +222,28 @@ module.exports = function (d, M, L) {
     ['A5', 'Rol de cierre configurable por servicio', 'Resuelve el cierre sin depósito sin excepciones en el código.', 'Adoptado: atributo del servicio (Depósito / Operaciones / Backoffice).'],
   ], [0.05, 0.22, 0.33, 0.4], { size: 16 }));
   out.push(spacer());
-  out.push(h2('16.2 Primer alcance funcional recomendado'));
+  out.push(h2('17.2 Primer alcance funcional recomendado'));
   out.push(p('Una orden completa de TyS / TT con los cuatro roles del workflow (más Logística de arribo y Máster data como soporte), bloqueos de inicio, planificación recomendada, ejecución con incidencias, devolución o anulación en cada etapa y cierre comparativo; los servicios de Rental y Logística con su detalle; la master data completa con permisos y validación. La estructura multiempresa y los catálogos permiten extender después los circuitos a Depósitos, Mantenimiento, Administración y Corporate.'));
 
   /* ───────── Anexos ───────── */
   out.push(h1('Anexo A — Matriz de permisos por maestro y rol'));
   out.push(p('Valores iniciales de demostración. Niveles: **—** no lo visualiza · **C** solo consulta · **ABM** puede ABM. Columnas en el orden de los roles: ' + d.roles.map(r => `${r.id} = ${r.nombre}`).join('; ') + '.'));
   const abbr = n => n === 'oculto' ? '—' : n === 'consulta' ? 'C' : 'ABM';
-  out.push(table(['Maestro', ...d.roles.map(r => r.id)], d.permisosMD.map(m => [`${m.codigo} ${m.nombre}`, ...m.niveles.map(abbr)]), [0.4, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1], { size: 16, zebra: true }));
+  out.push(table(['Maestro', ...d.roles.map(r => r.id)], d.permisosMD.map(m => [`${m.codigo} ${m.nombre}`, ...m.niveles.map(abbr)]), [0.34, ...d.roles.map(() => 0.66 / d.roles.length)], { size: 16, zebra: true }));
   out.push(spacer());
 
   out.push(h1('Anexo B — Módulos por rol, entidad y BU'));
   const oper = d.modulos.filter(m => m.grupo === 'operacion'); const all = d.modulos;
   const onOff = (dim, key, m) => { const t = dim[key] || {}; return t[m.id] === false ? '—' : '✓'; };
   out.push(h2('B.1 Por rol (todos los módulos)'));
-  out.push(table(['Módulo', ...d.roles.map(r => r.id)], all.map(m => [m.nombre, ...d.roles.map(r => onOff(d.permisosModulos, r.id, m))]), [0.4, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1], { size: 16, zebra: true }));
+  out.push(table(['Módulo', ...d.roles.map(r => r.id)], all.map(m => [m.nombre, ...d.roles.map(r => onOff(d.permisosModulos, r.id, m))]), [0.34, ...d.roles.map(() => 0.66 / d.roles.length)], { size: 16, zebra: true }));
   out.push(spacer());
   out.push(h2('B.2 Menú de Operación por entidad'));
-  out.push(table(['Módulo', ...d.entidades.map(e => e.sigla)], oper.map(m => [m.nombre, ...d.entidades.map(e => onOff(d.permisosModulosEntidad, e.id, m))]), [0.46, 0.18, 0.18, 0.18], { size: 16, zebra: true }));
+  out.push(table(['Módulo', ...d.entidades.map(e => e.sigla)], oper.map(m => [m.nombre, ...d.entidades.map(e => onOff(d.permisosModulosEntidad, e.id, m))]), [0.46, ...d.entidades.map(() => 0.54 / d.entidades.length)], { size: 16, zebra: true }));
   out.push(spacer());
   out.push(h2('B.3 Menú de Operación por unidad de negocio'));
   const shortMod = n => n.replace(' (incluye Nueva orden y expediente)', '').replace('Operaciones · órdenes', 'Órdenes').replace('Logística de arribo', 'Log. de arribo').replace('Workflow · mi etapa', 'Workflow');
-  out.push(table(['BU', ...oper.map(m => shortMod(m.nombre))], d.bus.map(b => [`${b.nombre} (${b.id})`, ...oper.map(m => onOff(d.permisosModulosBU, b.id, m))]), [0.3, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1], { size: 15, zebra: true }));
+  out.push(table(['BU', ...oper.map(m => shortMod(m.nombre))], d.bus.map(b => [`${b.nombre} (${b.id})`, ...oper.map(m => onOff(d.permisosModulosBU, b.id, m))]), [0.28, ...oper.map(() => 0.72 / oper.length)], { size: 14, zebra: true }));
   out.push(spacer());
 
   out.push(h1('Anexo C — Catálogo de maestros'));

@@ -1,13 +1,13 @@
 # TyS · Maqueta ERP v2 — Orden de servicio (código fuente)
 
-Maqueta navegable del circuito de la orden de servicio de TyS (Comercial → Planificador → Operaciones → Depósito), con Logística de arribo, Máster data, permisos por maestro y por módulo, y el modelo de master data v3.1 completo. Archivo único HTML + CSS + JS sin dependencias (solo la tipografía IBM Plex desde Google Fonts, con fallback). Versión actual: **v2.10** (`const VERSION` en `src/04-engine.js`).
+Maqueta navegable del circuito de la orden de servicio de TyS (Comercial → Planificador → Operaciones → Depósito), con Logística de arribo, Máster data, permisos por maestro y por módulo, y el modelo de master data v3.1 completo. Archivo único HTML + CSS + JS sin dependencias (solo la tipografía IBM Plex desde Google Fonts, con fallback). Versión actual: **v2.12** (`const VERSION` en `src/04-engine.js`).
 
 ## Cómo se arma
 
 ```bash
 npm run build          # = bash build.sh → dist/artifact.html, dist/TyS - Maqueta ERP v2.0 - Orden de servicio.html y public/index.html
 npm run test:setup     # una vez: instala Playwright + Chromium para las pruebas
-npm test               # = node test/walk.js → recorrido automatizado de los 19 casos (≈250 comprobaciones)
+npm test               # = node test/walk.js → recorrido automatizado de los 25 casos (≈305 comprobaciones)
 npm start              # sirve public/ en http://localhost:3000 para probar el build
 ```
 
@@ -21,10 +21,10 @@ No hay dependencias de producción: `package.json` solo define los scripts. `pub
 |---|---|---|
 | `01-head.html` | `<title>`, tipografías y todo el CSS (temas claro / oscuro con variables `--accent`, `--ok`, `--warn`, `--crit`…; responsive con tres cortes: escritorio > 1180 px, tablet ≤ 1180 px, móvil ≤ 860 px con menú en cajón lateral). | Estilos, colores, layout responsive. |
 | `02-body.html` | Shell: barra superior (entidad / BU / rol), menú lateral `#nav`, `#main`, `#toasts`, `#modal-root`. | Casi nunca. |
-| `03-data.js` | `MD_SEED` (datos maestros base: entidades, BU, departamentos, roles, servicios, clientes, productos, instrumentos, recursos, estados, transiciones, matriz de ejecución, módulos y permisos por módulo (rol, entidad y BU), parámetros, motivos), `OPS_SEED` (lineups, cupos, trenes, solicitudes), `SUPUESTOS` (S1–S22, A1–A5) y `CASOS` (1–19). | Cambiar datos de demostración, agregar un supuesto o un caso guiado, ajustar la matriz de ejecución o los módulos por rol. |
+| `03-data.js` | `MD_SEED` (datos maestros base: entidades, BU, departamentos, **áreas operativas**, roles, servicios, clientes, productos, instrumentos, recursos, estados, transiciones, matriz de ejecución, módulos y permisos por módulo (rol, entidad y BU), parámetros, motivos), `OPS_SEED` (lineups, cupos, trenes, solicitudes), `SUPUESTOS` (S1–S35, A1–A5) y `CASOS` (1–25). | Cambiar datos de demostración, agregar un supuesto o un caso guiado, ajustar la matriz de ejecución o los módulos por rol. |
 | `03b-model.js` | Modelo de master data v3.1 extraído del Excel con `tools/extract_model.py` (`MODEL_FICHAS`, `MODEL_ATRIBUTOS`, reglas, TX/EV…). **No editar a mano**: regenerar con `python3 tools/extract_model.py "tools/<Excel v3.1>.xlsx" src/03b-model.js`. | Cuando cambie el Excel del modelo. |
 | `03c-seed-ext.js` | `MD_EXT` (maestros M-35..M-38 y atributos ★ Maqueta) y `extendSeed()`: completa los registros con los atributos del modelo, siembra los maestros que no existían y arma `permisosMD` (matriz maestro × rol). | Agregar registros a un maestro, cambiar permisos iniciales por maestro. |
-| `04-engine.js` | Motor: estado y persistencia (`localStorage`, clave `tys-maqueta-erp-v2`; un cambio de `VERSION` reinicia el estado), lookups, habilitaciones (nacionalización, método seguro M-34), workflow (`accionPrincipal`, `transition`, `devolver`, `anular`), bandejas, creación de órdenes, reservas y validaciones (`chequearRecurso`, `validarPlan`), recomendación (`recomendar`), ejecución (tickets, demoras, ABM de recursos), costos y comparativas, Logística de arribo, cambio de fecha de arribo, escenario inicial (`buildSeedOrders`), permisos y ABM genérico de master data (`permisoMD`, `mdCampos`, `guardarMD`, `validarMD`, `bajaMD`, `mdLog`), módulos por rol / entidad / BU (`moduloHabilitado`, `setModuloDim`) y edición de toneladas / fechas (`editarDatosServicio`). | Reglas de negocio. |
+| `04-engine.js` | Motor: estado y persistencia (`localStorage`, clave `tys-maqueta-erp-v2`; un cambio de `VERSION` reinicia el estado), lookups, habilitaciones (nacionalización, método seguro M-34), workflow (`accionPrincipal`, `transition`, `devolver`, `anular`), bandejas, creación de órdenes, reservas y validaciones (`chequearRecurso`, `validarPlan`), recomendación (`recomendar`), ejecución (tickets, demoras, ABM de recursos), costos y comparativas, Logística de arribo, cambio de fecha de arribo, escenario inicial (`buildSeedOrders`), permisos y ABM genérico de master data (`permisoMD`, `mdCampos`, `guardarMD`, `validarMD`, `bajaMD`, `mdLog`), módulos por rol / entidad / BU (`moduloHabilitado`, `setModuloDim`), edición de toneladas / fechas (`editarDatosServicio`), nominación del lineup desde el operativo (`recalcularNominacion`) y áreas con capacidad y reservas (`recursosDeArea`, `crearReservaArea`, `aplicarReservas`, `revalidarReservaArea`). | Reglas de negocio. |
 | `05-views-a.js` | Helpers de UI (`table`, `kv`, `btn`, `field`, `chip`…), Inicio, Logística de arribo, Workflow · mi etapa, Operaciones · órdenes, Expediente (9 secciones), registros en validación y registro de cambios. | Pantallas del circuito. |
 | `05-views-b.js` | Planificador (`plannerForm`, `equiposBlock`, `noDisponiblesCard`), wizard de Nueva orden (`W`, `wInit`, `wSpec`, `viewNueva`, detalle de Rental / Logística `wDetalleCard`), Recursos, Depósito, Comparativas, Administración, Casos guiados, Supuestos. | Alta de orden, planificación, administración. |
 | `05-views-c.js` | Datos maestros: `mdMap()` (atributo del modelo → cómo se ve cada registro, por maestro), navegador por dominio, pestañas del modelo, permisos por rol, barra de ABM. | Cómo se muestra cada maestro; nuevas columnas. |
@@ -36,10 +36,10 @@ Convenciones: las acciones se declaran en el HTML con `data-action="..."` y se r
 
 - `dist/` y `public/` — salidas del build, no versionadas (la página publicada en claude.ai usa `dist/artifact.html`; Vercel sirve `public/index.html`; el archivo único de `dist/` es el que se comparte por mail).
 - `package.json`, `vercel.json`, `.github/workflows/ci.yml` — scripts, configuración del despliegue y pruebas automáticas en cada push.
-- `test/walk.js` — recorrido automatizado (Playwright / Chromium) con ~240 comprobaciones, incluidas las de diseño móvil; `test/shots-*.js` generan capturas (`shots-mobile.js`: teléfono y tablet); los únicos errores de consola esperados son los de Google Fonts sin red.
+- `test/walk.js` — recorrido automatizado (Playwright / Chromium) con ~305 comprobaciones, incluidas las de diseño móvil; `test/shots-*.js` generan capturas (`shots-mobile.js`: teléfono y tablet); los únicos errores de consola esperados son los de Google Fonts sin red.
 - `tools/extract_model.py` — extractor del Excel del modelo v3.1 (openpyxl).
-- `tools/fd/` — generador del **Diseño Funcional v2.0 (Word)** a partir de la maqueta: `node tools/fd/extract.js` (vuelca la configuración de la maqueta compilada a `data.json` con Playwright) y `node tools/fd/build-fd.js` (arma el `.docx` con la librería `docx`; `npm i -g docx` si no está). `data.json` y el `.docx` no se versionan.
-- `docs/spec.md`, `docs/nota-construccion.md` y `docs/fd-v2.0-nota.md` — especificación funcional, nota de construcción y nota del FD v2.0 (mismas versiones que en el proyecto de Claude).
+- `tools/fd/` — generador del **Diseño Funcional (Word, v2.1)** a partir de la maqueta: `node tools/fd/extract.js` (vuelca la configuración de la maqueta compilada a `data.json` con Playwright) y `node tools/fd/build-fd.js` (arma el `.docx` con la librería `docx`; `npm i -g docx` si no está). `data.json` y el `.docx` no se versionan.
+- `docs/spec.md`, `docs/nota-construccion.md` y `docs/fd-nota.md` — especificación funcional, nota de construcción y nota del FD v2.0 (mismas versiones que en el proyecto de Claude).
 
 ## Publicar en GitHub
 

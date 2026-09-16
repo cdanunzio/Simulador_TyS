@@ -12,10 +12,10 @@ const meta = {
   org: 'TyS · Terminales y Servicio — Proyecto de reemplazo del sistema core',
   titulo: 'Diseño Funcional',
   subtitulo: 'Orden de servicio multiempresa: Comercial → Planificador → Operaciones → Depósito, Logística de arribo y Máster data',
-  version: 'FD v2.0', fecha: '16/09/2026',
+  version: 'FD v2.3', fecha: '17/09/2026',
   lineas: ['Autor: Cristian D\'Annunzio — Analista Funcional de Negocios', `Base: maqueta navegable "TyS · Maqueta ERP v2 — Orden de servicio" ${d.version}`, `Modelo de master data: ${M.META.version} (${M.META.fecha})`, 'Estado: base de referencia vigente — reemplaza al FD v1.1'],
-  autor: 'Cristian D\'Annunzio', encabezado: 'TyS · Diseño Funcional — Orden de servicio multiempresa', pie: 'FD v2.0 · 16/09/2026 · derivado de la maqueta ' + d.version,
-  descripcion: 'Diseño funcional del sistema core de TyS derivado de la maqueta v2.9.1',
+  autor: 'Cristian D\'Annunzio', encabezado: 'TyS · Diseño Funcional — Orden de servicio multiempresa', pie: 'FD v2.3 · 17/09/2026 · derivado de la maqueta ' + d.version,
+  descripcion: 'Diseño funcional del sistema core de TyS derivado de la maqueta ' + d.version + '',
 };
 
 /* portada */
@@ -28,6 +28,9 @@ const secFront = flat(
     ['FD v1.0', '2026', 'C. D\'Annunzio', 'Diseño funcional inicial del workflow de recepción, transporte y depósito (etapas A–D), 35 maestros.'],
     ['FD v1.1', '15/09/2026', 'C. D\'Annunzio', 'Revisión grupal: arribo por buque / camión / ferrocarril, programa centralizado por tramos, condición aduanera, planificación centralizada, manos y dotación por cantidad, turnos de 6 h, planificado vs realizado, método seguro (M-34).'],
     ['FD v2.0', '16/09/2026', 'C. D\'Annunzio', `Reescritura completa alrededor de la orden de servicio multiempresa, derivada de la maqueta ${d.version}: estructura grupo / entidad / BU, catálogo de servicios con nivel y matriz de ejecución (descarga a cargo de Operaciones), selección secuencial, instrumento sin cobertura, toneladas y ventana del servicio, equipos del muelle o del buque, solicitud a la BU dueña, cambio de fecha de arribo, ABM de recursos en ejecución, merma / excedente, comparativas propios / terceros, devolver y anular, Rental y Logística interna / externa, Logística de arribo, rol Máster data con permisos por maestro, ABM genérico, validación y listas del modelo editables, módulos por rol / entidad / BU, diseño responsive, 19 casos de aceptación, supuestos S1–S22 y A1–A5.`],
+    ['FD v2.1', '16/09/2026', "C. D'Annunzio", 'Revisión del 16/09 (tarde): atributos de M-17 LineUp y M-21 Agencia alineados a la planilla de la agencia (plano de carga, ETA original, textos de fuente, datos de contacto); la nominación de la escala (toneladas para TyS, nominado a TyS y operativo vinculado) se alimenta de la creación del operativo y se revierte al anularlo; nuevo capítulo 11 con el módulo Mi área —maestro M-39, capacidad propia de cada sector, ABM por el workflow de la master data y rol Responsable de área— y las reservas de capacidad para operativos futuros, informadas en la planificación y en la ejecución con revalidación del área; casos de aceptación 20 y 21; supuestos S23 y S24; definiciones pendientes 23 y 24.'],
+    ['FD v2.2', '16/09/2026', "C. D'Annunzio", 'Revisión del 16/09 (noche), planificación afinada: equipos del muelle o del buque excluyentes y elegibles unidad por unidad; personal externo por mano completa con ajuste puesto por puesto; personal propio compartido entre operativos con % de afectación automático; logística (flota) separada de maquinaria, con % de uso y remanente disponible para otra orden; rubro nuevo Habilitación de puerto con costo por puerto; cantidad de turnos fijada por el Planificador y régimen desde la tabla M-33; destino en depósito por la distribución de la planta (planta → depósito → celda → box → mini box). Operaciones registra la calidad de la mercadería; en el cierre la merma y el excedente salen de lo que declara la balanza. Casos de aceptación 22 y 23; supuestos S25–S32; definiciones pendientes 25 a 28.'],
+    ['FD v2.3', '17/09/2026', "C. D'Annunzio", 'Revisión del 17/09: el producto se muestra con su presentación (granel sólido, líquido a granel, embolsado) en la planificación y en el resumen; nuevo maestro M-12a Unidades de maquinaria —cada máquina desplegada en sus unidades con marca, modelo, capacidad y medidas— y atributo de acceso en cada ubicación de M-10a, de modo que según el acceso del destino sirve una unidad y no otra; cada recurso lleva un ámbito (Operaciones, Depósito o compartido) que define quién lo gestiona; Operaciones y Depósito trabajan la misma orden en simultáneo mientras se descarga, asignando y liberando recursos con traza por rol. Casos de aceptación 24 y 25; supuestos S33–S35; definiciones pendientes 29 a 31.'],
   ], [0.1, 0.12, 0.14, 0.64], { size: 17 }),
   spacer(),
   kvTable([
@@ -50,5 +53,5 @@ const body = flat(
 );
 
 const doc = buildDoc([secCover, secFront, body], meta);
-const out = require('path').join(__dirname, 'TyS - Diseño Funcional v2.0.docx');
+const out = require('path').join(__dirname, 'TyS - Diseño Funcional v2.3.docx');
 Packer.toBuffer(doc).then(buf => { fs.writeFileSync(out, buf); console.log('ok', out, Math.round(buf.length / 1024) + ' KB', 'párrafos/tablas:', body.length); });

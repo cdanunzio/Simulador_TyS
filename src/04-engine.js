@@ -2,7 +2,7 @@
    MOTOR — estado, helpers, workflow, validaciones, recomendación,
    ejecución, costos y comparativas
    ===================================================================== */
-const VERSION = 'v2.10';
+const VERSION = 'v2.12';
 const LS_KEY = 'tys-maqueta-erp-v2';
 let S = null;
 
@@ -88,6 +88,85 @@ function recursoTipo(id) {
   return null;
 }
 function recNombre(id) { return recurso(id)?.nombre || id; }
+/* ámbito del recurso: lo gestiona Operaciones, Depósito o los dos (revisión 17/09, S33) */
+const AMBITOS = [{ id: 'operaciones', nombre: 'Operaciones', corto: 'OPS', cls: 'acc' }, { id: 'deposito', nombre: 'Depósito', corto: 'DEP', cls: 'info' }, { id: 'compartido', nombre: 'Compartido', corto: 'OPS + DEP', cls: 'warn' }];
+function ambitoRecurso(rid) { const r = recurso(rid); if (!r) return 'operaciones'; if (r.ambito) return r.ambito; const t = recursoTipo(rid); return t === 'deposito' ? 'deposito' : t === 'balanza' || t === 'logistica' ? 'compartido' : 'operaciones'; }
+function ambitoInfo(id) { return byId(AMBITOS, id) || AMBITOS[0]; }
+function rolesDeAmbito(a) { return a === 'compartido' ? ['OPS', 'DEP'] : a === 'deposito' ? ['DEP'] : ['OPS']; }
+/* Operaciones y Depósito trabajan la misma orden en simultáneo: cada uno gestiona los recursos de su ámbito y los compartidos (revisión 17/09, S35) */
+function puedeGestionarRecurso(rid, rol) { rol = rol || S.ctx.rol; if (rol === 'OPS') return true; if (rol === 'DEP') return ambitoRecurso(rid) !== 'operaciones'; return false; }
+function puedeEjecutar(o, rol) { rol = rol || S.ctx.rol; return o.estado === 'EJEC' && (rol === 'OPS' || (rol === 'DEP' && usaDeposito(o))); }
+/* unidades de maquinaria (M-12a): la misma máquina con distintas características; el acceso del destino define cuál sirve (revisión 17/09, S34) */
+function unidadesDe(maqId) { return (md().maquinariaUnidades || []).filter(u => u.maquinaria === maqId); }
+function unidadMaq(id) { return (md().maquinariaUnidades || []).find(u => u.id === id) || null; }
+function accesoDe(ubiId) { const u = ubiId ? recurso(ubiId) : null; return u?.acceso || null; }
+function unidadApta(u, ubiId) {
+  const acc = accesoDe(ubiId); if (!u) return { apta: false, motivo: 'unidad inexistente' };
+  if (u.estado && u.estado !== 'Operativo') return { apta: false, motivo: u.estado.toLowerCase() + (u.mantHasta ? ' hasta ' + fmtD(u.mantHasta) : '') };
+  if (!acc) return { apta: true, motivo: 'sin destino elegido: no se verifica el acceso' };
+  if (u.anchoM > acc.anchoM) return { apta: false, motivo: 'no pasa por el acceso: ' + fmtN(u.anchoM, 1) + ' m de ancho contra ' + fmtN(acc.anchoM, 1) + ' m del ' + acc.tipo };
+  if (u.altoM > acc.altoM) return { apta: false, motivo: 'no pasa por el acceso: ' + fmtN(u.altoM, 1) + ' m de alto contra ' + fmtN(acc.altoM, 1) + ' m del ' + acc.tipo };
+  return { apta: true, motivo: 'entra por el ' + acc.tipo + ' (' + fmtN(acc.anchoM, 1) + ' × ' + fmtN(acc.altoM, 1) + ' m)' };
+}
+function unidadesAptas(maqId, ubiId) { return unidadesDe(maqId).filter(u => unidadApta(u, ubiId).apta); }
+function unidadesElegidas(R, maqId) { return ((R.maqUnidades || {})[maqId] || []).filter(id => unidadMaq(id)); }
+const PRESENTACIONES = { granel: 'Granel sólido', 'granel sólido': 'Granel sólido', tanque: 'Líquido a granel (tanque)', 'líquido a granel': 'Líquido a granel (tanque)', 'big bag': 'Embolsado (big bag)', bolsa: 'Embolsado (bolsa)', embolsado: 'Embolsado', 'a granel': 'Granel sólido' };
+function presentacionProducto(prodId) {
+  const pr = prod(prodId); if (!pr) return null; const fam = byId(md().familias, pr.familia);
+  const bruto = (pr.presentacion || '').toString().toLowerCase();
+  const est = estadoFisico(prodId);
+  const label = PRESENTACIONES[bruto] || (bruto ? bruto.charAt(0).toUpperCase() + bruto.slice(1) : (est === 'liquido' ? 'Líquido a granel' : 'Granel sólido'));
+  return { presentacion: label, bruto: pr.presentacion || '—', estado: est, familia: fam ? fam.nombre : '—', um: pr.um || 't', densidad: pr.densidad };
+}
+function presentacionTxt(prodId) { const p2 = presentacionProducto(prodId); return p2 ? p2.presentacion : '—'; }
+
+/* clase del recurso de M-12: la flota (logística) se administra y se planifica separada de la maquinaria (revisión 16/09) */
+function claseRecurso(id) { const r = recurso(id); if (!r) return null; if (recursoTipo(id) !== 'logistica') return recursoTipo(id); return r.clase || (r.capacidadT ? 'logistica' : 'maquinaria'); }
+function esMaquinaria(id) { return claseRecurso(id) === 'maquinaria'; }
+function logisticaDe(entidad, clase) { return md().logistica.filter(l => l.entidad === entidad && claseRecurso(l.id) === clase); }
+/* turnos: duración y catálogo desde el régimen de turnos (M-33), no desde una constante */
+function regimenTurnos() { const r = (md().regimenTurnos || []).filter(t => t.estado !== 'inactivo'); return r.length ? r : [{ id: 'T1', nombre: 'Turno 1', hora_desde: '00:00', hora_hasta: '06:00', duracion_h: md().parametros.horasTurno }]; }
+function duracionTurno() { return regimenTurnos()[0].duracion_h || md().parametros.horasTurno; }
+function turnoLabel(t) { return t.id + ' · ' + t.hora_desde + '–' + t.hora_hasta + ' (' + t.duracion_h + ' h)'; }
+/* distribución de la planta: planta → depósito (M-10) → celda (M-10a) → box → mini box (revisión 16/09) */
+const UBI_NIVELES = [{ id: 'celda', nombre: 'Celda / tanque / galpón / silo' }, { id: 'box', nombre: 'Box' }, { id: 'minibox', nombre: 'Mini box' }];
+function ubiNivel(u) { return (typeof u === 'string' ? recurso(u) : u)?.nivel || 'celda'; }
+function ubiPadre(id) { const u = recurso(id); return u && u.padreUbi ? recurso(u.padreUbi) : null; }
+function ubiHijos(id) { return md().depositos.filter(x => x.padreUbi === id); }
+function ubicacionesDe(depPadreId, entidad) { return md().depositos.filter(u => u.entidad === entidad && !u.padreUbi && (!depPadreId || u.deposito === depPadreId)); }
+function rutaUbicacion(id) {
+  const u = recurso(id); if (!u) return [];
+  const cadena = []; let cur = u; while (cur) { cadena.unshift(cur); cur = cur.padreUbi ? recurso(cur.padreUbi) : null; }
+  const dp = byId(md().depositosPadre, cadena[0]?.deposito); const pl = dp ? planta(dp.planta) : null;
+  return [pl ? { id: pl.id, nombre: pl.nombre, nivel: 'planta' } : null, dp ? { id: dp.id, nombre: dp.nombre, nivel: 'deposito' } : null, ...cadena.map(x => ({ id: x.id, nombre: x.nombre, nivel: ubiNivel(x) }))].filter(Boolean);
+}
+function rutaUbicacionTxt(id) { const n = rutaUbicacion(id).map(x => x.nombre); return n.filter((x, i) => i === 0 || x !== n[i - 1]).join(' › '); }
+/* habilitación de puerto: costo por operativo según el puerto del origen (revisión 16/09) */
+function puertoDeOrden(o) {
+  const g = origenInfo(o);
+  if (g?.lu) return planta(g.lu.puerto) || null;
+  const e = ent(o.entidad); return planta(e?.id === 'TT' ? 'PL-TT' : 'PU-SN') || null;
+}
+function habilitacionPuerto(o) { const pl = puertoDeOrden(o); if (!pl || !pl.costo_habilitacion_puerto) return null; return { id: 'HAB-' + pl.id, puerto: pl, costo: pl.costo_habilitacion_puerto, detalle: pl.detalle_habilitacion_puerto || '' }; }
+/* personal externo: composición efectiva de las manos + puestos agregados o desafectados (revisión 16/09) */
+function puestoMano(nombre) { return (md().puestosMano || []).find(x => x.nombre === nombre || x.id === nombre) || null; }
+function composicionManos(recursos) {
+  const out = {};
+  for (const [id, n] of Object.entries(recursos.manos || {})) { const m = recurso(id); if (!m || !n) continue; for (const [rol, q] of Object.entries(m.roles || {})) out[rol] = (out[rol] || 0) + q * n; }
+  for (const [rol, d] of Object.entries(recursos.puestos || {})) out[rol] = (out[rol] || 0) + d;
+  return out;
+}
+function personasManos(recursos) { return Object.values(composicionManos(recursos)).reduce((a, b) => a + Math.max(0, b), 0); }
+/* personal propio compartido: % de afectación cuando el mismo puesto se usa en operativos simultáneos (revisión 16/09) */
+function afectacionPuesto(rid, o, cantidad) {
+  const r = recurso(rid); if (!r) return { pct: 100, compartido: [] };
+  const cant = cantidad != null ? cantidad : cantidadEnOrden(o, rid);
+  const otras = reservasRecurso(rid, o.id).filter(rv => overlap(o.ventana.inicio, o.ventana.fin, rv.desde, rv.hasta));
+  const demandaOtras = sum(otras, rv => rv.cantidad);
+  const total = demandaOtras + cant; const dot = r.dotacion || r.cantidad || 1;
+  const pct = total > dot ? Math.round((dot / total) * 100) : 100;
+  return { pct, compartido: otras.map(rv => rv.o.id), demanda: total, dotacion: dot };
+}
 
 /* ---------- equipos de descarga / carga: tipo según el producto y origen muelle / buque (SUPUESTO S14) ---------- */
 function estadoFisico(prodId) { const p = prod(prodId); const fam = p ? byId(md().familias, p.familia) : null; if (p?.tipo) return p.tipo === 'líquido' ? 'liquido' : 'solido'; /* M-07.tipo */ return p?.estadoFisico || fam?.estadoFisico || 'solido'; }
@@ -241,7 +320,9 @@ function bandeja(rol) {
       else if (o.estado === 'EJEC') items.push({ o, motivo: o.devolucion && o.devolucion.a === 'EJEC' ? 'Devuelta por ' + rolName(o.devolucion.rol) + ': ' + o.devolucion.motivo : 'Registrar ejecución y finalizar' });
       else if (o.estado === 'PEND_CIERRE' && rolCierre(o) === 'OPS') items.push({ o, motivo: 'Cerrar operativo (servicio sin depósito)' });
     } else if (rol === 'DEP') {
-      if (o.estado === 'PEND_CIERRE' && rolCierre(o) === 'DEP') items.push({ o, motivo: 'Revisar y cerrar' });
+      /* Operaciones y Depósito trabajan la orden en simultáneo mientras se descarga (revisión 17/09, S35) */
+      if (o.estado === 'EJEC' && usaDeposito(o)) items.push({ o, motivo: 'Ingreso en curso: asignar o liberar recursos de depósito' });
+      else if (o.estado === 'PEND_CIERRE' && rolCierre(o) === 'DEP') items.push({ o, motivo: 'Revisar y cerrar' });
     }
   }
   return items;
@@ -301,8 +382,10 @@ function cantidadEnOrden(o, rid) {
   }
   const p = o.plan?.recursos; if (!p) return 0;
   if (p.muelle === rid || p.deposito === rid || p.balanza === rid) return 1;
-  if ((p.equipos || []).includes(rid)) return 1;
-  return (p.logistica?.[rid] || 0) + (p.manos?.[rid] || 0) + (p.funciones?.[rid] || 0);
+  if ((p.equipos || []).includes(rid)) return esEquipoBuque(rid) ? (p.equiposBuqueN || 1) : 1;
+  /* maquinaria: la afectación es la cantidad × el % de uso de esta orden; el remanente queda para otra (revisión 16/09) */
+  const q = p.logistica?.[rid] || 0; const pct = esMaquinaria(rid) ? (p.maqPct?.[rid] ?? 100) / 100 : 1;
+  return q * pct + (p.manos?.[rid] || 0) + (p.funciones?.[rid] || 0);
 }
 function ventanaReserva(o) {
   if (o.estado === 'EJEC' && o.ejecucion) return { inicio: o.ejecucion.inicio, fin: o.ejecucion.fin || (o.ventana.fin > o.ejecucion.reloj ? o.ventana.fin : o.ejecucion.reloj) };
@@ -357,10 +440,17 @@ function chequearRecurso(rid, cantidad, o) {
     }
   }
   /* capacidad compartida: logística, manos, funciones */
-  if (tipo === 'logistica' || tipo === 'funcion') {
-    const total = tipo === 'logistica' ? r.cantidad : r.dotacion;
+  if (tipo === 'logistica') {
     const usados = usoPico(rid, o);
-    if (usados + cantidad > total) errores.push(r.nombre + ': capacidad insuficiente en la ventana (pico de ' + usados + ' de ' + total + ' ya asignados; se piden ' + cantidad + ')');
+    if (usados + cantidad > r.cantidad) {
+      if (esMaquinaria(rid)) avisos.push(r.nombre + ': ' + fmtN(usados, 1) + ' de ' + r.cantidad + ' ya afectadas en la ventana; ajustá el % de uso para compartir el remanente');
+      else errores.push(r.nombre + ': capacidad insuficiente en la ventana (pico de ' + fmtN(usados, 1) + ' de ' + r.cantidad + ' ya asignados; se piden ' + cantidad + ')');
+    }
+  }
+  /* personal propio: el mismo puesto puede estar en más de un operativo; el sistema reparte el % de afectación (revisión 16/09, S25) */
+  if (tipo === 'funcion') {
+    const af = afectacionPuesto(rid, o, cantidad);
+    if (af.pct < 100) avisos.push(r.nombre + ': ' + af.demanda + ' personas pedidas sobre una dotación de ' + af.dotacion + ' en operativos simultáneos (' + af.compartido.join(', ') + ') → afectación del ' + af.pct + ' % en esta orden');
   }
   /* depósito: capacidad (órdenes que coinciden en el tiempo) y regla fiscal */
   if (tipo === 'deposito') {
@@ -419,26 +509,44 @@ function turnoDe(ts) {
 
 /* ---------- duración y costo ---------- */
 function ritmoPlan(o, plan) {
-  const p = md().parametros; let cap = 0;
-  for (const id of (plan.recursos.equipos || [])) cap += recurso(id)?.capacidadTh || 0;
-  if (!cap) for (const [id, n] of Object.entries(plan.recursos.logistica || {})) { const r = recurso(id); if (r?.capacidadTh) cap += r.capacidadTh * n; }
+  const p = md().parametros; const R = plan.recursos; let cap = 0;
+  for (const id of (R.equipos || [])) { const r = recurso(id); if (!r) continue; cap += esEquipoBuque(id) ? (r.capacidadUnidad || r.capacidadTh) * Math.max(1, R.equiposBuqueN || r.cantidad || 1) : (r.capacidadTh || 0); }
+  if (!cap) for (const [id, n] of Object.entries(R.logistica || {})) { const r = recurso(id); if (r?.capacidadTh) cap += r.capacidadTh * n * (esMaquinaria(id) ? (R.maqPct?.[id] ?? 100) / 100 : 1); }
   return cap * p.eficienciaEquipo;
 }
 function duracionPlan(o, plan) {
-  const HT = md().parametros.horasTurno;
+  const HT = duracionTurno(); const R = plan.recursos;
   const ritmo = ritmoPlan(o, plan);
-  if (!ritmo || !o.toneladas) { const horas = hoursBetween(o.ventana.inicio, o.ventana.fin); const turnos = Math.max(1, Math.ceil(horas / HT)); return { horas, turnos, horasTurnos: turnos * HT, ritmo: 0 }; }
-  const horas = o.toneladas / ritmo; const turnos = Math.max(1, Math.ceil(horas / HT));
-  return { horas, turnos, horasTurnos: turnos * HT, ritmo };
+  const horas = (!ritmo || !o.toneladas) ? hoursBetween(o.ventana.inicio, o.ventana.fin) : o.toneladas / ritmo;
+  const calc = Math.max(1, Math.ceil(horas / HT));
+  /* el Planificador puede fijar la cantidad de turnos; el sistema propone la calculada (revisión 16/09, S26) */
+  const turnos = R && R.turnos ? Math.max(1, +R.turnos) : calc;
+  return { horas, turnos, turnosCalc: calc, horasTurno: HT, horasTurnos: turnos * HT, ritmo: (!ritmo || !o.toneladas) ? 0 : ritmo, manual: !!(R && R.turnos && R.turnos !== calc) };
 }
 function costoItems(o, recursos, H, turnos) {
   const items = []; const p = md().parametros;
   const push = (rid, cant, monto, base) => { const r = recurso(rid); items.push({ rid, nombre: r?.nombre || rid, tipo: recursoTipo(rid), cantidad: cant, base, monto, bu: r?.bu || null }); };
   if (recursos.muelle) { const r = recurso(recursos.muelle); push(r.id, 1, r.costoHora * H, fmtUSD(r.costoHora) + '/h × ' + fmtN(H, 1) + ' h'); }
   for (const id of (recursos.equipos || [])) { const r = recurso(id); if (r) push(id, 1, r.costoHora * H, r.buque ? 'equipos del buque · sin costo para la terminal' : fmtUSD(r.costoHora) + '/h × ' + fmtN(H, 1) + ' h'); }
-  for (const [id, n] of Object.entries(recursos.logistica || {})) { const r = recurso(id); if (r && n > 0) push(id, n, r.costoHora * n * H, n + ' × ' + fmtUSD(r.costoHora) + '/h × ' + fmtN(H, 1) + ' h'); }
+  for (const [id, n] of Object.entries(recursos.logistica || {})) {
+    const r = recurso(id); if (!r || n <= 0) continue;
+    const pct = esMaquinaria(id) ? (recursos.maqPct?.[id] ?? 100) : 100;
+    push(id, n, r.costoHora * n * H * pct / 100, n + ' × ' + fmtUSD(r.costoHora) + '/h × ' + fmtN(H, 1) + ' h' + (pct !== 100 ? ' × ' + pct + ' % de uso' : ''));
+  }
   for (const [id, n] of Object.entries(recursos.manos || {})) { const r = recurso(id); if (r && n > 0) push(id, n, r.costoTurno * n * turnos, n + ' × ' + fmtUSD(r.costoTurno) + '/turno × ' + turnos + ' turnos'); }
-  for (const [id, n] of Object.entries(recursos.funciones || {})) { const r = recurso(id); if (r && n > 0) push(id, n, r.costoTurno * n * turnos, n + ' × ' + fmtUSD(r.costoTurno) + '/turno × ' + turnos + ' turnos'); }
+  /* puestos agregados o desafectados sobre la composición de las manos (revisión 16/09) */
+  for (const [rol, dlt] of Object.entries(recursos.puestos || {})) {
+    if (!dlt) continue; const pm = puestoMano(rol); if (!pm) continue;
+    items.push({ rid: pm.id, nombre: (dlt > 0 ? 'Personal externo adicional · ' : 'Personal externo desafectado · ') + rol, tipo: 'mano', cantidad: dlt, base: (dlt > 0 ? '+' : '') + dlt + ' × ' + fmtUSD(pm.costoTurno) + '/turno × ' + turnos + ' turnos', monto: pm.costoTurno * dlt * turnos, bu: null });
+  }
+  for (const [id, n] of Object.entries(recursos.funciones || {})) {
+    const r = recurso(id); if (!r || n <= 0) continue;
+    const af = o.estado === 'BORR' || o.estado === 'PEND_PLAN' ? afectacionPuesto(id, o, n) : { pct: recursos.afectacion?.[id] ?? 100 };
+    const pct = recursos.afectacion?.[id] ?? af.pct;
+    push(id, n, r.costoTurno * n * turnos * pct / 100, n + ' × ' + fmtUSD(r.costoTurno) + '/turno × ' + turnos + ' turnos' + (pct !== 100 ? ' × ' + pct + ' % de afectación' : ''));
+  }
+  /* habilitación de puerto (revisión 16/09): costo por operativo según el puerto */
+  if (recursos.habPuerto) { const hp = habilitacionPuerto(o); if (hp) items.push({ rid: hp.id, nombre: 'Habilitación de puerto · ' + hp.puerto.nombre, tipo: 'habilitacion', cantidad: 1, base: fmtUSD(hp.costo) + ' por operativo · ' + hp.detalle, monto: hp.costo, bu: null }); }
   if (recursos.deposito && o.toneladas) { const r = recurso(recursos.deposito); push(r.id, 1, r.costoTDia * o.toneladas * p.diasDepositoEstimados, fmtN(r.costoTDia, 2) + ' USD/t/día × ' + fmtT(o.toneladas) + ' t × ' + p.diasDepositoEstimados + ' día'); }
   /* kilómetros del detalle del servicio (Rental: traslado de maquinaria · Logística: km totales por camión) — S21 */
   const km = kmDetalle(o);
@@ -484,7 +592,7 @@ function recomendar(o) {
   const camId = E === 'TT' ? 'L-CAM-TT' : 'L-CAM';
   const combos = [];
   for (const m of muelles) for (const eqSet of equiposCand) for (const dep of depositos) {
-    const recursos = { muelle: m?.id || null, equipos: eqSet.map(e => e.id), equipoOrigen: o.medio === 'BUQ' ? origenEq : undefined, deposito: dep?.id || null, balanza: balanza?.id || null, funciones: {}, manos: {}, logistica: {} };
+    const recursos = { muelle: m?.id || null, equipos: eqSet.map(e => e.id), equipoOrigen: o.medio === 'BUQ' ? origenEq : undefined, equiposBuqueN: origenEq === 'buque' ? (eqSet[0]?.cantidad || 1) : undefined, deposito: dep?.id || null, balanza: balanza?.id || null, funciones: {}, manos: {}, puestos: {}, logistica: {}, maqPct: {}, habPuerto: !!habilitacionPuerto(o) && o.medio === 'BUQ' };
     if (o.medio !== 'BUQ') delete recursos.equipoOrigen;
     const nEq = sum(eqSet, e => e.buque ? e.cantidad : 1);
     if (o.medio === 'BUQ') {
@@ -534,7 +642,7 @@ function supuestosRec(p) {
 
 /* ---------- planificación ---------- */
 function confirmarPlan(o, recursos, motivoDesvio, opts = {}) {
-  const plan = { recursos: clone(recursos) };
+  const plan = { recursos: congelarAfectacion(o, clone(recursos)) };
   const d = duracionPlan(o, plan); const c = costoPlan(o, plan);
   const rec = o.recomendacion;
   const difiere = !!rec && !rec.sinOpciones && JSON.stringify(normRec(rec.recursos)) !== JSON.stringify(normRec(recursos));
@@ -548,11 +656,17 @@ function ajustarPlan(o, recursos, motivo, opts = {}) {
   /* Operaciones ajusta los recursos planificados antes de iniciar; el plan inicial se conserva para la comparativa */
   if (!o.planInicial) o.planInicial = clone(o.plan);
   const antes = resumenRecursos(o.plan.recursos);
-  const plan = { recursos: clone(recursos) }; const d = duracionPlan(o, plan); const c = costoPlan(o, plan);
+  const plan = { recursos: congelarAfectacion(o, clone(recursos)) }; const d = duracionPlan(o, plan); const c = costoPlan(o, plan);
   o.plan = { recursos: plan.recursos, horas: d.horas, turnos: d.turnos, horasTurnos: d.horasTurnos, ritmo: d.ritmo, costo: c.total, items: c.items, cumplimiento: cumplimiento(o, d.ritmo),
     difiere: o.plan.difiere, motivoDesvio: o.plan.motivoDesvio, confirmado: o.plan.confirmado, por: o.plan.por, version: (o.plan.version || 1) + 1, ajustadoPor: opts.usuario || userOf('OPS'), ajustadoTs: opts.ts || nowIso(), motivoAjuste: motivo };
   aplicarReservas(o, { rol: 'OPS', ...opts });
   logEv(o, 'Recursos ajustados por Operaciones', antes + ' → ' + resumenRecursos(recursos) + ' · ' + d.turnos + ' turnos · ' + fmtUSD(c.total) + ' · motivo: ' + motivo + ' · el plan inicial (v' + o.planInicial.version + ') se conserva para la comparativa', { rol: 'OPS', ...opts });
+}
+/* el % de afectación del personal propio se calcula al confirmar y queda congelado en el plan (revisión 16/09, S25) */
+function congelarAfectacion(o, recursos) {
+  recursos.afectacion = {};
+  for (const [id, n] of Object.entries(recursos.funciones || {})) if (n > 0) recursos.afectacion[id] = afectacionPuesto(id, o, n).pct;
+  return recursos;
 }
 function normRec(r) {
   const clean = (obj) => Object.fromEntries(Object.entries(obj || {}).filter(([k, v]) => v > 0).sort());
@@ -616,17 +730,17 @@ function ticketManual(o, data) {
 }
 function agregarRecurso(o, data, opts = {}) {
   const ex = o.ejecucion; const r = recurso(data.rid);
-  const rec = { rid: data.rid, tipo: recursoTipo(data.rid), cantidad: +data.cantidad || 1, desde: opts.desde || ex.reloj, hasta: null, origen: 'adicional', motivo: data.motivo, responsable: opts.usuario || userOf('OPS'), atribuibleCliente: !!data.atribuible, respaldo: data.respaldo || '', aprobacion: null };
+  const rec = { rid: data.rid, tipo: recursoTipo(data.rid), cantidad: +data.cantidad || 1, desde: opts.desde || ex.reloj, hasta: null, origen: 'adicional', motivo: data.motivo, responsable: opts.usuario || userOf(opts.rol || 'OPS'), rol: opts.rol || 'OPS', ambito: ambitoRecurso(data.rid), atribuibleCliente: !!data.atribuible, respaldo: data.respaldo || '', aprobacion: null };
   ex.recursos.push(rec);
-  logEv(o, 'Recurso agregado', (rec.cantidad > 1 ? rec.cantidad + '× ' : '') + (r?.nombre || data.rid) + ' · motivo: ' + data.motivo + (rec.atribuibleCliente ? ' · gasto atribuible al cliente' : ''), { rol: 'OPS', ...opts });
+  logEv(o, 'Recurso agregado', (rec.cantidad > 1 ? rec.cantidad + '× ' : '') + (r?.nombre || data.rid) + ' · ' + ambitoInfo(rec.ambito).nombre + ' · motivo: ' + data.motivo + (rec.atribuibleCliente ? ' · gasto atribuible al cliente' : ''), { rol: opts.rol || 'OPS', ...opts });
   return rec;
 }
 function reemplazarRecurso(o, idx, nuevoRid, data, opts = {}) {
   const ex = o.ejecucion; const r = ex.recursos[idx]; if (!r || r.hasta) return null;
   r.hasta = ex.reloj; r.motivoLiberacion = 'Reemplazado por ' + recNombre(nuevoRid) + ' · ' + data.motivo;
-  const nuevo = { rid: nuevoRid, tipo: recursoTipo(nuevoRid), cantidad: +data.cantidad || r.cantidad || 1, desde: ex.reloj, hasta: null, origen: 'reemplazo', motivo: data.motivo, responsable: userOf('OPS'), atribuibleCliente: !!data.atribuible, respaldo: data.respaldo || '', aprobacion: null, reemplazaA: r.rid };
+  const nuevo = { rid: nuevoRid, tipo: recursoTipo(nuevoRid), cantidad: +data.cantidad || r.cantidad || 1, desde: ex.reloj, hasta: null, origen: 'reemplazo', motivo: data.motivo, responsable: userOf(opts.rol || 'OPS'), rol: opts.rol || 'OPS', ambito: ambitoRecurso(nuevoRid), atribuibleCliente: !!data.atribuible, respaldo: data.respaldo || '', aprobacion: null, reemplazaA: r.rid };
   ex.recursos.push(nuevo);
-  logEv(o, 'Recurso reemplazado', recNombre(r.rid) + ' → ' + recNombre(nuevoRid) + (nuevo.cantidad > 1 ? ' ×' + nuevo.cantidad : '') + ' · motivo: ' + data.motivo + (nuevo.atribuibleCliente ? ' · gasto atribuible al cliente' : ''), { rol: 'OPS', ...opts });
+  logEv(o, 'Recurso reemplazado', recNombre(r.rid) + ' → ' + recNombre(nuevoRid) + (nuevo.cantidad > 1 ? ' ×' + nuevo.cantidad : '') + ' · motivo: ' + data.motivo + (nuevo.atribuibleCliente ? ' · gasto atribuible al cliente' : ''), { rol: opts.rol || 'OPS', ...opts });
   return nuevo;
 }
 function modificarCantidad(o, idx, nuevaCant, data, opts = {}) {
@@ -634,14 +748,24 @@ function modificarCantidad(o, idx, nuevaCant, data, opts = {}) {
   const n = Math.max(0, +nuevaCant || 0); if (n === (r.cantidad || 1)) return null;
   r.hasta = ex.reloj; r.motivoLiberacion = 'Cantidad modificada ' + (r.cantidad || 1) + ' → ' + n + ' · ' + data.motivo;
   let nuevo = null;
-  if (n > 0) { nuevo = { rid: r.rid, tipo: r.tipo, cantidad: n, desde: ex.reloj, hasta: null, origen: 'modificado', motivo: data.motivo, responsable: userOf('OPS'), atribuibleCliente: !!data.atribuible && n > (r.cantidad || 1), respaldo: data.respaldo || '', aprobacion: null, cantidadAnterior: r.cantidad || 1 }; ex.recursos.push(nuevo); }
-  logEv(o, 'Cantidad modificada', recNombre(r.rid) + ': ' + (r.cantidad || 1) + ' → ' + n + ' · motivo: ' + data.motivo + (nuevo?.atribuibleCliente ? ' · incremento atribuible al cliente' : ''), { rol: 'OPS', ...opts });
+  if (n > 0) { nuevo = { rid: r.rid, tipo: r.tipo, cantidad: n, desde: ex.reloj, hasta: null, origen: 'modificado', motivo: data.motivo, responsable: userOf(opts.rol || 'OPS'), rol: opts.rol || 'OPS', ambito: ambitoRecurso(r.rid), atribuibleCliente: !!data.atribuible && n > (r.cantidad || 1), respaldo: data.respaldo || '', aprobacion: null, cantidadAnterior: r.cantidad || 1 }; ex.recursos.push(nuevo); }
+  logEv(o, 'Cantidad modificada', recNombre(r.rid) + ': ' + (r.cantidad || 1) + ' → ' + n + ' · motivo: ' + data.motivo + (nuevo?.atribuibleCliente ? ' · incremento atribuible al cliente' : ''), { rol: opts.rol || 'OPS', ...opts });
   return nuevo;
 }
 function liberarRecurso(o, idx, motivo, opts = {}) {
   const ex = o.ejecucion; const r = ex.recursos[idx]; if (!r || r.hasta) return;
-  r.hasta = opts.hasta || ex.reloj; r.motivoLiberacion = motivo;
-  logEv(o, 'Recurso liberado', recNombre(r.rid) + ' · motivo: ' + motivo, { rol: 'OPS', ...opts });
+  r.hasta = opts.hasta || ex.reloj; r.motivoLiberacion = motivo; r.liberadoPor = opts.rol || 'OPS';
+  logEv(o, 'Recurso liberado', recNombre(r.rid) + ' · ' + ambitoInfo(ambitoRecurso(r.rid)).nombre + ' · motivo: ' + motivo, { rol: opts.rol || 'OPS', ...opts });
+}
+/* Operaciones registra la calidad efectiva de la mercadería (revisión 16/09, S28) */
+function calidadesDe(prodId) { return (md().matrizCalidad || []).filter(x => x.producto === prodId); }
+function registrarCalidad(o, calidad, motivo, opts = {}) {
+  const antes = o.calidad || null; const val = (calidad || '').trim();
+  if (!val) return { ok: false, motivo: 'indicá la calidad de la mercadería' };
+  if (val === antes) return { ok: true, sinCambio: true };
+  o.calidad = val; o.calidadRegistro = { por: opts.usuario || userOf(opts.rol || 'OPS'), rol: opts.rol || 'OPS', ts: opts.ts || nowIso(), motivo: motivo || '', anterior: antes };
+  logEv(o, 'Calidad de la mercadería registrada', (antes ? 'de "' + antes + '" a ' : '') + '"' + val + '"' + (motivo ? ' · ' + motivo : '') + ' · queda en la orden para la comparativa por calidad y para el cierre', { rol: opts.rol || 'OPS', ...opts });
+  return { ok: true, antes, calidad: val };
 }
 function registrarDemora(o, data, opts = {}) {
   const ex = o.ejecucion; const causa = byId(md().causasDemora, data.causa);
@@ -662,16 +786,21 @@ function finalizar(o, opts = {}) {
 }
 function tolerancia(id, def) { const t = byId(md().tolerancias || [], id); return t && t.estado === 'vigente' ? +t.tolerancia_por_defecto : def; }
 function toleranciaMermaPct(o) { const t = o.contrato?.condiciones?.toleranciaMermaPct; return (t != null && t !== '') ? +t : tolerancia('TOL-MERMA-CIERRE', md().parametros.toleranciaMermaPct); }
-function evaluarMerma(o, merma, excedente) {
-  const prev = o.toneladas || 0; const ajuste = (+excedente || 0) - (+merma || 0); const pct = prev ? Math.abs(ajuste) / prev * 100 : 0; const tol = toleranciaMermaPct(o);
-  return { previsto: prev, pesado: o.ejecucion?.acumulado || 0, merma: +merma || 0, excedente: +excedente || 0, ajuste, pct, tol, dentro: pct <= tol + 1e-9, diferencia: Math.round((prev - (o.ejecucion?.acumulado || 0)) * 100) / 100 };
+/* La merma y el excedente ya no se cargan a mano: salen de lo que declara la balanza al finalizar el operativo (revisión 16/09, S27) */
+function evaluarMerma(o) {
+  const prev = o.toneladas || 0; const pesado = Math.round((o.ejecucion?.acumulado || 0) * 100) / 100;
+  const dif = Math.round((prev - pesado) * 100) / 100;
+  const merma = dif > 0 ? dif : 0, excedente = dif < 0 ? -dif : 0;
+  const ajuste = excedente - merma; const pct = prev ? Math.abs(ajuste) / prev * 100 : 0; const tol = toleranciaMermaPct(o);
+  const tickets = o.ejecucion?.tickets?.length || 0;
+  return { previsto: prev, pesado, merma, excedente, ajuste, pct, tol, dentro: pct <= tol + 1e-9, diferencia: dif, tickets };
 }
 function cerrar(o, obs, opts = {}) {
   const rol = rolCierre(o);
   if (usaDeposito(o) && o.plan?.recursos?.deposito && o.ejecucion) {
     const d = recurso(o.plan.recursos.deposito); if (d && !o.deposito.ingresado) { d.ocupadoT = Math.round(d.ocupadoT + o.ejecucion.acumulado); o.deposito.ingresado = true; }
   }
-  const ev = evaluarMerma(o, opts.merma || 0, opts.excedente || 0);
+  const ev = evaluarMerma(o);
   o.deposito.cierre = { ts: opts.ts || nowIso(), por: opts.usuario || userOf(rol), rol, obs: obs || '', merma: ev.merma, excedente: ev.excedente, pctAjuste: ev.pct, tolerancia: ev.tol, dentroTolerancia: ev.dentro, aprobacionComercial: opts.aprobacionComercial || null };
   o.cierreSnapshot = comparativas(o);
   logEv(o, 'Cierre del operativo', (obs ? obs + ' · ' : '') + (ev.merma ? 'merma ' + fmtN(ev.merma, 1) + ' t · ' : '') + (ev.excedente ? 'excedente ' + fmtN(ev.excedente, 1) + ' t · ' : '') + (ev.merma || ev.excedente ? fmtN(ev.pct, 2) + ' % sobre lo previsto (tolerancia ' + fmtN(ev.tol, 1) + ' %)' + (ev.dentro ? '' : ' · FUERA DE TOLERANCIA con aprobación de Comercial: ' + (opts.aprobacionComercial || '')) + ' · ' : '') + 'comparativas congeladas en el expediente', { rol, ...opts });
@@ -1120,6 +1249,7 @@ const MD_ABM = {
   'M-06': { tipos: [{ v: 'cliente', coll: 'clientes' }, { v: 'proveedor', coll: 'proveedores' }] },
   'M-07': { coll: 'productos' }, 'M-08': { coll: 'buques' }, 'M-09': { coll: 'plantas' }, 'M-10': { coll: 'depositosPadre' }, 'M-10a': { coll: 'depositos' }, 'M-11': { coll: 'transporte' },
   'M-12': { tipos: [{ v: 'equipo de descarga / carga', coll: 'equipos' }, { v: 'maquinaria auxiliar', coll: 'logistica' }] },
+  'M-12a': { coll: 'maquinariaUnidades', nota: 'Unidades físicas de cada maquinaria: la misma máquina con distintas medidas y capacidades. El acceso de la ubicación de destino (M-10a) define cuál puede entrar.' },
   'M-13': { coll: 'manos' }, 'M-14': { coll: 'servicios' },
   'M-15': { derivado: 'Las tarifas se publican desde las tarifas por componente de cada instrumento (M-16): se administran ahí.' },
   'M-16': { coll: 'instrumentos', nota: 'Comercial también da de alta instrumentos y adendas desde la orden (S9).' },
@@ -1154,7 +1284,7 @@ function registrosEnValidacion() {
   return out.sort((a, b) => (b.rec._aud?.modificado_el || b.rec._aud?.creado_el || '').localeCompare(a.rec._aud?.modificado_el || a.rec._aud?.creado_el || ''));
 }
 /* campos del formulario genérico: se derivan de los registros existentes de la colección (tipo de dato, enumeraciones, referencias a otros maestros) */
-const MD_REF = { planta: 'plantas', puerto: 'plantas', centro_costo: 'centrosCosto', cc: 'centrosCosto', proveedor: 'proveedores', transportista: 'proveedores', familia: 'familias', producto: 'productos', cliente: 'clientes', entidad: 'entidades', unidad_negocio: 'entidades', bu: 'bus', deposito: 'depositosPadre', area: 'departamentos', departamento: 'departamentos', responsable: 'departamentos', puesto: 'funciones', agencia: 'agencias', cuenta_objeto: 'cuentasObjeto', tipo_servicio: 'servicios', contrato: 'instrumentos', muelle: 'muelles', moneda: 'monedas', moneda_funcional: 'monedas', buqueId: 'buques', producto_a: 'productos', producto_b: 'productos' };
+const MD_REF = { maquinaria: 'logistica', planta: 'plantas', puerto: 'plantas', centro_costo: 'centrosCosto', cc: 'centrosCosto', proveedor: 'proveedores', transportista: 'proveedores', familia: 'familias', producto: 'productos', cliente: 'clientes', entidad: 'entidades', unidad_negocio: 'entidades', bu: 'bus', deposito: 'depositosPadre', area: 'departamentos', departamento: 'departamentos', responsable: 'departamentos', puesto: 'funciones', agencia: 'agencias', cuenta_objeto: 'cuentasObjeto', tipo_servicio: 'servicios', contrato: 'instrumentos', muelle: 'muelles', moneda: 'monedas', moneda_funcional: 'monedas', buqueId: 'buques', producto_a: 'productos', producto_b: 'productos' };
 const MD_MULTIREF = { familias: 'familias', productos: 'productos', metodo_seguro: 'metodosSeguros', productos_aptos: 'productos', aptitud_por_producto: 'productos', servicios: 'servicios', bus: 'bus', busPrestadoras: 'bus', ambito: 'entidades', medios: 'medios', componentes: 'componentes', productos_admitidos: 'familias' };
 const MD_ENUM_KEYS = new Set(['estado', 'tipo', 'propiedad', 'criticidad', 'presentacion', 'regimen_segregacion', 'regimen_regulatorio', 'unidad_base', 'clase_dia', 'categoria', 'imputable_a', 'accion_al_vencer', 'accion_al_exceder', 'rol', 'condicion_fiscal', 'condicion_pago', 'nivel', 'cierre', 'tipoM12', 'tipoM25', 'tipoM10a', 'estadoM10a', 'estadoM25', 'estadoM26', 'tipoM16', 'rubro', 'rubroM06', 'unidad_tarifa', 'convenio', 'tipo_movimiento', 'confirmacion_planta', 'tipo_operacion', 'habilitacion', 'alcance', 'metodo_recepcion', 'destinatario', 'estadoFisico', 'unidad', 'unidad_medida', 'aplica_a', 'responsabilidad', 'origen']);
 const MD_SKIP = new Set(['id', 'codigo', 'n', '_aud', '_tipo', 'sup', 'calculado', 'esFlota', 'esMaquinaria', 'cierreSup', 'pendiente', 'buque', 'tercero', 'lineup', 'mantHasta', 'creadoDesde', 'creadoTs', 'creadoPor', 'snapshot', 'convertida', 'origenBU', 'padre', 'tarifas', 'condiciones', 'roles', 'equipos_propios', 'licencia', 'credencial_puerto', 'art_seguro', 'ocupadoT', 'uso', 'nota', 'interno', 'grupo', 'tarifa_mano', 'espacio_asignado', 'busM35']);
@@ -1268,9 +1398,9 @@ function recalcularNominacion(luId, opts = {}) {
    lineup, un cupo o un operativo ferroviario. La planificación y la ejecución quedan
    informadas de esas reservas y el área revalida cuando se elige otra opción.
    ===================================================================== */
-const TIPO_MAESTRO = { logistica: 'M-12', deposito: 'M-10a', balanza: 'M-26', muelle: 'M-25', equipo: 'M-12', funcion: 'M-05', mano: 'M-13' };
-const TIPO_COLL = { logistica: 'logistica', deposito: 'depositos', balanza: 'balanzas', muelle: 'muelles', equipo: 'equipos', funcion: 'funciones', mano: 'manos' };
-const TIPO_NOMBRE = { logistica: 'Logística y equipos auxiliares', deposito: 'Depósitos y ubicaciones', balanza: 'Balanzas', muelle: 'Muelles', equipo: 'Equipos de descarga / carga', funcion: 'Personal propio (puestos)', mano: 'Manos de proveedores' };
+const TIPO_MAESTRO = { logistica: 'M-12', maquinaria: 'M-12', deposito: 'M-10a', balanza: 'M-26', muelle: 'M-25', equipo: 'M-12', funcion: 'M-05', mano: 'M-13' };
+const TIPO_COLL = { logistica: 'logistica', maquinaria: 'logistica', deposito: 'depositos', balanza: 'balanzas', muelle: 'muelles', equipo: 'equipos', funcion: 'funciones', mano: 'manos' };
+const TIPO_NOMBRE = { logistica: 'Logística (flota)', maquinaria: 'Maquinaria', deposito: 'Depósitos y ubicaciones', balanza: 'Balanzas', muelle: 'Muelles', equipo: 'Equipos de descarga / carga', funcion: 'Personal propio (puestos)', mano: 'Manos de proveedores' };
 function recursosDeArea(a) {
   if (!a) return [];
   const m = md(); const out = [];
@@ -1278,7 +1408,9 @@ function recursosDeArea(a) {
     for (const r of (m[TIPO_COLL[tipo]] || [])) {
       if (r.entidad && r.entidad !== a.entidad) continue;
       if ((a.bus || []).length && r.bu && !a.bus.includes(r.bu)) continue;
-      if ((a.bus || []).length && !r.bu && tipo === 'logistica') continue;
+      if ((a.bus || []).length && !r.bu && (tipo === 'logistica' || tipo === 'maquinaria')) continue;
+      /* la flota (logística) y la maquinaria comparten el maestro M-12 pero se administran por separado (revisión 16/09, S31) */
+      if ((tipo === 'logistica' || tipo === 'maquinaria') && claseRecurso(r.id) !== tipo) continue;
       out.push({ r, tipo });
     }
   }

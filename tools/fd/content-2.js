@@ -2,6 +2,7 @@
 module.exports = function (d, M, L) {
   const { h1, h2, h3, p, note, ul, table, kvTable, spacer, flat } = L;
   const join = (a, sep = ' · ') => (a || []).join(sep);
+  const fmtT = n => new Intl.NumberFormat('es-AR', { maximumFractionDigits: 0 }).format(Math.round(+n || 0));
   const out = [];
 
   /* ───────── 7. Estados y transiciones ───────── */
@@ -67,11 +68,14 @@ module.exports = function (d, M, L) {
     ['Habilitaciones', 'Nacionalización y método seguro advierten en Comercial, permiten planificar y bloquean el inicio. Mercadería no nacionalizada → solo depósitos y balanzas con habilitación fiscal vigente.'],
     ['Origen compartido', 'Una carga, cupo o tren admite N órdenes; se advierte y se proponen las toneladas por el remanente (A2). Al anular una orden, el origen vuelve a estar disponible.'],
     ['Ventana del servicio', 'Definida por Comercial; valida disponibilidad, superposición y reservas de todos los recursos. Fin posterior al inicio (bloquea); fuera del arribo o toneladas mayores que el origen (advierte).'],
-    ['Equipos', 'Tipo por estado físico del producto (sólido → grúas; líquido → bombas). Origen muelle o buque; los del buque no consumen inventario ni tienen costo para la terminal.'],
+    ['Equipos', 'Tipo por estado físico del producto (sólido → grúas; líquido → bombas). Origen muelle o buque, **excluyente**: con un origen no se ofrecen los equipos del otro. Los del buque se eligen unidad por unidad, no consumen inventario ni tienen costo para la terminal.'],
+    ['Personal propio', 'Un puesto puede estar en varios operativos simultáneos: la superposición no bloquea; el sistema reparte el % de afectación y prorratea el costo (S25).'],
+    ['Maquinaria', 'Se afecta con un % de uso por orden; el remanente queda disponible para otro operativo de la misma ventana (S31).'],
+    ['Turnos', 'La duración y el catálogo salen de M-33; la cantidad la propone el sistema por el ritmo y la puede fijar el Planificador (S26).'],
     ['Disponibilidad', 'Un recurso reservado por otro operativo en la ventana no se puede asignar: se ofrece la solicitud a la BU dueña (S13) y, para equipos del muelle, el cambio de fecha de arribo (S15).'],
     ['Plan inicial', 'Al confirmar la planificación se congela el plan aceptado; los ajustes de Operaciones se registran como cambios y no lo alteran.'],
     ['Devolución desde ejecución', 'Solo sin tickets registrados.'],
-    ['Cierre', 'Merma / excedente dentro de tolerancia; fuera de tolerancia requiere autorización de Comercial (S12). El rol de cierre lo define el servicio (A5).'],
+    ['Cierre', 'La merma o el excedente salen de lo pesado en balanza, no de una carga manual (S27); fuera de tolerancia requiere autorización de Comercial (S12). El rol de cierre lo define el servicio (A5).'],
     ['Baja de master data', 'Lógica; se rechaza si el registro está reservado por una orden planificada o en ejecución.'],
     ['Módulos', 'Inicio no se puede deshabilitar; un enlace a un módulo deshabilitado vuelve a Inicio con aviso; al cambiar el contexto, la pantalla actual vuelve a Inicio si el contexto nuevo no la tiene.'],
   ], [0.2, 0.8], { size: 17 }));

@@ -14,6 +14,121 @@ function pfInit(o, mode) {
   if (o.medio === 'BUQ') base.equipoOrigen = origenEquipos(base);
   PF[o.id] = base; return base;
 }
+/* marca de ámbito: Operaciones, Depósito o compartido entre ambos (revisión 17/09, S33) */
+function ambChip(rid) { const a = ambitoInfo(ambitoRecurso(rid)); return chip(a.corto, a.cls, 'Recurso de ' + a.nombre + (a.id === 'compartido' ? ': lo gestionan Operaciones y Depósito' : '')); }
+function ambLeyenda() { return '<p class="help" style="margin:0 0 8px">Ámbito de cada recurso: ' + AMBITOS.map(a => chip(a.corto, a.cls) + ' <span class="muted">' + esc(a.nombre) + '</span>').join(' · ') + '. Los compartidos los pueden asignar o liberar tanto Operaciones como Depósito mientras el operativo está en curso ' + sup('S33') + '.</p>'; }
+
+/* Destino en depósito siguiendo la distribución de la planta: planta › depósito › celda › box › mini box (revisión 16/09, S29) */
+function depositoCascada(o, R) {
+  const E = o.entidad; const ruta = R.deposito ? rutaUbicacion(R.deposito) : []; const nav = S.ctx.depNav || {};
+  const dpDe = u => byId(md().depositosPadre, u.deposito);
+  const plantasDep = [...new Set(md().depositos.filter(u => u.entidad === E && !u.padreUbi && dpDe(u)).map(u => dpDe(u).planta))];
+  const plSel = ruta.find(x => x.nivel === 'planta')?.id || (plantasDep.includes(nav.planta) ? nav.planta : '') || plantasDep[0] || '';
+  const depsPl = md().depositosPadre.filter(d => d.planta === plSel);
+  const depSel = ruta.find(x => x.nivel === 'deposito')?.id || (depsPl.some(d => d.id === nav.deposito) ? nav.deposito : '');
+  const celdas = md().depositos.filter(u => u.entidad === E && !u.padreUbi && (!depSel || u.deposito === depSel) && mdUsable(u));
+  const celdaSel = ruta.find(x => x.nivel === 'celda')?.id || '';
+  const boxes = celdaSel ? ubiHijos(celdaSel).filter(mdUsable) : [];
+  const boxSel = ruta.find(x => x.nivel === 'box')?.id || '';
+  const minis = boxSel ? ubiHijos(boxSel).filter(mdUsable) : [];
+  const miniSel = ruta.find(x => x.nivel === 'minibox')?.id || '';
+  const optUbi = (list, cur, vacio) => [{ v: '', t: vacio }, ...list.map(u => { const ch = chequearRecurso(u.id, 1, o); const libre = u.capacidadT - u.ocupadoT; return { v: u.id, t: u.nombre + ' · ' + fmtT(libre) + ' t libres' + (u.fiscal ? ' · fiscal' : '') + (ch.errores.length ? ' ⚠' : '') }; })];
+  const destino = R.deposito ? recurso(R.deposito) : null;
+  const chk = R.deposito ? chequearRecurso(R.deposito, 1, o) : { errores: [], avisos: [] };
+  return '<h3 style="margin:6px 0">Destino en depósito <span class="tag">distribución de la planta</span> ' + sup('S29') + '</h3>' +
+    '<p class="help" style="margin:0 0 8px">El destino se elige recorriendo la distribución: <b>planta › depósito › celda / tanque / galpón / silo › box › mini box</b>. Se puede parar en cualquier nivel: el destino es el último seleccionado.</p>' +
+    '<div class="form-grid" style="margin-bottom:6px">' +
+    field('Planta', sel('pf-dep-pl', plantasDep.map(pl => ({ v: pl, t: planta(pl)?.nombre || pl })), plSel, 'data-depsel="planta"')) +
+    field('Depósito (M-10)', sel('pf-dep-dp', [{ v: '', t: '— todos los depósitos —' }, ...depsPl.map(dp => ({ v: dp.id, t: dp.nombre + ' · ' + esc(dp.tipo) + ' · ' + fmtT(dp.capacidad_total_tn) + ' t' }))], depSel, 'data-depsel="deposito"')) +
+    field('Celda / tanque / galpón / silo', sel('pf-dep-ce', optUbi(celdas, celdaSel, '— sin asignar —'), celdaSel, 'data-depsel="celda"')) +
+    (boxes.length ? field('Box', sel('pf-dep-bx', optUbi(boxes, boxSel, '— toda la ' + esc(recNombre(celdaSel)) + ' —'), boxSel, 'data-depsel="box"')) : '') +
+    (minis.length ? field('Mini box', sel('pf-dep-mb', optUbi(minis, miniSel, '— todo el ' + esc(recNombre(boxSel)) + ' —'), miniSel, 'data-depsel="minibox"')) : '') +
+    '</div>' +
+    (destino ? '<p class="small" style="margin:0 0 10px">Destino: <b>' + esc(rutaUbicacionTxt(destino.id)) + '</b> · ' + fmtT(destino.capacidadT - destino.ocupadoT) + ' t libres' + (chk.errores.length ? ' · <span class="crit">' + esc(chk.errores[0]) + '</span>' : '') + '</p>' : '<p class="small crit" style="margin:0 0 10px">Falta elegir el destino en depósito.</p>');
+}
+/* Turnos: cantidad y régimen desde la tabla de turnos M-33 (revisión 16/09, S26) */
+function turnosBlock(o, R, d) {
+  const reg = regimenTurnos(); const HT = duracionTurno();
+  const ini = new Date(o.ventana.inicio); const h0 = ini.getHours();
+  const idx0 = Math.max(0, reg.findIndex(t => { const a = +t.hora_desde.slice(0, 2), b = +t.hora_hasta.slice(0, 2) || 24; return h0 >= a && h0 < b; }));
+  const ocupados = []; for (let i = 0; i < d.turnos; i++) ocupados.push(reg[(idx0 + i) % reg.length]);
+  const cuenta = {}; for (const t of ocupados) cuenta[t.id] = (cuenta[t.id] || 0) + 1;
+  return '<h3 style="margin:6px 0">Turnos <span class="tag">régimen M-33 · ' + HT + ' h</span> ' + sup('S26') + '</h3>' +
+    '<div class="form-grid" style="margin-bottom:6px">' +
+    field('Cantidad de turnos', '<input type="number" min="1" max="60" data-pf="turnos" value="' + d.turnos + '">') +
+    field('Duración del turno (M-33)', '<input value="' + HT + ' h" disabled>') +
+    field('Horas del operativo', '<input value="' + fmtN(d.turnos * HT, 0) + ' h" disabled>') +
+    (d.manual ? field('Cálculo del sistema', '<input value="' + d.turnosCalc + ' turnos por ritmo" disabled>') : '') + '</div>' +
+    '<div class="btn-row" style="margin-bottom:4px">' + reg.map(t => chip(turnoLabel(t) + (cuenta[t.id] ? ' × ' + cuenta[t.id] : ''), cuenta[t.id] ? 'acc' : '')).join('') + '</div>' +
+    '<p class="help" style="margin-bottom:12px">Los turnos salen de la tabla de turnos (M-33) y se ocupan en secuencia desde el inicio de la ventana. El sistema propone <b>' + d.turnosCalc + '</b> por el ritmo de los equipos; el Planificador puede fijar otra cantidad' + (d.manual ? ' (fijada manualmente en <b>' + d.turnos + '</b>)' : '') + '.</p>';
+}
+/* Personal externo: manos completas y ajuste de la composición, puesto por puesto (revisión 16/09, S30) */
+function manosBlock(o, R, fam) {
+  const manos = md().manos.filter(m => mdUsable(m) && (!fam || (m.familias || []).includes(fam)));
+  const otras = md().manos.filter(m => mdUsable(m) && !manos.includes(m));
+  const comp = composicionManos(R); const base = composicionManos({ manos: R.manos });
+  const puestos = md().puestosMano || [];
+  const roles = [...new Set([...Object.keys(base), ...Object.keys(R.puestos || {}), ...puestos.map(p2 => p2.nombre)])];
+  const filas = roles.map(rol => {
+    const b = base[rol] || 0; const aj = (R.puestos || {})[rol] || 0; const tot = b + aj; const pm = puestoMano(rol);
+    return [esc(rol) + (pm ? ' <span class="xs muted">' + fmtUSD(pm.costoTurno) + '/turno</span>' : ''), String(b),
+      '<input type="number" step="1" data-pf="puesto:' + esc(rol) + '" value="' + aj + '" style="width:64px">',
+      (tot < 0 ? '<b class="crit">' + tot + '</b>' : '<b>' + tot + '</b>')];
+  });
+  return '<div><h3 style="margin:6px 0">Personal externo (manos)</h3>' +
+    '<div class="stack" style="gap:6px">' + manos.map(m => '<div class="small"><input type="number" min="0" step="1" data-pf="mano:' + m.id + '" value="' + (R.manos?.[m.id] || 0) + '" style="width:64px"> <b>' + esc(m.nombre) + '</b> <span class="xs muted">mano completa</span><br><span class="xs muted">' + Object.entries(m.roles).map(([r2, q]) => q + ' ' + r2.toLowerCase()).join(', ') + ' · ' + fmtUSD(m.costoTurno) + '/turno · ' + esc(provName(m.proveedor)) + '</span></div>').join('') +
+    (otras.length ? '<details class="small"><summary class="muted">Otras manos del catálogo (' + otras.length + ')</summary><div class="stack" style="gap:6px;margin-top:6px">' + otras.map(m => '<div class="small"><input type="number" min="0" step="1" data-pf="mano:' + m.id + '" value="' + (R.manos?.[m.id] || 0) + '" style="width:64px"> ' + esc(m.nombre) + ' <span class="xs muted">' + fmtUSD(m.costoTurno) + '/turno</span></div>').join('') + '</div></details>' : '') + '</div>' +
+    '<h4 class="up" style="margin:10px 0 4px">Composición efectiva · agregar o desafectar puestos ' + sup('S30') + '</h4>' +
+    table([{ h: 'Puesto', f: r => r[0] }, { h: 'Por las manos', cls: 'num', f: r => r[1] }, { h: 'Ajuste', cls: 'num', f: r => r[2] }, { h: 'Total', cls: 'num', f: r => r[3] }], filas, { cls: 'compact' }) +
+    '<p class="help">El ajuste suma o resta personas sobre la composición de las manos asignadas, y admite puestos que ninguna mano incluye: <b>' + personasManos(R) + ' personas por turno</b> en total. Un ajuste negativo desafecta el puesto y descuenta su costo.</p></div>';
+}
+/* Personal propio: el mismo puesto puede estar en más de un operativo; el sistema calcula el % de afectación (revisión 16/09, S25) */
+function personalPropioBlock(o, R) {
+  return '<div><h3 style="margin:6px 0">Personal propio (por puesto)</h3><div class="stack" style="gap:6px">' +
+    md().funciones.filter(mdUsable).map(f => {
+      const n = R.funciones?.[f.id] || 0; const af = n > 0 ? afectacionPuesto(f.id, o, n) : null;
+      return '<div class="small"><input type="number" min="0" step="1" data-pf="func:' + f.id + '" value="' + n + '" style="width:64px"> ' + esc(f.nombre) + ' <span class="xs muted">dotación ' + f.dotacion + ' · ' + fmtUSD(f.costoTurno) + '/turno</span>' +
+        (af && af.pct < 100 ? '<br><span class="xs">' + chip(af.pct + ' % de afectación', 'warn') + ' <span class="muted">compartido con ' + af.compartido.join(', ') + '</span></span>' : af ? '<br><span class="xs">' + chip('100 % de afectación', 'ok') + '</span>' : '');
+    }).join('') + '</div>' +
+    '<p class="help">Un puesto puede estar afectado a más de un operativo a la vez: cuando la demanda simultánea supera la dotación, el sistema reparte el <b>% de afectación</b> y prorratea el costo. El porcentaje se congela al confirmar la planificación.</p></div>';
+}
+/* Logística (flota) y maquinaria, separadas; la maquinaria lleva % de uso (revisión 16/09, S31) */
+function flotaBlock(o, R, E) {
+  const list = logisticaDe(E, 'logistica').filter(mdUsable);
+  return '<div><h3 style="margin:6px 0">Logística (flota)</h3><div class="stack" style="gap:6px">' +
+    list.map(l => '<div class="small"><input type="number" min="0" step="1" data-pf="log:' + l.id + '" value="' + (R.logistica?.[l.id] || 0) + '" style="width:64px"> ' + esc(l.nombre) + ' ' + ambChip(l.id) + ' <span class="xs muted">' + l.cantidad + ' disp. · ' + fmtUSD(l.costoHora) + '/h' + (l.capacidadT ? ' · ' + l.capacidadT + ' t' : '') + (l.tercero ? ' · tercero' : '') + '</span></div>').join('') +
+    '</div><p class="help">Camiones propios y de transportista: la flota se planifica por unidad completa.</p></div>';
+}
+function maquinariaBlock(o, R, E) {
+  const list = logisticaDe(E, 'maquinaria').filter(mdUsable); const dest = R.deposito || null;
+  return '<div><h3 style="margin:6px 0">Maquinaria <span class="tag">% de uso · unidades</span> ' + sup('S31') + '</h3>' +
+    (dest ? '<p class="help" style="margin:0 0 6px">Acceso del destino <b>' + esc(recNombre(dest)) + '</b>: ' + (accesoDe(dest) ? fmtN(accesoDe(dest).anchoM, 1) + ' × ' + fmtN(accesoDe(dest).altoM, 1) + ' m (' + esc(accesoDe(dest).tipo) + ')' : 'sin restricción declarada') + '. Solo las unidades que entran se pueden asignar ' + sup('S34') + '.</p>' : '') +
+    '<div class="stack" style="gap:8px">' +
+    list.map(l => {
+      const n = R.logistica?.[l.id] || 0; const pct = R.maqPct?.[l.id] ?? 100;
+      const usados = usoPico(l.id, o); const libre = Math.max(0, l.cantidad - usados - n * pct / 100);
+      const unidades = unidadesDe(l.id); const elegidas = unidadesElegidas(R, l.id);
+      const aptas = unidades.filter(u => unidadApta(u, dest).apta).length;
+      const detalle = unidades.length ? '<details' + (elegidas.length ? ' open' : '') + ' class="small" style="margin-top:4px"><summary class="muted">' + unidades.length + ' unidad' + (unidades.length > 1 ? 'es' : '') + ' en inventario · <b>' + aptas + '</b> apta' + (aptas === 1 ? '' : 's') + (dest ? ' para ' + esc(recNombre(dest)) : '') + (elegidas.length ? ' · ' + elegidas.length + ' elegida' + (elegidas.length > 1 ? 's' : '') : '') + '</summary><div class="stack" style="gap:4px;margin:6px 0 0 4px">' +
+        unidades.map(u => { const ap = unidadApta(u, dest); const on = elegidas.includes(u.id);
+          return '<label class="field chk small" style="align-items:flex-start"><input type="checkbox" data-pf="maqu:' + l.id + ':' + u.id + '"' + (on ? ' checked' : '') + (ap.apta ? '' : ' disabled') + '><span><b>' + esc(u.interno) + '</b> <span class="tag">' + esc(u.id) + '</span> ' + esc(u.marca) + ' ' + esc(u.modelo) + ' ' + u.anio + ' · ' + esc(u.capacidad) + ' · ' + fmtN(u.anchoM, 1) + ' × ' + fmtN(u.altoM, 1) + ' m<br><span class="xs ' + (ap.apta ? 'muted' : 'crit') + '">' + (ap.apta ? '✔ ' : '⚠ ') + esc(ap.motivo) + ' · ' + esc(u.ubicacion_habitual) + '</span></span></label>';
+        }).join('') + '</div></details>' : '';
+      return '<div class="small"><input type="number" min="0" step="1" data-pf="log:' + l.id + '" value="' + n + '" style="width:60px"' + (elegidas.length ? ' disabled title="la cantidad sale de las unidades elegidas"' : '') + '> ' + esc(l.nombre) + ' ' + ambChip(l.id) +
+        (n > 0 ? ' <input type="number" min="1" max="100" step="5" data-pf="maqpct:' + l.id + '" value="' + pct + '" style="width:64px" title="% de uso en esta orden"> <span class="xs muted">% de uso</span>' : '') +
+        '<br><span class="xs muted">' + l.cantidad + ' en inventario · ' + fmtUSD(l.costoHora) + '/h' + (l.capacidadTh ? ' · ' + l.capacidadTh + ' t/h' : '') + ' · ' + esc(buName(l.bu)) + '</span>' +
+        (n > 0 && pct < 100 ? '<br><span class="xs">' + chip('remanente ' + (100 - pct) + ' % disponible para otra orden', 'info') + '</span>' : '') +
+        (n > 0 && libre > 0 ? '<br><span class="xs muted">libre en la ventana: ' + fmtN(libre, 1) + '</span>' : '') + detalle + '</div>';
+    }).join('') +
+    '</div><p class="help">La maquinaria se afecta con un <b>% de uso</b> para esta orden; el remanente queda para otro operativo. Desplegá cada máquina para <b>elegir la unidad</b>: la misma máquina tiene distintas medidas y capacidades, y el acceso del destino define cuál sirve.</p></div>';
+}
+/* Habilitación de puerto: rubro con costo según el puerto (revisión 16/09, S32) */
+function habPuertoBlock(o, R) {
+  const hp = habilitacionPuerto(o);
+  if (!hp) return '<h3 style="margin:6px 0">Habilitación de puerto ' + sup('S32') + '</h3>' + alertBox('info', '<div>El origen no opera sobre un puerto con habilitación arancelada (planta propia): sin costo.</div>') + '<div style="margin-bottom:12px"></div>';
+  return '<h3 style="margin:6px 0">Habilitación de puerto ' + sup('S32') + '</h3>' +
+    '<label class="field chk" style="margin-bottom:4px"><input type="checkbox" data-pf="habPuerto"' + (R.habPuerto ? ' checked' : '') + '><span>Incluir la <b>habilitación de ' + esc(hp.puerto.nombre) + '</b> · <b>' + fmtUSD(hp.costo) + '</b> por operativo</span></label>' +
+    '<p class="help" style="margin-bottom:12px">' + esc(hp.detalle) + '. El costo lo fija el puerto en la master data (M-09) y se imputa como un rubro más del operativo.</p>';
+}
 /* Equipos de descarga / carga (SUPUESTO S14): tipo según el producto; origen muelle o buque; cambio de fecha de arribo ante un equipo ocupado (S15) */
 function equiposBlock(o, R, ajuste) {
   const tipo = tipoEquipoPara(o); const info = tipoEquipoInfo(tipo); const ef = estadoFisico(o.producto);
@@ -21,8 +136,15 @@ function equiposBlock(o, R, ajuste) {
   const opts = [{ v: 'muelle', t: 'Del muelle · ' + info.nombre.toLowerCase() + ' de la terminal' }, { v: 'buque', t: eqb ? 'Del buque · ' + eqb.nombre : 'Del buque · el lineup no declara equipos propios', dis: !eqb }];
   let list;
   if (org === 'buque') {
-    list = eqb ? '<div class="eq sel"><label><input type="checkbox" checked disabled><span><b>' + esc(eqb.nombre) + '</b><br><span class="xs muted">seleccionados por defecto · capacidad total ' + eqb.capacidadTh + ' t/h · sin costo para la terminal · se computan como recurso de tercero · sin superposición con otros operativos · declarados por Logística de arribo en ' + esc(lu?.id || '') + '</span></span></label></div>'
-      : alertBox('crit', 'El lineup ' + esc(lu?.id || '') + ' no declara equipos propios del buque. Pedí a Logística de arribo que lo actualice o usá los equipos del muelle.');
+    if (eqb) {
+      const total = eqb.cantidad || 1; const nSel = Math.min(total, Math.max(1, R.equiposBuqueN || total)); const cu = eqb.capacidadUnidad || Math.round((eqb.capacidadTh || 0) / total);
+      R.equiposBuqueN = nSel; if (!R.equipos.includes(eqb.id)) R.equipos = [eqb.id];
+      list = '<div class="form-grid">' + Array.from({ length: total }, (_, i) => {
+        const on = i < nSel;
+        return '<div class="eq' + (on ? ' sel' : '') + '"><label><input type="checkbox" data-pf="eqbn" value="' + (i + 1) + '"' + (on ? ' checked' : '') + '><span><b>' + esc(tipoEquipoInfo(eqb.tipo).singular) + ' ' + (i + 1) + ' del buque</b><br><span class="xs muted">' + cu + ' t/h · sin costo para la terminal · la opera la tripulación</span></span></label></div>';
+      }).join('') + '</div>' +
+        '<p class="help" style="margin-top:6px">' + esc(eqb.nombre) + ': <b>' + nSel + ' de ' + total + '</b> en uso · capacidad ' + fmtT(cu * nSel) + ' t/h. Los equipos del buque no consumen inventario de la terminal, no generan superposición y se computan como recurso de tercero; los declara Logística de arribo en ' + esc(lu?.id || '') + '. Con este origen <b>no se ofrecen las grúas del muelle</b>.</p>';
+    } else list = alertBox('crit', 'El lineup ' + esc(lu?.id || '') + ' no declara equipos propios del buque. Pedí a Logística de arribo que lo actualice o usá los equipos del muelle.');
   } else {
     const eqs = equiposMuelleDe(o); const am = arriboModificable(o);
     list = eqs.length ? '<div class="form-grid">' + eqs.map(e => {
@@ -34,7 +156,7 @@ function equiposBlock(o, R, ajuste) {
     }).join('') + '</div>' : alertBox('warn', 'La entidad no tiene ' + info.nombre.toLowerCase() + ' en su inventario de equipos del muelle.');
   }
   return '<h3 style="margin:6px 0">Equipos de descarga / carga · ' + esc(info.nombre) + ' <span class="tag">producto ' + (ef === 'liquido' ? 'líquido' : 'sólido') + '</span> ' + sup('S14') + '</h3>' +
-    '<p class="help" style="margin:0 0 8px">El tipo de equipo lo define el producto en la master data (' + esc(famName(prod(o.producto)?.familia)) + ' → ' + esc(info.nombre.toLowerCase()) + '). Primero indicá si se usan los equipos del muelle o los del buque; luego elegí los disponibles.</p>' +
+    '<p class="help" style="margin:0 0 8px">El tipo de equipo lo define el producto en la master data (' + esc(famName(prod(o.producto)?.familia)) + ' → ' + esc(info.nombre.toLowerCase()) + '). Primero indicá si se usan los equipos del muelle o los del buque; luego elegí los disponibles. Con un origen, el otro no se ofrece.</p>' +
     '<div class="form-grid" style="margin-bottom:8px">' + field('Origen de los equipos', sel('pf-eqorg', opts, org, 'data-pf="equipoOrigen"'), '', 'style="grid-column:1/-1;max-width:560px"') + '</div>' + list + '<div style="margin-bottom:12px"></div>';
 }
 function plannerForm(o, mode) {
@@ -44,20 +166,21 @@ function plannerForm(o, mode) {
   const rec = o.recomendacion; const difiere = rec && !rec.sinOpciones && JSON.stringify(normRec(rec.recursos)) !== JSON.stringify(normRec(R));
   const num = (id, val, hint) => '<input type="number" min="0" step="1" data-pf="' + id + '" value="' + (val || 0) + '" style="width:70px">' + (hint ? ' <span class="xs muted">' + hint + '</span>' : '');
   const opt = (list, cur, extraT) => [{ v: '', t: '— sin asignar —' }, ...list.map(x => { const ch = chequearRecurso(x.id, 1, o); return { v: x.id, t: x.nombre + (extraT ? ' · ' + extraT(x) : '') + (ch.errores.length ? ' ⚠' : ''), dis: false }; })];
-  let form = reservasOrigenCard(o, R);
+  const pres = presentacionProducto(o.producto);
+  let form = (pres ? alertBox('info', '<div><b>Producto:</b> ' + esc(prod(o.producto)?.nombre || '—') + ' · <b>' + esc(pres.presentacion) + '</b> ' + chip(pres.estado === 'liquido' ? 'líquido' : 'sólido', pres.estado === 'liquido' ? 'info' : '') + ' · familia ' + esc(pres.familia) + (pres.densidad ? ' · densidad ' + fmtN(pres.densidad, 2) : '') + ' · ' + fmtT(o.toneladas) + ' ' + esc(pres.um) + ' · calidad ' + esc(o.calidad || 'sin declarar') + '. La presentación define el tipo de equipo, las manos y el depósito compatibles.</div>') : '') + ambLeyenda() + reservasOrigenCard(o, R);
   if (!sinOrigenOperativo(o)) {
     form += (!sinOrigenOperativo(o) ? recCard(o) : '') +
       '<div class="form-grid" style="margin-bottom:12px">' +
       (o.medio === 'BUQ' ? field('Muelle', sel('pf-muelle', opt(md().muelles.filter(m => m.entidad === E && mdUsable(m)), R.muelle, m => 'calado ' + m.calado + ' m'), R.muelle || '', 'data-pf="muelle"')) : '') +
-      (s.usaDeposito ? field('Depósito destino', sel('pf-dep', opt(md().depositos.filter(x => x.entidad === E && mdUsable(x)), R.deposito, x => fmtT(x.capacidadT - x.ocupadoT) + ' t libres' + (x.fiscal ? ' · fiscal' : '')), R.deposito || '', 'data-pf="deposito"')) : '') +
-      field('Balanza', sel('pf-bz', opt(md().balanzas.filter(x => x.entidad === E && mdUsable(x)), R.balanza, x => (x.fiscal ? 'fiscal' : 'no fiscal')), R.balanza || '', 'data-pf="balanza"')) + '</div>';
+      field('Balanza', sel('pf-bz', opt(md().balanzas.filter(x => x.entidad === E && mdUsable(x)), R.balanza, x => (x.fiscal ? 'fiscal' : 'no fiscal')), R.balanza || '', 'data-pf="balanza"')) + '</div>' +
+      (s.usaDeposito ? depositoCascada(o, R) : '');
     if (o.medio === 'BUQ') form += equiposBlock(o, R, ajuste);
-    form += '<div class="grid g3"><div><h3 style="margin:6px 0">Personal externo (manos por turno)</h3><div class="stack" style="gap:6px">' + md().manos.filter(m => mdUsable(m) && (!fam || (m.familias || []).includes(fam))).map(m => '<div class="small">' + num('mano:' + m.id, R.manos?.[m.id], '') + ' <b>' + esc(m.nombre) + '</b><br><span class="xs muted">' + Object.entries(m.roles).map(([r, q]) => q + ' ' + r.toLowerCase()).join(', ') + ' · ' + fmtUSD(m.costoTurno) + '/turno · ' + esc(provName(m.proveedor)) + '</span></div>').join('') + '</div></div>' +
-      '<div><h3 style="margin:6px 0">Personal propio (por función)</h3><div class="stack" style="gap:6px">' + md().funciones.filter(mdUsable).map(f => '<div class="small">' + num('func:' + f.id, R.funciones?.[f.id], '') + ' ' + esc(f.nombre) + ' <span class="xs muted">dotación ' + f.dotacion + '</span></div>').join('') + '</div></div>' +
-      '<div><h3 style="margin:6px 0">Logística y equipos auxiliares</h3><div class="stack" style="gap:6px">' + md().logistica.filter(l => l.entidad === E && mdUsable(l)).map(l => '<div class="small">' + num('log:' + l.id, R.logistica?.[l.id], '') + ' ' + esc(l.nombre) + ' <span class="xs muted">' + l.cantidad + ' disp. · ' + fmtUSD(l.costoHora) + '/h' + (l.capacidadTh ? ' · ' + l.capacidadTh + ' t/h' : '') + '</span></div>').join('') + '</div></div></div>';
+    form += turnosBlock(o, R, d) + habPuertoBlock(o, R) +
+      '<div class="grid g2" style="margin-bottom:12px">' + manosBlock(o, R, fam) + personalPropioBlock(o, R) + '</div>' +
+      '<div class="grid g2">' + flotaBlock(o, R, E) + maquinariaBlock(o, R, E) + '</div>';
   } else {
     form += (o.detalle ? alertBox('info', '<div><b>Solicitado por Comercial ' + sup('S21') + ':</b> ' + esc(detalleResumen(o)) + ' · ' + ventanaTxt(o.ventana) + '. Lo pedido ya está cargado en la asignación; validá la disponibilidad en la ventana y ajustá si hace falta.</div>') : alertBox('info', '<div>' + sup('S7') + ' Servicio por solicitud: sin recomendación automática. El Planificador reserva los recursos de la BU prestadora para la ventana solicitada.</div>')) +
-      '<div class="grid g2" style="margin-top:12px"><div><h3 style="margin:6px 0">Recursos de la BU prestadora</h3><div class="stack" style="gap:6px">' + md().logistica.filter(l => l.entidad === E && (l.bu === o.bu || o.servicio === 'SRV-LOGI')).map(l => '<div class="small">' + num('log:' + l.id, R.logistica?.[l.id], '') + ' ' + esc(l.nombre) + ' <span class="xs muted">' + l.cantidad + ' disp. · ' + fmtUSD(l.costoHora) + '/h · ' + esc(buName(l.bu)) + '</span></div>').join('') + (o.bu === 'TYS-RENT' ? md().equipos.filter(e => e.entidad === E).map(e => '<label class="field chk small"><input type="checkbox" data-pf="equipo" value="' + e.id + '"' + ((R.equipos || []).includes(e.id) ? ' checked' : '') + '><span>' + esc(e.nombre) + ' <span class="xs muted">' + esc(e.estado) + '</span></span></label>').join('') : '') + '</div></div>' +
+      '<div class="grid g2" style="margin-top:12px"><div><h3 style="margin:6px 0">Recursos de la BU prestadora <span class="xs muted">flota y maquinaria</span></h3><div class="stack" style="gap:6px">' + md().logistica.filter(l => l.entidad === E && (l.bu === o.bu || o.servicio === 'SRV-LOGI')).map(l => '<div class="small">' + num('log:' + l.id, R.logistica?.[l.id], '') + ' ' + esc(l.nombre) + ' <span class="tag">' + (claseRecurso(l.id) === 'maquinaria' ? 'maquinaria' : 'flota') + '</span>' + (claseRecurso(l.id) === 'maquinaria' && (R.logistica?.[l.id] || 0) > 0 ? ' <input type="number" min="1" max="100" step="5" data-pf="maqpct:' + l.id + '" value="' + (R.maqPct?.[l.id] ?? 100) + '" style="width:64px" title="% de uso"> <span class="xs muted">%</span>' : '') + ' <span class="xs muted">' + l.cantidad + ' disp. · ' + fmtUSD(l.costoHora) + '/h · ' + esc(buName(l.bu)) + '</span></div>').join('') + (o.bu === 'TYS-RENT' ? md().equipos.filter(e => e.entidad === E).map(e => '<label class="field chk small"><input type="checkbox" data-pf="equipo" value="' + e.id + '"' + ((R.equipos || []).includes(e.id) ? ' checked' : '') + '><span>' + esc(e.nombre) + ' <span class="xs muted">' + esc(e.estado) + '</span></span></label>').join('') : '') + '</div></div>' +
       '<div><h3 style="margin:6px 0">Personal propio</h3><div class="stack" style="gap:6px">' + md().funciones.map(f => '<div class="small">' + num('func:' + f.id, R.funciones?.[f.id], '') + ' ' + esc(f.nombre) + '</div>').join('') + '</div></div></div>';
   }
   const est = !sinOrigenOperativo(o) ? '<div class="grid g4" style="gap:8px">' + [['Duración', fmtN(d.horasTurnos, 0) + ' h', d.turnos + ' turnos'], ['Ritmo', fmtN(d.ritmo, 0) + ' t/h', fmtT(d.ritmo * 24) + ' t/día' + (o.contrato?.condiciones?.ritmoComprometido ? ' · comprometido ' + fmtT(o.contrato.condiciones.ritmoComprometido) : '')], ['Costo estimado', fmtUSD(c.total), (rec && !rec.sinOpciones ? 'recomendado ' + fmtUSD(rec.costo) : '')], ['Cumplimiento', fmtPct(cumplimiento(o, d.ritmo)), '']].map(([l, v2, dd]) => '<div class="kpi tight"><span class="v" style="font-size:18px">' + v2 + '</span><span class="l">' + l + '</span><span class="d">' + esc(dd) + '</span></div>').join('') + '</div>'

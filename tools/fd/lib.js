@@ -29,6 +29,8 @@ function cell(text, w, opts = {}) {
 }
 /* tabla con encabezado sombreado; widths en fracciones que suman 1 */
 function table(cols, rows, widths, opts = {}) {
+  /* si las fracciones no coinciden con la cantidad de columnas, se reparte el resto en partes iguales */
+  if (!widths || widths.length !== cols.length) { const w0 = (widths || []).slice(0, cols.length); const usado = w0.reduce((a, b) => a + b, 0); const resto = Math.max(0.05, 1 - usado); const faltan = cols.length - w0.length; widths = faltan > 0 ? [...w0, ...Array(faltan).fill(resto / faltan)] : w0.map(x => x / usado); }
   const ws = widths.map(f => Math.round(CONTENT_W * f)); const diff = CONTENT_W - ws.reduce((a, b) => a + b, 0); ws[ws.length - 1] += diff;
   const head = new TableRow({ tableHeader: true, children: cols.map((c, i) => cell(c, ws[i], { fill: C.accentSoft, bold: true, size: 17, color: C.accent })) });
   const body = rows.map((r, ri) => new TableRow({ children: r.map((v, i) => cell(v, ws[i], { fill: opts.zebra && ri % 2 ? C.soft : undefined, size: opts.size || 18, bold: opts.boldFirst && i === 0 })) }));
