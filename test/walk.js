@@ -419,6 +419,14 @@ const hoursBetween = (a, b) => (new Date(b) - new Date(a)) / 36e5;
   /* móvil */
   await page.setViewportSize({ width: 400, height: 800 }); await page.evaluate(() => go('inicio')); await page.waitForTimeout(50);
   const sw = await page.evaluate(() => document.documentElement.scrollWidth); check(sw <= 400, 'móvil: sin scroll horizontal (' + sw + ')');
+  check(await page.$eval('.navtg', e => getComputedStyle(e).display !== 'none') && await page.$eval('#nav', e => getComputedStyle(e).transform !== 'none'), 'móvil: menú en cajón lateral cerrado con botón hamburguesa');
+  await page.click('.navtg'); await page.waitForTimeout(250); check(await page.evaluate(() => document.body.classList.contains('nav-open')) && (await page.$('#ctx-entidad-m')) !== null, 'móvil: el cajón se abre y contiene los selectores de entidad y BU');
+  await page.click('#nav [data-screen="md"]'); await page.waitForTimeout(250); check(!(await page.evaluate(() => document.body.classList.contains('nav-open'))) && (await page.evaluate(() => S.ctx.screen)) === 'md', 'móvil: navegar cierra el cajón');
+  check(await page.$eval('.md-sel', e => getComputedStyle(e).display !== 'none') && await page.$eval('.mdnav', e => getComputedStyle(e).display === 'none'), 'móvil: Datos maestros usa un selector en lugar de la lista lateral');
+  await page.selectOption('.md-sel select', 'M-26'); await page.waitForTimeout(60); check((await page.evaluate(() => S.ctx.mdM)) === 'M-26', 'móvil: el selector cambia de maestro');
+  for (const sc of ['bandeja', 'ordenes', 'recursos', 'admin', 'casos']) { await page.evaluate(s => go(s), sc); await page.waitForTimeout(40); const w = await page.evaluate(() => document.documentElement.scrollWidth); check(w <= 400, 'móvil: ' + sc + ' sin scroll horizontal (' + w + ')'); }
+  await page.selectOption('#ctx-rol', 'OPS'); await page.waitForTimeout(60); await page.evaluate(() => openOrden('OS-2026-0006', 'ejecucion')); await page.waitForTimeout(60); check((await page.evaluate(() => document.documentElement.scrollWidth)) <= 400 && await page.$eval('.exp-nav', e => getComputedStyle(e).overflowX === 'auto'), 'móvil: expediente sin scroll horizontal y navegación de secciones desplazable');
+  await page.click('[data-action="recurso-form"]'); await page.waitForTimeout(60); check(await page.$eval('.modal', e => e.getBoundingClientRect().width >= 398), 'móvil: los modales ocupan todo el ancho'); await page.keyboard.press('Escape');
   await page.screenshot({ path: 'test/shot-movil.png' });
 
   log('\nErrores:', errors.length); errors.forEach(e => log(' - ' + e));

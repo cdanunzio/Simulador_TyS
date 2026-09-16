@@ -1,6 +1,6 @@
 # TyS · Maqueta ERP v2 — Orden de servicio (código fuente)
 
-Maqueta navegable del circuito de la orden de servicio de TyS (Comercial → Planificador → Operaciones → Depósito), con Logística de arribo, Máster data, permisos por maestro y por módulo, y el modelo de master data v3.1 completo. Archivo único HTML + CSS + JS sin dependencias (solo la tipografía IBM Plex desde Google Fonts, con fallback). Versión actual: **v2.8.0** (`const VERSION` en `src/04-engine.js`).
+Maqueta navegable del circuito de la orden de servicio de TyS (Comercial → Planificador → Operaciones → Depósito), con Logística de arribo, Máster data, permisos por maestro y por módulo, y el modelo de master data v3.1 completo. Archivo único HTML + CSS + JS sin dependencias (solo la tipografía IBM Plex desde Google Fonts, con fallback). Versión actual: **v2.8.1** (`const VERSION` en `src/04-engine.js`).
 
 ## Cómo se arma
 
@@ -19,7 +19,7 @@ No hay dependencias de producción: `package.json` solo define los scripts. `pub
 
 | Archivo | Contenido | Cuándo tocarlo |
 |---|---|---|
-| `01-head.html` | `<title>`, tipografías y todo el CSS (temas claro / oscuro con variables `--accent`, `--ok`, `--warn`, `--crit`…). | Estilos, colores, layout responsive. |
+| `01-head.html` | `<title>`, tipografías y todo el CSS (temas claro / oscuro con variables `--accent`, `--ok`, `--warn`, `--crit`…; responsive con tres cortes: escritorio > 1180 px, tablet ≤ 1180 px, móvil ≤ 860 px con menú en cajón lateral). | Estilos, colores, layout responsive. |
 | `02-body.html` | Shell: barra superior (entidad / BU / rol), menú lateral `#nav`, `#main`, `#toasts`, `#modal-root`. | Casi nunca. |
 | `03-data.js` | `MD_SEED` (datos maestros base: entidades, BU, departamentos, roles, servicios, clientes, productos, instrumentos, recursos, estados, transiciones, matriz de ejecución, módulos y permisos por módulo, parámetros, motivos), `OPS_SEED` (lineups, cupos, trenes, solicitudes), `SUPUESTOS` (S1–S21, A1–A5) y `CASOS` (1–18). | Cambiar datos de demostración, agregar un supuesto o un caso guiado, ajustar la matriz de ejecución o los módulos por rol. |
 | `03b-model.js` | Modelo de master data v3.1 extraído del Excel con `tools/extract_model.py` (`MODEL_FICHAS`, `MODEL_ATRIBUTOS`, reglas, TX/EV…). **No editar a mano**: regenerar con `python3 tools/extract_model.py "tools/<Excel v3.1>.xlsx" src/03b-model.js`. | Cuando cambie el Excel del modelo. |
@@ -36,7 +36,7 @@ Convenciones: las acciones se declaran en el HTML con `data-action="..."` y se r
 
 - `dist/` y `public/` — salidas del build, no versionadas (la página publicada en claude.ai usa `dist/artifact.html`; Vercel sirve `public/index.html`; el archivo único de `dist/` es el que se comparte por mail).
 - `package.json`, `vercel.json`, `.github/workflows/ci.yml` — scripts, configuración del despliegue y pruebas automáticas en cada push.
-- `test/walk.js` — recorrido automatizado (Playwright / Chromium) con ~200 comprobaciones; `test/shots-*.js` generan capturas; los únicos errores de consola esperados son los de Google Fonts sin red.
+- `test/walk.js` — recorrido automatizado (Playwright / Chromium) con ~240 comprobaciones, incluidas las de diseño móvil; `test/shots-*.js` generan capturas (`shots-mobile.js`: teléfono y tablet); los únicos errores de consola esperados son los de Google Fonts sin red.
 - `tools/extract_model.py` — extractor del Excel del modelo v3.1 (openpyxl).
 - `docs/spec.md` y `docs/nota-construccion.md` — especificación funcional y nota de construcción (mismas versiones que en el proyecto de Claude).
 

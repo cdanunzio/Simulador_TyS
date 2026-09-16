@@ -11,19 +11,24 @@ const NAV = [
 function renderNav() {
   const c = contadores(); const sc = S.ctx.screen;
   /* módulos habilitados por rol / sector (S20): el menú solo muestra los habilitados */
-  document.getElementById('nav').innerHTML = NAV.filter(it => it.grp || moduloHabilitado(it.id)).map(it => it.grp ? '<div class="grp">' + it.grp + '</div>' :
-    '<button class="' + (sc === it.id || (it.alias || []).includes(sc) ? 'on' : '') + '" data-action="go" data-screen="' + it.id + '"><span>' + it.n + '</span>' + (it.cnt && c[it.cnt] ? '<span class="cnt">' + c[it.cnt] + '</span>' : '') + '</button>').join('');
+  document.getElementById('nav').innerHTML = '<div class="nav-ctx"><label><span>Entidad</span><select id="ctx-entidad-m"></select></label><label><span>Unidad de negocio</span><select id="ctx-bu-m"></select></label></div>' + NAV.filter(it => it.grp || moduloHabilitado(it.id)).map(it => it.grp ? '<div class="grp">' + it.grp + '</div>' :
+    '<button class="' + (sc === it.id || (it.alias || []).includes(sc) ? 'on' : '') + '" data-action="go" data-screen="' + it.id + '"><span>' + it.n + '</span>' + (it.cnt && c[it.cnt] ? '<span class="cnt">' + c[it.cnt] + '</span>' : '') + '</button>').join('') +
+    /* pie del cajón móvil: acciones de la barra superior que en pantallas chicas no entran arriba */
+    '<div class="nav-foot"><button class="btn sm ghost" data-action="reset">Reiniciar demo</button><span class="xs muted" style="padding:6px 4px">' + esc(ctxTxt()) + ' · ' + VERSION + '</span></div>';
 }
+/* menú móvil: cajón lateral */
+function navOpen(on) { const open = on === undefined ? !document.body.classList.contains('nav-open') : !!on; document.body.classList.toggle('nav-open', open); const tg = document.querySelector('.navtg'); if (tg) { tg.setAttribute('aria-expanded', String(open)); tg.setAttribute('aria-label', open ? 'Cerrar el menú' : 'Abrir el menú'); } }
 function renderCtx() {
   const c = S.ctx;
-  const fill = (id, opts, val) => { const el = document.getElementById(id); el.innerHTML = opts.map(o => '<option value="' + esc(o.v) + '"' + (o.v === val ? ' selected' : '') + '>' + esc(o.t) + '</option>').join(''); };
+  const fill = (id, opts, val) => { for (const el of [document.getElementById(id), document.getElementById(id + '-m')]) if (el) el.innerHTML = opts.map(o => '<option value="' + esc(o.v) + '"' + (o.v === val ? ' selected' : '') + '>' + esc(o.t) + '</option>').join(''); };
   fill('ctx-entidad', [{ v: 'ALL', t: 'Grupo (consolidado)' }, ...md().entidades.map(e => ({ v: e.id, t: e.nombre }))], c.entidad);
   fill('ctx-bu', [{ v: 'ALL', t: 'Todas las BU' }, ...md().bus.filter(b => c.entidad === 'ALL' || b.entidad === c.entidad).map(b => ({ v: b.id, t: b.nombre + (c.entidad === 'ALL' ? ' (' + entName(b.entidad) + ')' : '') }))], c.bu);
   fill('ctx-rol', md().roles.map(r => ({ v: r.id, t: r.nombre + ' · ' + r.usuario })), c.rol);
 }
 function render(opts = {}) {
   const y = window.scrollY;
-  renderCtx(); renderNav();
+  navOpen(false);
+  renderNav(); renderCtx();
   const sc = S.ctx.screen; let html = '';
   switch (sc) {
     case 'inicio': html = viewInicio(); break;
@@ -43,7 +48,7 @@ function render(opts = {}) {
   }
   document.getElementById('main').innerHTML = html;
   save();
-  if (opts.sec) { const el = document.getElementById('s-' + opts.sec); if (el) { setTimeout(() => el.scrollIntoView({ block: 'start' }), 0); return; } }
+  if (opts.sec && opts.sec !== 'resumen') { const el = document.getElementById('s-' + opts.sec); if (el) { setTimeout(() => el.scrollIntoView({ block: 'start' }), 0); return; } }
   if (opts.keep) window.scrollTo(0, y); else window.scrollTo(0, 0);
 }
 function go(screen, extra = {}) {
@@ -366,6 +371,8 @@ function onClick(e) {
   const el = e.target.closest('[data-action]'); if (!el) return;
   if (el.tagName === 'A') e.preventDefault();
   const a = el.dataset.action; const d = el.dataset;
+  if (a === 'nav-toggle') { navOpen(); return; }
+  if (a === 'nav-close') { navOpen(false); return; }
   if (a === 'modal-cancel') { if (e.target.closest('[data-stop]') && !e.target.closest('button')) return; closeModal(); return; }
   if (a === 'modal-ok') { const r = _modalOk ? _modalOk() : true; if (r !== false) { closeModal(); render({ keep: true }); } return; }
   const o = d.id ? orden(d.id) : null;
@@ -431,10 +438,11 @@ function onClick(e) {
 }
 function onChange(e) {
   const el = e.target; const d = el.dataset;
-  if (el.id === 'ctx-entidad') { S.ctx.entidad = el.value; if (S.ctx.bu !== 'ALL' && bu(S.ctx.bu)?.entidad !== el.value && el.value !== 'ALL') S.ctx.bu = 'ALL'; if (S.ctx.screen === 'nueva') W = null; render(); return; }
-  if (el.id === 'ctx-bu') { S.ctx.bu = el.value; render(); return; }
+  if (el.id === 'ctx-entidad' || el.id === 'ctx-entidad-m') { S.ctx.entidad = el.value; if (S.ctx.bu !== 'ALL' && bu(S.ctx.bu)?.entidad !== el.value && el.value !== 'ALL') S.ctx.bu = 'ALL'; if (S.ctx.screen === 'nueva') W = null; render(); return; }
+  if (el.id === 'ctx-bu' || el.id === 'ctx-bu-m') { S.ctx.bu = el.value; render(); return; }
   if (el.id === 'ctx-rol') { S.ctx.rol = el.value; if (!moduloHabilitado(S.ctx.screen)) S.ctx.screen = 'inicio'; if (S.ctx.screen === 'nueva' && el.value !== 'COM') S.ctx.screen = 'ordenes'; render({ keep: true }); return; }
   if (d.mod !== undefined) { const [rol, m] = d.mod.split(':'); const r = setModulo(rol, m, el.checked); toast(r.ok ? (byId(md().modulos, m)?.nombre || m) + ' ' + (el.checked ? 'habilitado' : 'deshabilitado') + ' para ' + rolName(rol) : r.motivo, r.ok ? 'ok' : 'warn'); render({ keep: true }); return; }
+  if (d.mdsel !== undefined) { S.ctx.mdM = el.value; S.ctx.mdSub = S.ctx.mdSub || 'REG'; render(); return; }
   if (d.perm !== undefined) { if (S.ctx.rol !== 'MD') { toast('Solo Máster data modifica los permisos', 'warn'); render({ keep: true }); return; } const [m, rol] = d.perm.split(':'); const r = setPermisoMD(m, rol, el.value); toast(r.ok ? m + ' · ' + rolName(rol) + ': ' + nivelPermiso(el.value).nombre : r.motivo, r.ok ? 'ok' : 'crit'); render({ keep: true }); return; }
   if (d.bind === 'ordFilter') { S.ctx.ordFilter = el.value; render({ keep: true }); return; }
   if (d.pf !== undefined) {
@@ -486,7 +494,7 @@ function init() {
   document.addEventListener('click', onClick);
   document.addEventListener('change', onChange);
   document.addEventListener('input', onInput);
-  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeModal(); navOpen(false); } });
   render();
 }
 init();

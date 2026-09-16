@@ -1,5 +1,6 @@
 <div class="app" id="app">
   <header class="top">
+    <button class="navtg" data-action="nav-toggle" aria-label="Abrir el menú" aria-controls="nav" aria-expanded="false"><span></span><span></span><span></span></button>
     <div class="brand"><span class="brand-mark" aria-hidden="true"></span><b>TyS · Maqueta ERP</b><span class="ver">v2.0 · orden de servicio</span></div>
     <div class="ctx">
       <label><span>Entidad</span><select id="ctx-entidad"></select></label>
@@ -13,6 +14,7 @@
     </div>
   </header>
   <div class="body">
+    <div class="scrim" data-action="nav-close" aria-hidden="true"></div>
     <nav class="nav" id="nav" aria-label="Pantallas"></nav>
     <main class="main" id="main"></main>
   </div>
