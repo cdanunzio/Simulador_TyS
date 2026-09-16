@@ -203,7 +203,7 @@ const hoursBetween = (a, b) => (new Date(b) - new Date(a)) / 36e5;
   const bqN = await page.evaluate(id => buqueDeLineup(byId(S.ops.lineups, id)), luN.id); check(bqN && bqN.equipos_propios && bqN.equipos_propios.tipo === 'Grúa' && bqN.equipos_propios.cantidad === 3 && bqN.estado.startsWith('alta provisoria'), 'C12: LAR declara los equipos del buque en el maestro M-08 (alta provisoria sin IMO: ' + (bqN && bqN.id) + ')');
   /* Caso 13: master data completa (modelo v3.1) */
   await page.evaluate(() => { S.ctx.screen = 'md'; S.ctx.mdTab = 'MAESTROS'; S.ctx.mdM = 'M-34'; S.ctx.mdSub = 'REG'; render(); }); await page.waitForTimeout(40);
-  const nVis = await page.evaluate(() => maestrosVisibles('LAR').length); check((await text('#main')).includes('M-34') && (await text('#main')).includes('accion_al_vencer') && (await page.$$('.mdnav button')).length === nVis && nVis === 34 && (await page.evaluate(() => maestrosVisibles('MD').length)) === 39, 'C13: navegador con los maestros visibles para el rol (LAR ' + nVis + ' de 39) y registros de M-34 con atributos del modelo');
+  const nVis = await page.evaluate(() => maestrosVisibles('LAR').length); check((await text('#main')).includes('M-34') && (await text('#main')).includes('accion_al_vencer') && (await page.$$('.mdnav button')).length === nVis && nVis === 35 && (await page.evaluate(() => maestrosVisibles('MD').length)) === 40, 'C13: navegador con los maestros visibles para el rol (LAR ' + nVis + ' de 39) y registros de M-34 con atributos del modelo');
   const nAttr = await page.evaluate(() => MODEL_ATRIBUTOS.length); check(nAttr === 374 && (await page.evaluate(() => MODEL_FICHAS.length)) === 35 && (await page.evaluate(() => MODEL_REGLAS.length)) === 58 && (await page.evaluate(() => MODEL_TX.length)) === 52, 'C13: modelo v3.1 completo (35 fichas · 374 atributos · 58 reglas · 52 TX)');
   await page.click('[data-action="mdsub"][data-sub="ATR"]'); await page.waitForTimeout(40); check((await text('#main')).includes('En la maqueta') && (await page.$$('#main table.t tbody tr')).length >= 12, 'C13: pestaña Atributos de M-34 con marca "En la maqueta"');
   await page.click('[data-action="mdgo"][data-m="M-07"]'); await page.waitForTimeout(40); check((await text('#main')).includes('Productos') && (await text('#main')).includes('tn_por_mano_turno'), 'C13: M-07 Productos con los atributos del modelo');
@@ -259,11 +259,11 @@ const hoursBetween = (a, b) => (new Date(b) - new Date(a)) / 36e5;
   check((await page.evaluate(() => { const c = byId(md().causasDemora, 'CD-99'); return c.nombre + ':' + c._aud.version; })) === 'Corte de energía en planta (EPE):2' && (await page.evaluate(() => S.mdLog[0].accion)) === 'Modificación', 'C14: modificación versiona el registro (v2) y queda en el registro de cambios');
   /* permisos */
   await page.click('[data-action="mdtab"][data-tab="PERM"]'); await page.waitForTimeout(60);
-  check((await page.$$('select.perm')).length === 39 * 5, 'C14: matriz de permisos 39 maestros × 5 roles editable por Máster data');
+  check((await page.$$('select.perm')).length === 40 * 6, 'C14: matriz de permisos 40 maestros × 6 roles editable por Máster data');
   await page.selectOption('[data-perm="M-29:PLAN"]', 'abm'); await page.waitForTimeout(60); await page.selectOption('[data-perm="M-18:PLAN"]', 'oculto'); await page.waitForTimeout(60);
   check((await page.evaluate(() => permisoMD('M-29', 'PLAN') + ':' + permisoMD('M-18', 'PLAN') + ':' + permisoMD('M-18', 'MD'))) === 'abm:oculto:abm' && (await page.evaluate(() => S.mdLog[0].accion)) === 'Permiso', 'C14: permisos otorgados / quitados y registrados (Máster data siempre ABM)');
   await setRol('PLAN'); await page.evaluate(() => { S.ctx.mdTab = 'MAESTROS'; S.ctx.mdM = 'M-01'; render(); }); await page.waitForTimeout(50);
-  check((await page.$$('.mdnav button')).length === 36 && (await page.$('.mdnav button[data-m="M-18"]')) === null, 'C14: el Planificador deja de ver M-18 (36 visibles: M-03, M-04 y M-18 ocultos)');
+  check((await page.$$('.mdnav button')).length === 37 && (await page.$('.mdnav button[data-m="M-18"]')) === null, 'C14: el Planificador deja de ver M-18 (37 visibles: M-03, M-04 y M-18 ocultos)');
   await page.evaluate(() => { S.ctx.mdM = 'M-18'; render(); }); await page.waitForTimeout(40); check((await text('#main')).includes('no visualiza este maestro'), 'C14: enlace directo a un maestro oculto → aviso de permiso');
   await page.evaluate(() => { S.ctx.mdM = 'M-29'; render(); }); await page.waitForTimeout(40); check((await page.$('[data-action="md-nuevo"]')) !== null && (await text('#main')).includes('Puede ABM'), 'C14: el Planificador ahora puede ABM en M-29');
   await page.evaluate(() => { S.ctx.mdM = 'M-07'; render(); }); await page.waitForTimeout(40); check((await page.$('[data-action="md-nuevo"]')) === null && (await text('#main')).includes('Solo consulta'), 'C14: el Planificador consulta M-07 sin ABM');
@@ -349,7 +349,7 @@ const hoursBetween = (a, b) => (new Date(b) - new Date(a)) / 36e5;
 
   /* Caso 17: módulos habilitados por rol / sector (S20) */
   await page.evaluate(() => { S.ctx.screen = 'admin'; S.ctx.admTab = 'MOD'; render(); }); await page.waitForTimeout(50);
-  check((await page.$$('input[data-moddim^="rol:"]')).length === 11 * 6 && await page.$eval('input[data-moddim="rol:COM:inicio"]', e => e.disabled && e.checked), 'C17: matriz módulos (11) × roles (6) con Inicio fijo');
+  check((await page.$$('input[data-moddim^="rol:"]')).length === 12 * 7 && await page.$eval('input[data-moddim="rol:COM:inicio"]', e => e.disabled && e.checked), 'C17: matriz módulos (12) × roles (6) con Inicio fijo');
   await page.uncheck('input[data-moddim="rol:PLAN:comparativas"]'); await page.waitForTimeout(60);
   check((await page.evaluate(() => moduloHabilitado('comparativas', 'PLAN'))) === false && (await page.evaluate(() => S.mdLog[0].accion)) === 'Módulo', 'C17: Comparativas deshabilitada para el Planificador y registrada');
   await setRol('PLAN'); check((await page.$('#nav [data-screen="comparativas"]')) === null && (await page.$('#nav [data-screen="recursos"]')) !== null, 'C17: el menú del Planificador ya no muestra Comparativas');
@@ -407,7 +407,7 @@ const hoursBetween = (a, b) => (new Date(b) - new Date(a)) / 36e5;
   /* Caso 19: menú de Operación por entidad y por BU · ABM del modelo por Máster data (S22) */
   await setRol('MD'); await page.evaluate(() => { S.ctx.entidad = 'TYS'; S.ctx.bu = 'ALL'; S.ctx.screen = 'admin'; S.ctx.admTab = 'MOD'; render(); }); await page.waitForTimeout(50);
   const nEnt = await page.evaluate(() => md().entidades.length), nBU = await page.evaluate(() => md().bus.length);
-  check((await page.$$('input[data-moddim^="entidad:"]')).length === 7 * nEnt && (await page.$$('input[data-moddim^="bu:"]')).length === 7 * nBU && (await page.$('#adm-sim-rol')) !== null, 'C19: matrices del menú de Operación por entidad (' + nEnt + ') y por BU (' + nBU + ') y simulador por rol');
+  check((await page.$$('input[data-moddim^="entidad:"]')).length === 8 * nEnt && (await page.$$('input[data-moddim^="bu:"]')).length === 8 * nBU && (await page.$('#adm-sim-rol')) !== null, 'C19: matrices del menú de Operación por entidad (' + nEnt + ') y por BU (' + nBU + ') y simulador por rol');
   check(!(await page.evaluate(() => moduloHabilitadoBU('arribos', 'TYS-RENT'))) && !(await page.evaluate(() => moduloHabilitadoEntidad('deposito', 'AMA'))) && (await page.evaluate(() => moduloHabilitado('arribos', 'COM', 'TYS', 'ALL'))), 'C19: valores iniciales (Rental sin Logística de arribo; Amarre sin Depósito; con "Todas las BU" no se aplica)');
   await page.uncheck('input[data-moddim="entidad:TT:recursos"]'); await page.waitForTimeout(60);
   check(!(await page.evaluate(() => moduloHabilitadoEntidad('recursos', 'TT'))) && (await page.evaluate(() => S.mdLog[0].accion + ':' + S.mdLog[0].maestro)) === 'Módulo:M-01', 'C19: Recursos deshabilitado para Terminal Timbúes y registrado');
@@ -433,8 +433,79 @@ const hoursBetween = (a, b) => (new Date(b) - new Date(a)) / 36e5;
   await setRol('PLAN'); await page.evaluate(() => { S.ctx.mdTab = 'CONV'; render(); }); await page.waitForTimeout(50); check((await page.$('[data-action="md-nuevo"]')) === null && (await text('#main')).includes('Solo consulta'), 'C19: otro rol consulta las convenciones sin ABM');
   await page.evaluate(() => go('casos')); await page.click('[data-action="caso"][data-n="19"]'); await page.waitForTimeout(60); check((await page.evaluate(() => S.ctx.screen + ':' + S.ctx.admTab + ':' + S.ctx.rol)) === 'admin:MOD:MD', 'C19: el caso 19 abre Administración › Menú por rol, entidad y BU');
 
+  /* ---------- C20: M-17 / M-21 alineados, nominación desde el operativo ---------- */
+  await setRol('MD'); await page.evaluate(() => { S.ctx.screen = 'md'; S.ctx.mdTab = 'MAESTROS'; S.ctx.mdM = 'M-17'; S.ctx.mdSub = 'ATR'; render(); }); await page.waitForTimeout(60);
+  const atr17 = await page.$$eval('#main table.t tbody tr td:nth-child(2)', ts => ts.map(t => t.textContent.replace(/\s*★/, '').trim()));
+  const esperado17 = ['codigo', 'puerto', 'buque', 'operador', 'cliente', 'shipper', 'agencia', 'producto', 'tipo_operacion', 'plano_de_carga', 'toneladas_nominadas_total_buque', 'toneladas_para_tys', 'alcance_geografico', 'origen', 'destino', 'eta_original', 'eta', 'eta_', 'etb', 'sitio_atraque', 'operativo_vinculado', 'fuente', 'fecha_version', 'estado', 'etc', 'orden_puerto', 'buque_texto_fuente', 'cliente_texto_fuente', 'producto_texto_fuente', 'homologado', 'nominado_a_tys', 'observaciones'];
+  check(esperado17.every((a, i) => atr17[i] === a), 'C20: M-17 tiene los 32 atributos pedidos en orden (' + atr17.slice(0, 3).join(',') + '…)');
+  await page.evaluate(() => { S.ctx.mdM = 'M-21'; S.ctx.mdSub = 'ATR'; render(); }); await page.waitForTimeout(60);
+  const atr21 = await page.$$eval('#main table.t tbody tr td:nth-child(2)', ts => ts.map(t => t.textContent.replace(/\s*★/, '').trim()));
+  check(JSON.stringify(atr21) === JSON.stringify(['codigo', 'nombre', 'identificacion_fiscal', 'rol', 'agencia_domicilio', 'agencia_telefono', 'agencia_email1', 'agencia_email2', 'estado']), 'C20: M-21 incorpora domicilio, teléfono y los dos correos');
+  const nomInv = await page.evaluate(() => S.ops.lineups.map(l => ({ id: l.id, n: ordenesDeOrigen('lineup', l.id).length, nom: !!l.nominado_a_tys, t: l.toneladas_para_tys })).filter(x => x.n === 0 ? x.nom || x.t : !x.nom));
+  check(nomInv.length === 0, 'C20: nominado_a_tys y toneladas_para_tys siguen a las órdenes de cada escala (' + JSON.stringify(nomInv) + ')');
+  const nom31 = await page.evaluate(() => { const l = S.ops.lineups.find(x => x.id === 'LU-2026-031'); return { nom: l.nominado_a_tys, t: l.toneladas_para_tys, tot: l.toneladas_nominadas_total_buque, ov: l.operativo_vinculado }; });
+  check(nom31.nom === true && nom31.t === 27000 && nom31.ov.includes('OS-2026-0006') && nom31.tot >= nom31.t, 'C20: la nominación se alimenta de los operativos (27.000 t para TyS de ' + nom31.tot + ' t del buque)');
+  /* anular una orden revierte la nominación */
+  const nomAntes = await page.evaluate(() => S.ops.lineups.find(x => x.id === 'LU-2026-034').toneladas_para_tys);
+  await page.evaluate(() => anular(orden('OS-2026-0003'), 'Error de alta', { rol: 'COM' }));
+  const nomDesp = await page.evaluate(() => { const l = S.ops.lineups.find(x => x.id === 'LU-2026-034'); return { t: l.toneladas_para_tys, nom: l.nominado_a_tys }; });
+  check(nomAntes === 9000 && nomDesp.t === 0 && nomDesp.nom === false, 'C20: al anular la orden, la escala deja de estar nominada');
+
+  /* ---------- C20b: módulo Mi área, capacidad y ABM del sector ---------- */
+  await setRol('ARE'); await page.evaluate(() => go('area')); await page.waitForTimeout(80);
+  check((await text('#main h1')).includes('Mi área'), 'C20: el rol Responsable de área tiene su propio punto de menú');
+  const capLog = await page.evaluate(() => { const a = areaMD('AR-LOG'); return recursosDeArea(a).map(x => x.r.id); });
+  check(capLog.includes('L-CAM') && capLog.includes('L-TOLVA') && !capLog.includes('L-PALA'), 'C20: Logística administra sus recursos y no los de Rental');
+  await page.selectOption('#area-sel', 'AR-DEP'); await page.waitForTimeout(80);
+  check((await text('#main h1')).includes('Depósitos') && (await text('#main')).includes('Celda 1'), 'C20: cada área ve la capacidad de su propio sector');
+  const rolARE = await page.evaluate(() => permisoMD('M-10a', 'ARE'));
+  check(rolARE === 'abm', 'C20: el área puede hacer el ABM de los maestros de su sector');
+  await page.evaluate(() => { const r = guardarMD('M-10a', 'depositos', { id: 'D9', nombre: 'Celda 4 (nueva)', tipo: 'Celda', entidad: 'TYS', bu: 'TYS-DEP', capacidadT: 12000, ocupadoT: 0, fiscal: false, estado: 'Operativo' }, { rol: 'ARE' }); return r; });
+  check(await page.evaluate(() => enValidacion(byId(md().depositos, 'D9'))), 'C20: el ABM del área nace en validación (workflow de master data)');
+  await setRol('MD'); await page.evaluate(() => validarMD('M-10a', 'D9', 'Validado', 'alta del área', { rol: 'MD' }));
+  check(await page.evaluate(() => mdUsable(byId(md().depositos, 'D9'))), 'C20: Máster data publica el alta del área y el recurso queda usable');
+
+  /* ---------- C21: reservas de área informadas en planificación y revalidación ---------- */
+  await setRol('ARE'); await page.evaluate(() => { S.ctx.area = 'AR-LOG'; go('area'); }); await page.waitForTimeout(60);
+  /* se elige una orden que todavía está pendiente de planificación para recorrer el circuito completo de la reserva */
+  const objetivo = await page.evaluate(() => { const o = S.orders.find(x => x.estado === 'PEND_PLAN' && x.origen?.tipo === 'lineup' && !S.orders.some(y => y.id !== x.id && y.origen?.id === x.origen.id && ['PLANIF', 'EJEC', 'PEND_CIERRE', 'CERRADA'].includes(y.estado))); return o ? { id: o.id, lu: o.origen.id } : null; });
+  check(!!objetivo, 'C21: hay una orden pendiente de planificación para probar la reserva');
+  const rvOK = await page.evaluate(t => { const lu = S.ops.lineups.find(x => x.id === t.lu); return crearReservaArea({ area: 'AR-LOG', rid: 'L-CAM', cantidad: 5, origen: { tipo: 'lineup', id: lu.id }, desde: lu.etb, hasta: lu.etc, motivo: 'Operativo comprometido con el cliente' }, { rol: 'ARE' }); }, objetivo);
+  check(rvOK.ok && rvOK.rv.estado === 'Reservada', 'C21: el área reserva capacidad de su sector referenciando un lineup');
+  const rvMal = await page.evaluate(t => crearReservaArea({ area: 'AR-LOG', rid: 'D1', cantidad: 1, origen: { tipo: 'lineup', id: t.lu }, desde: iso(1, 6), hasta: iso(2, 6), motivo: 'x' }, { rol: 'ARE' }), objetivo);
+  check(!rvMal.ok, 'C21: no se puede reservar un recurso de otro sector');
+  await setRol('PLAN'); await open(objetivo.id, 'planificacion'); await page.waitForTimeout(80);
+  const alertRes = await page.$$eval('#main .alert', as => as.map(a => a.textContent).join(' '));
+  check(/Capacidad reservada por las áreas/.test(alertRes) && /Camión interno/.test(alertRes), 'C21: la planificación informa expresamente lo reservado por el área');
+  check((await page.$$('[data-action="pf-usar-reservas"]')).length === 1, 'C21: botón para tomar lo reservado por las áreas');
+  await page.click('[data-action="pf-usar-reservas"]'); await page.waitForTimeout(80);
+  check((await page.evaluate(id => (pfInit(orden(id)).logistica || {})['L-CAM'], objetivo.id)) === 5, 'C21: el botón toma lo reservado en la asignación');
+  await page.evaluate(id => { const o = orden(id); confirmarPlan(o, pfInit(o), null, { rol: 'PLAN' }); }, objetivo.id);
+  check((await page.evaluate(id => byId(reservas(), id).estado, rvOK.rv.id)) === 'Aplicada', 'C21: al confirmar el plan con lo reservado, la reserva queda "Aplicada"');
+  /* Operaciones ajusta y saca el recurso reservado → el área debe revalidar */
+  await setRol('OPS');
+  await page.evaluate(id => { const o = orden(id); const R = clone(o.plan.recursos); R.logistica = Object.assign({}, R.logistica, { 'L-CAM': 1 }); ajustarPlan(o, R, 'Optimización de costos', { rol: 'OPS' }); }, objetivo.id);
+  check((await page.evaluate(id => byId(reservas(), id).estado, rvOK.rv.id)) === 'A revalidar', 'C21: si Operaciones cambia por otra opción, la reserva pasa a "A revalidar"');
+  await setRol('ARE'); await page.evaluate(() => { S.ctx.area = 'AR-LOG'; go('bandeja'); }); await page.waitForTimeout(80);
+  check((await text('#main')).includes('Reservas a revalidar') && (await text('#main')).includes(rvOK.rv.id), 'C21: la reserva vuelve a la bandeja del área');
+  await page.evaluate(id => revalidarReservaArea(id, 'mantener', 'se mantiene el compromiso con el cliente', { rol: 'ARE' }), rvOK.rv.id);
+  check((await page.evaluate(id => byId(reservas(), id).estado, rvOK.rv.id)) === 'Reservada', 'C21: el área mantiene la reserva y vuelve a informarse al Planificador');
+  await page.evaluate(id => liberarReservaArea(id, 'El operativo se planificó con otra opción', { rol: 'ARE' }), rvOK.rv.id);
+  check((await page.evaluate(id => byId(reservas(), id).estado, rvOK.rv.id)) === 'Liberada', 'C21: el área puede liberar la capacidad reservada');
+  /* aviso en la validación de recursos por una reserva de otro operativo */
+  const avisoOtro = await page.evaluate(id => {
+    const o = orden(id); const otro = S.ops.lineups.find(l => l.id !== o.origen.id);
+    crearReservaArea({ area: 'AR-DEP', rid: 'D1', cantidad: 5000, origen: { tipo: 'lineup', id: otro.id }, desde: o.ventana.inicio, hasta: o.ventana.fin, motivo: 'Pico de demanda previsto' }, { rol: 'ARE' });
+    return chequearRecurso('D1', 1, o).avisos.join(' | ');
+  }, objetivo.id);
+  check(/reservado por Depósitos para/.test(avisoOtro), 'C21: al validar un recurso reservado por un área para otro operativo, se informa como aviso');
+  /* Operaciones ve el mismo aviso al ajustar recursos */
+  await setRol('OPS'); await open('OS-2026-0002'); await page.waitForTimeout(60);
+  const rsv0002 = await page.evaluate(() => reservasDeOrigen(orden('OS-2026-0002').origen).length);
+  check(rsv0002 >= 1, 'C21: la orden de un origen con reservas las conserva para el ajuste de Operaciones');
+
   /* otras pantallas renderizan */
-  for (const sc of ['arribos', 'bandeja', 'ordenes', 'recursos', 'comparativas', 'md', 'admin', 'casos', 'supuestos']) { await page.evaluate(s => go(s), sc); await page.waitForTimeout(30); check((await page.$('#main .page-h h1')) !== null, 'pantalla ' + sc + ' renderiza'); }
+  for (const sc of ['arribos', 'bandeja', 'ordenes', 'recursos', 'area', 'comparativas', 'md', 'admin', 'casos', 'supuestos']) { await page.evaluate(s => go(s), sc); await page.waitForTimeout(30); check((await page.$('#main .page-h h1')) !== null, 'pantalla ' + sc + ' renderiza'); }
   for (const t of ['muelles', 'equipos', 'depositos', 'balanzas', 'logistica', 'funciones', 'manos']) { await page.evaluate(t => { S.ctx.screen = 'recursos'; S.ctx.recTab = t; render(); }, t); }
   for (const t of ['GEN', 'COM', 'PLAN', 'PERS', 'OPS', 'DEP', 'SEG', 'PERM', 'LOG', 'AREA', 'AUD', 'CONV', 'ORDEN', 'DEF', 'REGLAS', 'FUENTES', 'CRUCE', 'TXEV']) { await page.evaluate(t => { S.ctx.screen = 'md'; S.ctx.mdTab = t; render(); }, t); check((await page.$('#main .page-h h1')) !== null, 'md tab ' + t + ' renderiza'); }
   for (const t of ['ENT', 'DEP', 'USR', 'MOD', 'WF', 'REL', 'MAT', 'PAR']) { await page.evaluate(t => { S.ctx.screen = 'admin'; S.ctx.admTab = t; render(); }, t); }

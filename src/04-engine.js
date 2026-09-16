@@ -2,7 +2,7 @@
    MOTOR — estado, helpers, workflow, validaciones, recomendación,
    ejecución, costos y comparativas
    ===================================================================== */
-const VERSION = 'v2.9.1';
+const VERSION = 'v2.10';
 const LS_KEY = 'tys-maqueta-erp-v2';
 let S = null;
 
@@ -34,8 +34,10 @@ function rnd() { _rng = (_rng * 1664525 + 1013904223) >>> 0; return _rng / 42949
 function md() { return S.md; }
 function newState() {
   S = { version: VERSION, seedDay: isoDay(0), md: clone(MD_SEED), ops: clone(OPS_SEED), orders: [], seq: 1, tk: 1, mdLog: [],
-    ctx: { entidad: 'TYS', bu: 'ALL', rol: 'COM', screen: 'inicio', orderId: null, mdTab: 'GEN', admTab: 'ENT', ordFilter: 'ALL', recTab: 'equipos' } };
+    reservasArea: [], seqRA: 1,
+    ctx: { entidad: 'TYS', bu: 'ALL', rol: 'COM', screen: 'inicio', orderId: null, mdTab: 'GEN', admTab: 'ENT', ordFilter: 'ALL', recTab: 'equipos', area: 'AR-LOG', areaTab: 'CAP' } };
   buildSeedOrders();
+  buildSeedReservas();
   return S;
 }
 function save() { try { localStorage.setItem(LS_KEY, JSON.stringify(S)); } catch (e) { /* sin persistencia */ } }
@@ -69,6 +71,9 @@ function agName(id) { return byId(md().agencias, id)?.nombre || provName(id); }
 function buque(id) { return byId(md().buques, id); }
 function buqueDeLineup(lu) { return lu ? (byId(md().buques, lu.buqueId) || null) : null; }
 function planta(id) { return byId(md().plantas, id); }
+function areaMD(id) { return byId(md().areas || [], id); }
+function areasCtx() { const E = S.ctx.entidad; return (md().areas || []).filter(a => (E === 'ALL' || a.entidad === E) && !deBaja(a)); }
+function areaActiva() { const l = areasCtx(); if (!l.length) return null; return l.find(a => a.id === S.ctx.area) || l[0]; }
 function depositoPadre(ubiId) { const u = byId(md().depositos, ubiId); return u ? byId(md().depositosPadre, u.deposito) : null; }
 function recurso(id) {
   const m = md();
@@ -217,6 +222,8 @@ function anular(o, motivo, opts = {}) {
   if (o.ejecucion && !o.ejecucion.fin) { o.ejecucion.fin = o.ejecucion.reloj; for (const r of o.ejecucion.recursos) if (!r.hasta) r.hasta = o.ejecucion.fin; }
   logEv(o, 'Orden anulada', 'Desde ' + estadoName(desde) + ' · motivo: ' + o.anulacion.motivo + ' · se liberan las reservas; el historial se conserva' + (o.anulacion.acumulado ? ' · ' + fmtT(o.anulacion.acumulado) + ' t ya descargadas quedan registradas sin cierre de depósito' : ''), { rol, ...opts });
   transition(o, 'ANULADA', 'Anular orden', { rol, ...opts });
+  if (o.origen?.tipo === 'lineup') recalcularNominacion(o.origen.id);
+  for (const rv of reservasDeOrigen(o.origen).filter(x => x.orden === o.id || x.estado === 'Aplicada')) { rv.estado = 'A revalidar'; rv.orden = o.id; reservaLog(rv, 'A revalidar', 'la orden ' + o.id + ' se anuló: el área revalida si mantiene la capacidad reservada', { rol }); }
   return { ok: true };
 }
 function bandeja(rol) {
@@ -248,6 +255,7 @@ function arribosSinOrden() {
 }
 function contadores() {
   const rol = S.ctx.rol;
+  if (rol === 'ARE') { const a = areaActiva(); const n = reservasARevalidar(a?.id).length; return { bandeja: n, ordenes: ordersCtx().length, deposito: 0, area: n }; }
   if (rol === 'LAR') return { bandeja: arribosSinOrden().length, ordenes: ordersCtx().length, deposito: 0 };
   if (rol === 'MD') return { bandeja: registrosEnValidacion().length, ordenes: ordersCtx().length, deposito: 0 };
   return { bandeja: bandeja(rol).length, ordenes: ordersCtx().length, deposito: ordersCtx().filter(o => (o.estado === 'EJEC' && usaDeposito(o)) || (o.estado === 'PEND_CIERRE' && rolCierre(o) === 'DEP')).length };
@@ -368,6 +376,8 @@ function chequearRecurso(rid, cantidad, o) {
     if (c.nac.aplica && !c.nac.ok && r.fiscal && r.habilitacion_fiscal_vto && r.habilitacion_fiscal_vto < dayOf(win.inicio)) errores.push(r.nombre + ': habilitación fiscal vencida el ' + fmtD(r.habilitacion_fiscal_vto) + ' (M-26)');
     if (r.calibracionHasta && r.calibracionHasta < dayOf(win.fin)) avisos.push(r.nombre + ': calibración vence antes del fin de la ventana');
   }
+  /* reservas de área (S24): lo reservado por un área para OTRO operativo se informa como aviso */
+  for (const rv of reservasDeRecurso(rid, win, o.origen)) avisos.push(r.nombre + ': ' + fmtT(rv.cantidad) + ' reservado por ' + (areaMD(rv.area)?.nombre || rv.area) + ' para ' + origenLabel(rv.origen) + ' (' + fmtDT(rv.desde) + ' → ' + fmtDT(rv.hasta) + ')');
   if (tipo === 'muelle' && o.origen?.tipo === 'lineup') {
     const lu = byId(S.ops.lineups, o.origen.id);
     if (lu && lu.calado > r.calado) errores.push(r.nombre + ': calado insuficiente (' + r.calado + ' m) para el buque (' + lu.calado + ' m)');
@@ -463,14 +473,14 @@ function recomendar(o) {
   let equiposCand = [[]]; let origenEq = 'muelle';
   if (o.medio === 'BUQ') {
     /* SUPUESTO S14: solo equipos del tipo que corresponde al producto (grúas / bombeo); del muelle por defecto, del buque si no hay combinación factible con los propios */
-    const eqs = equiposMuelleDe(o).filter(e => e.familias.includes(fam) && (comp.includes('CAR') || !e.soloCarga) && ok(e.id, 1));
+    const eqs = equiposMuelleDe(o).filter(e => (e.familias || []).includes(fam) && (comp.includes('CAR') || !e.soloCarga) && ok(e.id, 1));
     equiposCand = combos2(eqs);
     const eqb = equiposBuqueDe(o);
     if (eqb && (p.origenEquiposPorDefecto === 'buque' || !equiposCand.length)) { equiposCand = [[eqb]]; origenEq = 'buque'; }
   }
   const depositos = s.usaDeposito ? md().depositos.filter(d => d.entidad === E && ok(d.id, 1)) : [null];
   const balanza = md().balanzas.find(b => b.entidad === E && ok(b.id, 1)) || null;
-  const mano = md().manos.find(m => m.familias.includes(fam) && (comp.includes('CAR') ? m.id === 'MANO-CARGA' : m.id !== 'MANO-CARGA')) || md().manos.find(m => m.familias.includes(fam)) || null;
+  const mano = md().manos.find(m => (m.familias || []).includes(fam) && (comp.includes('CAR') ? m.id === 'MANO-CARGA' : m.id !== 'MANO-CARGA')) || md().manos.find(m => m.familias.includes(fam)) || null;
   const camId = E === 'TT' ? 'L-CAM-TT' : 'L-CAM';
   const combos = [];
   for (const m of muelles) for (const eqSet of equiposCand) for (const dep of depositos) {
@@ -531,6 +541,7 @@ function confirmarPlan(o, recursos, motivoDesvio, opts = {}) {
   o.plan = { recursos: plan.recursos, horas: d.horas, turnos: d.turnos, horasTurnos: d.horasTurnos, ritmo: d.ritmo, costo: c.total, items: c.items, cumplimiento: cumplimiento(o, d.ritmo),
     difiere, motivoDesvio: difiere ? (motivoDesvio || 'Sin motivo indicado') : null, confirmado: opts.ts || nowIso(), por: opts.usuario || userOf('PLAN'), version: (o.plan?.version || 0) + 1 };
   logEv(o, 'Planificación confirmada', resumenRecursos(recursos) + ' · ' + d.turnos + ' turnos · ' + fmtUSD(c.total) + (difiere ? ' · difiere de la recomendación (' + o.plan.motivoDesvio + ')' : ' · coincide con la recomendación'), { rol: 'PLAN', ...opts });
+  aplicarReservas(o, { rol: 'PLAN', ...opts });
   transition(o, 'PLANIF', 'Confirmar planificación y enviar a operaciones', { rol: 'PLAN', ...opts });
 }
 function ajustarPlan(o, recursos, motivo, opts = {}) {
@@ -540,6 +551,7 @@ function ajustarPlan(o, recursos, motivo, opts = {}) {
   const plan = { recursos: clone(recursos) }; const d = duracionPlan(o, plan); const c = costoPlan(o, plan);
   o.plan = { recursos: plan.recursos, horas: d.horas, turnos: d.turnos, horasTurnos: d.horasTurnos, ritmo: d.ritmo, costo: c.total, items: c.items, cumplimiento: cumplimiento(o, d.ritmo),
     difiere: o.plan.difiere, motivoDesvio: o.plan.motivoDesvio, confirmado: o.plan.confirmado, por: o.plan.por, version: (o.plan.version || 1) + 1, ajustadoPor: opts.usuario || userOf('OPS'), ajustadoTs: opts.ts || nowIso(), motivoAjuste: motivo };
+  aplicarReservas(o, { rol: 'OPS', ...opts });
   logEv(o, 'Recursos ajustados por Operaciones', antes + ' → ' + resumenRecursos(recursos) + ' · ' + d.turnos + ' turnos · ' + fmtUSD(c.total) + ' · motivo: ' + motivo + ' · el plan inicial (v' + o.planInicial.version + ') se conserva para la comparativa', { rol: 'OPS', ...opts });
 }
 function normRec(r) {
@@ -789,7 +801,12 @@ function nuevoLineup(d) {
   if (!bq) { S.seqBQ = S.seqBQ || (md().buques.length + 1); bq = { id: 'BQ-' + String(S.seqBQ++).padStart(2, '0'), numero_imo: d.imo || '', nombre: d.buque, eslora_m: +d.eslora || 0, calado_m: +d.calado || 0, cantidad_bodegas: +d.bodegas || 5, plan_bodegas: '—', estado: d.imo ? 'activo' : 'alta provisoria (72 h)', equipos_propios: d.equiposBuque || null, _aud: { origen: 'alta provisoria', creado_por: userOf(S.ctx.rol), creado_el: nowIso() } }; md().buques.push(bq); }
   else if (d.equiposBuque !== undefined) bq.equipos_propios = d.equiposBuque || null;
   const lu = { id, buque: bq.nombre, buqueId: bq.id, bandera: d.bandera || '—', eslora: bq.eslora_m, calado: bq.calado_m, agencia: d.agencia || 'AG-01', terminal: d.terminal, eta: d.eta, etb: d.etb, etc: d.etc, estado: 'Anunciado', estadoM17: 'proyectado', tipo: d.tipo || undefined, cargas: d.cargas,
-    puerto: d.terminal === 'TT' ? 'PL-TT' : 'PU-SN', operador: d.terminal === 'TT' ? 'TT' : 'TYS', tipo_operacion: d.tipo === 'Carga' ? 'carga' : 'descarga', toneladas_nominadas: sum(d.cargas, c => c.toneladas), toneladas_para_tys: sum(d.cargas, c => c.toneladas), alcance_geografico: 'solo San Nicolás', fuente: 'manual', fecha_version: isoDay(0), homologado: !!d.imo, nominado_a_tys: true, observaciones: '' };
+    puerto: d.terminal === 'TT' ? 'PL-TT' : 'PU-SN', operador: d.terminal === 'TT' ? 'TT' : 'TYS', cliente: d.cargas[0]?.cliente || null, producto: d.cargas[0]?.producto || null, shipper: cli(d.cargas[0]?.cliente)?.nombre || '',
+    tipo_operacion: d.tipo === 'Carga' ? 'carga' : 'descarga', plano_de_carga: (bq.cantidad_bodegas || 5) + ' bodegas · ' + fmtT(sum(d.cargas, c => c.toneladas) / (bq.cantidad_bodegas || 5)) + ' t por bodega (declarado por la agencia)',
+    toneladas_nominadas_total_buque: sum(d.cargas, c => c.toneladas), toneladas_para_tys: 0, alcance_geografico: 'solo San Nicolás',
+    eta_original: d.eta, eta_: null, sitio_atraque: '', operativo_vinculado: '', orden_puerto: S.ops.lineups.filter(l => l.terminal === d.terminal).length + 1,
+    buque_texto_fuente: (bq.nombre || '').toUpperCase(), cliente_texto_fuente: (cli(d.cargas[0]?.cliente)?.nombre || '').toUpperCase(), producto_texto_fuente: (prod(d.cargas[0]?.producto)?.nombre || '').toUpperCase(),
+    fuente: 'manual', fecha_version: isoDay(0), homologado: !!d.imo, nominado_a_tys: false, observaciones: '' };
   S.ops.lineups.push(lu); arriboLog('Lineup', id, 'Alta', lu.buque + ' · ' + lu.cargas.map(c => c.bl + ' ' + fmtT(c.toneladas) + ' t').join(', ') + ' · ETB ' + fmtDT(lu.etb) + ' · ' + equiposBuqueTxt(lu)); return lu;
 }
 function equiposBuqueTxt(lu) { const bq = buqueDeLineup(lu); const eb = bq ? bq.equipos_propios : lu?.equiposBuque; return eb ? tipoEquipoInfo(eb.tipo).buque.toLowerCase() + ': ' + eb.cantidad + ' × ' + eb.capacidadTh + ' t/h' : 'sin equipos propios'; }
@@ -1061,6 +1078,22 @@ function buildSeedOrders() {
 /* =====================================================================
    MÁSTER DATA — permisos por rol, ABM genérico, validación y registro de cambios (SUPUESTO S17)
    ===================================================================== */
+/* reservas de área del escenario inicial (revisión 16/09) y nominación del lineup desde los operativos */
+function buildSeedReservas() {
+  const R = (d) => { const res = crearReservaArea(d, { rol: 'ARE', usuario: userOf('ARE'), ts: d.ts }); if (res.ok) res.rv.creadoTs = d.ts || res.rv.creadoTs; return res.ok ? res.rv : null; };
+  const lu = (id) => byId(S.ops.lineups, id);
+  const l36 = lu('LU-2026-036'), l33 = lu('LU-2026-033'), l32 = lu('LU-2026-032'), l38 = lu('LU-2026-038');
+  if (l36) { R({ area: 'AR-DEP', rid: 'D2', cantidad: 20000, origen: { tipo: 'lineup', id: l36.id }, desde: l36.etb, hasta: addHours(l36.etc, 48), motivo: 'Operativo comprometido con el cliente', ts: iso(-1, 9, 10) });
+    R({ area: 'AR-LOG', rid: 'L-CAM', cantidad: 8, origen: { tipo: 'lineup', id: l36.id }, desde: l36.etb, hasta: l36.etc, motivo: 'Pico de demanda previsto', ts: iso(-1, 9, 20) }); }
+  if (l33) R({ area: 'AR-RRHH', rid: 'MANO-EMB', cantidad: 2, origen: { tipo: 'lineup', id: l33.id }, desde: l33.etb, hasta: l33.etc, motivo: 'Operativo comprometido con el cliente', ts: iso(-2, 15, 0) });
+  if (l32) R({ area: 'AR-BAL', rid: 'BZ2', cantidad: 1, origen: { tipo: 'lineup', id: l32.id }, desde: l32.etb, hasta: l32.etc, motivo: 'Mantenimiento programado del resto de la flota', ts: iso(-3, 11, 30) });
+  if (l38) R({ area: 'AR-RENT', rid: 'L-PALA', cantidad: 2, origen: { tipo: 'lineup', id: l38.id }, desde: l38.etb, hasta: l38.etc, motivo: 'Capacidad comprometida con otra área', ts: iso(0, 8, 0) });
+  const cu = S.ops.cupos.find(c => c.estado !== 'Cumplido');
+  if (cu) R({ area: 'AR-BAL', rid: 'BZ1', cantidad: 1, origen: { tipo: 'cupo', id: cu.id }, desde: cu.fecha + 'T06:00:00.000Z', hasta: cu.fecha + 'T18:00:00.000Z', motivo: 'Pico de demanda previsto', ts: iso(-1, 17, 45) });
+  /* las órdenes ya planificadas definen qué reservas quedaron aplicadas y cuáles a revalidar */
+  for (const o of S.orders) if (['PLANIF', 'EJEC', 'PEND_CIERRE', 'CERRADA'].includes(o.estado)) aplicarReservas(o, { silencioso: true, rol: 'PLAN' });
+  recalcularNominacion(null, { silencioso: true });
+}
 const NIVELES_PERMISO = [{ id: 'oculto', nombre: 'No lo visualiza', cls: '' }, { id: 'consulta', nombre: 'Solo consulta', cls: 'info' }, { id: 'abm', nombre: 'Puede ABM', cls: 'acc' }];
 function nivelPermiso(id) { return byId(NIVELES_PERMISO, id) || NIVELES_PERMISO[1]; }
 function permisoMD(m, rol) { rol = rol || S.ctx.rol; if (rol === 'MD') return 'abm'; if (MD_ABM[m]?.modelo) return 'consulta'; /* las listas del modelo las administra solo Máster data (S22) */ return (md().permisosMD?.[m] || {})[rol] || 'consulta'; }
@@ -1101,6 +1134,7 @@ const MD_ABM = {
   'M-33': { coll: 'regimenTurnos' }, 'M-34': { coll: 'metodosSeguros' }, 'M-35': { coll: 'bus' },
   'M-36': { pantalla: 'admin', admTab: 'MAT', txt: 'La matriz de ejecución y las relaciones se editan en Administración.' },
   'M-37': { pantalla: 'admin', admTab: 'WF', txt: 'Los workflows (rol de cierre por servicio) se editan en Administración.' },
+  'M-39': { coll: 'areas', nota: 'Las áreas administran su propio sector desde el módulo Mi área; aquí se define qué recursos les pertenecen y quién las administra.' },
   'M-38': { derivado: 'Los roles de la maqueta son fijos; los permisos por maestro se administran en la pestaña Permisos por rol.' },
   /* listas del modelo (S22): ABM reservado a Máster data */
   'CV': { coll: 'convenciones', modelo: true }, 'RG': { coll: 'reglasModelo', modelo: true }, 'DF': { coll: 'definiciones', modelo: true }, 'DC': { coll: 'decisiones', modelo: true },
@@ -1120,7 +1154,7 @@ function registrosEnValidacion() {
   return out.sort((a, b) => (b.rec._aud?.modificado_el || b.rec._aud?.creado_el || '').localeCompare(a.rec._aud?.modificado_el || a.rec._aud?.creado_el || ''));
 }
 /* campos del formulario genérico: se derivan de los registros existentes de la colección (tipo de dato, enumeraciones, referencias a otros maestros) */
-const MD_REF = { planta: 'plantas', puerto: 'plantas', centro_costo: 'centrosCosto', cc: 'centrosCosto', proveedor: 'proveedores', transportista: 'proveedores', familia: 'familias', producto: 'productos', cliente: 'clientes', entidad: 'entidades', unidad_negocio: 'entidades', bu: 'bus', deposito: 'depositosPadre', area: 'departamentos', responsable: 'departamentos', puesto: 'funciones', agencia: 'agencias', cuenta_objeto: 'cuentasObjeto', tipo_servicio: 'servicios', contrato: 'instrumentos', muelle: 'muelles', moneda: 'monedas', moneda_funcional: 'monedas', buqueId: 'buques', producto_a: 'productos', producto_b: 'productos' };
+const MD_REF = { planta: 'plantas', puerto: 'plantas', centro_costo: 'centrosCosto', cc: 'centrosCosto', proveedor: 'proveedores', transportista: 'proveedores', familia: 'familias', producto: 'productos', cliente: 'clientes', entidad: 'entidades', unidad_negocio: 'entidades', bu: 'bus', deposito: 'depositosPadre', area: 'departamentos', departamento: 'departamentos', responsable: 'departamentos', puesto: 'funciones', agencia: 'agencias', cuenta_objeto: 'cuentasObjeto', tipo_servicio: 'servicios', contrato: 'instrumentos', muelle: 'muelles', moneda: 'monedas', moneda_funcional: 'monedas', buqueId: 'buques', producto_a: 'productos', producto_b: 'productos' };
 const MD_MULTIREF = { familias: 'familias', productos: 'productos', metodo_seguro: 'metodosSeguros', productos_aptos: 'productos', aptitud_por_producto: 'productos', servicios: 'servicios', bus: 'bus', busPrestadoras: 'bus', ambito: 'entidades', medios: 'medios', componentes: 'componentes', productos_admitidos: 'familias' };
 const MD_ENUM_KEYS = new Set(['estado', 'tipo', 'propiedad', 'criticidad', 'presentacion', 'regimen_segregacion', 'regimen_regulatorio', 'unidad_base', 'clase_dia', 'categoria', 'imputable_a', 'accion_al_vencer', 'accion_al_exceder', 'rol', 'condicion_fiscal', 'condicion_pago', 'nivel', 'cierre', 'tipoM12', 'tipoM25', 'tipoM10a', 'estadoM10a', 'estadoM25', 'estadoM26', 'tipoM16', 'rubro', 'rubroM06', 'unidad_tarifa', 'convenio', 'tipo_movimiento', 'confirmacion_planta', 'tipo_operacion', 'habilitacion', 'alcance', 'metodo_recepcion', 'destinatario', 'estadoFisico', 'unidad', 'unidad_medida', 'aplica_a', 'responsabilidad', 'origen']);
 const MD_SKIP = new Set(['id', 'codigo', 'n', '_aud', '_tipo', 'sup', 'calculado', 'esFlota', 'esMaquinaria', 'cierreSup', 'pendiente', 'buque', 'tercero', 'lineup', 'mantHasta', 'creadoDesde', 'creadoTs', 'creadoPor', 'snapshot', 'convertida', 'origenBU', 'padre', 'tarifas', 'condiciones', 'roles', 'equipos_propios', 'licencia', 'credencial_puerto', 'art_seguro', 'ocupadoT', 'uso', 'nota', 'interno', 'grupo', 'tarifa_mano', 'espacio_asignado', 'busM35']);
@@ -1208,6 +1242,158 @@ function bajaMD(m, id, motivo, opts = {}) {
 function fvTxt(v) { if (v === null || v === undefined || v === '') return '—'; if (Array.isArray(v)) return v.join(', ') || '—'; if (typeof v === 'object') return JSON.stringify(v); return String(v); }
 
 /* =====================================================================
+   NOMINACIÓN DEL LINEUP DESDE EL OPERATIVO (revisión 16/09)
+   toneladas_para_tys, nominado_a_tys y operativo_vinculado (M-17) se alimentan
+   de las órdenes de servicio creadas sobre las cargas de la escala.
+   ===================================================================== */
+function recalcularNominacion(luId, opts = {}) {
+  const lus = luId ? [byId(S.ops.lineups, luId)].filter(Boolean) : S.ops.lineups;
+  for (const lu of lus) {
+    const os = ordenesDeOrigen('lineup', lu.id);
+    const tn = sum(os, o => o.toneladas || 0);
+    const antes = { n: !!lu.nominado_a_tys, t: lu.toneladas_para_tys || 0, ov: lu.operativo_vinculado || '' };
+    lu.toneladas_para_tys = tn;
+    lu.nominado_a_tys = os.length > 0;
+    lu.operativo_vinculado = os.map(o => o.id).join(' · ');
+    if (!opts.silencioso && (antes.n !== lu.nominado_a_tys || antes.t !== tn || antes.ov !== lu.operativo_vinculado)) {
+      arriboLog('Lineup', lu.id, 'Nominación actualizada', (lu.nominado_a_tys ? 'nominado a TyS · ' + fmtT(tn) + ' t para TyS de ' + fmtT(lu.toneladas_nominadas_total_buque || tn) + ' t del buque · operativo ' + (lu.operativo_vinculado || '—') : 'sin órdenes: la escala deja de estar nominada a TyS') + ' (M-17: se alimenta de la creación del operativo)');
+    }
+  }
+}
+
+/* =====================================================================
+   ÁREAS: CAPACIDAD PROPIA Y RESERVAS PARA OPERATIVOS FUTUROS (revisión 16/09, S23 · S24)
+   Cada área (Logística, Rental, Depósitos, RRHH, Portería y balanza) administra los
+   recursos de su sector, ve su capacidad total y reserva capacidad referenciando un
+   lineup, un cupo o un operativo ferroviario. La planificación y la ejecución quedan
+   informadas de esas reservas y el área revalida cuando se elige otra opción.
+   ===================================================================== */
+const TIPO_MAESTRO = { logistica: 'M-12', deposito: 'M-10a', balanza: 'M-26', muelle: 'M-25', equipo: 'M-12', funcion: 'M-05', mano: 'M-13' };
+const TIPO_COLL = { logistica: 'logistica', deposito: 'depositos', balanza: 'balanzas', muelle: 'muelles', equipo: 'equipos', funcion: 'funciones', mano: 'manos' };
+const TIPO_NOMBRE = { logistica: 'Logística y equipos auxiliares', deposito: 'Depósitos y ubicaciones', balanza: 'Balanzas', muelle: 'Muelles', equipo: 'Equipos de descarga / carga', funcion: 'Personal propio (puestos)', mano: 'Manos de proveedores' };
+function recursosDeArea(a) {
+  if (!a) return [];
+  const m = md(); const out = [];
+  for (const tipo of a.tipos || []) {
+    for (const r of (m[TIPO_COLL[tipo]] || [])) {
+      if (r.entidad && r.entidad !== a.entidad) continue;
+      if ((a.bus || []).length && r.bu && !a.bus.includes(r.bu)) continue;
+      if ((a.bus || []).length && !r.bu && tipo === 'logistica') continue;
+      out.push({ r, tipo });
+    }
+  }
+  return out;
+}
+function areaDeRecurso(rid) { return (md().areas || []).find(a => recursosDeArea(a).some(x => x.r.id === rid)) || null; }
+function capacidadRecurso(r, tipo) {
+  if (tipo === 'deposito') return { total: r.capacidadT || 0, um: 't' };
+  if (tipo === 'funcion') return { total: r.dotacion || 0, um: 'personas' };
+  if (tipo === 'mano') return { total: r.disponibles || r.cantidad || 4, um: 'manos' };
+  if (tipo === 'balanza' || tipo === 'muelle') return { total: 1, um: 'unidad' };
+  return { total: r.cantidad || 1, um: 'unidades' };
+}
+function usoPicoWin(rid, win, excludeId) {
+  const rvs = reservasRecurso(rid, excludeId).filter(rv => overlap(win.inicio, win.fin, rv.desde, rv.hasta));
+  if (!rvs.length) return 0;
+  const puntos = [win.inicio, ...rvs.map(rv => rv.desde)].filter(t => t >= win.inicio && t < win.fin);
+  let pico = 0;
+  for (const t of puntos) pico = Math.max(pico, sum(rvs.filter(rv => rv.desde <= t && t < rv.hasta), rv => rv.cantidad));
+  return pico;
+}
+function ventanaArea() { return { inicio: isoDay(0) + 'T00:00:00.000Z', fin: isoDay(14) + 'T00:00:00.000Z' }; }
+function ocupacionRecurso(rid, tipo, win) {
+  /* comprometido por órdenes planificadas o en ejecución dentro de la ventana, y reservado por el área */
+  if (tipo === 'deposito') {
+    const r = recurso(rid);
+    const comp = sum(reservasRecurso(rid, null).filter(rv => overlap(win.inicio, win.fin, rv.desde, rv.hasta)), rv => Math.max(0, rv.o.toneladas - (rv.o.ejecucion?.acumulado || 0)));
+    return { ordenes: comp + (r?.ocupadoT || 0), detalle: reservasRecurso(rid, null).filter(rv => overlap(win.inicio, win.fin, rv.desde, rv.hasta)) };
+  }
+  return { ordenes: usoPicoWin(rid, win, null), detalle: reservasRecurso(rid, null).filter(rv => overlap(win.inicio, win.fin, rv.desde, rv.hasta)) };
+}
+/* ---------- reservas de área ---------- */
+const RESERVA_ESTADOS = ['Reservada', 'Aplicada', 'A revalidar', 'Liberada'];
+function reservas() { S.reservasArea = S.reservasArea || []; return S.reservasArea; }
+function reservasVigentes() { return reservas().filter(r => r.estado !== 'Liberada'); }
+function reservasDeArea(areaId) { return reservas().filter(r => r.area === areaId); }
+function mismoOrigen(a, b) { return !!a && !!b && a.tipo === b.tipo && a.id === b.id; }
+function reservasDeOrigen(origen) { return origen ? reservasVigentes().filter(r => mismoOrigen(r.origen, origen)) : []; }
+function reservasDeRecurso(rid, win, origenExcluido) {
+  return reservasVigentes().filter(r => r.rid === rid && !mismoOrigen(r.origen, origenExcluido) && (!win || overlap(win.inicio, win.fin, r.desde, r.hasta)));
+}
+function origenLabel(g) {
+  if (!g) return '—';
+  if (g.tipo === 'lineup') { const lu = byId(S.ops.lineups, g.id); return lu ? lu.id + ' · ' + lu.buque : g.id; }
+  if (g.tipo === 'cupo') { const c = byId(S.ops.cupos, g.id); return c ? c.id + ' · cupo de ' + c.camiones + ' camiones' : g.id; }
+  if (g.tipo === 'tren') { const t = byId(S.ops.trenes, g.id); return t ? t.id + ' · ' + t.formacion : g.id; }
+  return g.id;
+}
+function ventanaDeOrigen(g) {
+  if (!g) return null;
+  if (g.tipo === 'lineup') { const lu = byId(S.ops.lineups, g.id); return lu ? { inicio: lu.etb, fin: lu.etc } : null; }
+  if (g.tipo === 'cupo') { const c = byId(S.ops.cupos, g.id); return c ? { inicio: c.fecha + 'T06:00:00.000Z', fin: c.fecha + 'T18:00:00.000Z' } : null; }
+  if (g.tipo === 'tren') { const t = byId(S.ops.trenes, g.id); return t ? { inicio: t.fecha + 'T06:00:00.000Z', fin: t.fecha + 'T22:00:00.000Z' } : null; }
+  return null;
+}
+function reservaLog(rv, accion, detalle, opts = {}) {
+  rv.log = rv.log || [];
+  rv.log.unshift({ ts: opts.ts || nowIso(), rol: opts.rol || S.ctx.rol, usuario: opts.usuario || userOf(opts.rol || S.ctx.rol), accion, detalle: detalle || '' });
+}
+function crearReservaArea(d, opts = {}) {
+  const a = areaMD(d.area); if (!a) return { ok: false, motivo: 'área inexistente' };
+  const r = recurso(d.rid); if (!r) return { ok: false, motivo: 'recurso inexistente' };
+  if (!recursosDeArea(a).some(x => x.r.id === d.rid)) return { ok: false, motivo: recNombre(d.rid) + ' no pertenece al sector de ' + a.nombre };
+  const cant = Math.max(1, +d.cantidad || 1);
+  const win = { inicio: d.desde, fin: d.hasta };
+  if (!win.inicio || !win.fin || win.fin <= win.inicio) return { ok: false, motivo: 'la ventana de la reserva es inválida (el fin debe ser posterior al inicio)' };
+  S.seqRA = S.seqRA || 1; const id = 'RA-' + String(S.seqRA++).padStart(3, '0');
+  const rv = { id, area: a.id, rid: d.rid, tipo: recursoTipo(d.rid), cantidad: cant, origen: d.origen ? clone(d.origen) : null, desde: win.inicio, hasta: win.fin, motivo: d.motivo || 'sin motivo indicado', estado: 'Reservada', orden: null, creadoPor: opts.usuario || userOf(opts.rol || S.ctx.rol), creadoTs: opts.ts || nowIso(), log: [] };
+  reservaLog(rv, 'Alta', a.nombre + ' reserva ' + cant + ' × ' + recNombre(d.rid) + ' para ' + origenLabel(rv.origen) + ' · ' + ventanaTxtSimple(win) + ' · motivo: ' + rv.motivo, opts);
+  reservas().push(rv);
+  /* si la escala ya tiene órdenes, se evalúa de inmediato contra sus planes */
+  for (const o of ordenesDeReserva(rv)) if (['PLANIF', 'EJEC', 'PEND_CIERRE', 'CERRADA'].includes(o.estado)) aplicarReservas(o, { silencioso: true });
+  return { ok: true, rv };
+}
+function ventanaTxtSimple(v) { return fmtDT(v.inicio) + ' → ' + fmtDT(v.fin); }
+function ordenesDeReserva(rv) { return rv.origen ? ordenesDeOrigen(rv.origen.tipo, rv.origen.id) : []; }
+function liberarReservaArea(id, motivo, opts = {}) {
+  const rv = byId(reservas(), id); if (!rv) return { ok: false, motivo: 'reserva inexistente' };
+  if (rv.estado === 'Liberada') return { ok: false, motivo: 'ya está liberada' };
+  rv.estado = 'Liberada'; rv.liberadaTs = opts.ts || nowIso();
+  reservaLog(rv, 'Liberación', motivo || 'sin motivo indicado', opts);
+  return { ok: true, rv };
+}
+function revalidarReservaArea(id, decision, detalle, opts = {}) {
+  const rv = byId(reservas(), id); if (!rv) return { ok: false, motivo: 'reserva inexistente' };
+  if (decision === 'liberar') { const res = liberarReservaArea(id, detalle || 'el área acepta el cambio de la planificación', opts); if (res.ok) reservaLog(rv, 'Revalidación', 'El área acepta la opción elegida y libera la capacidad', opts); return res; }
+  rv.estado = 'Reservada'; rv.revalidadaTs = opts.ts || nowIso();
+  reservaLog(rv, 'Revalidación', 'El área mantiene la reserva y pide revisar la planificación' + (detalle ? ' · ' + detalle : ''), opts);
+  return { ok: true, rv, mantiene: true };
+}
+/* al confirmar o ajustar un plan: lo reservado por las áreas para ese origen se marca aplicado o a revalidar */
+function aplicarReservas(o, opts = {}) {
+  /* solo se evalúa contra órdenes que ya tienen un plan confirmado: una orden en borrador o pendiente de planificación todavía no eligió nada */
+  if (!o.plan || ['BORR', 'ANULADA'].includes(o.estado)) return [];
+  const rs = reservasDeOrigen(o.origen); if (!rs.length) return [];
+  const cambios = [];
+  for (const rv of rs) {
+    const q = cantidadEnOrden(o, rv.rid);
+    const antes = rv.estado;
+    if (q >= rv.cantidad) { rv.estado = 'Aplicada'; rv.orden = o.id; if (antes !== 'Aplicada') { reservaLog(rv, 'Aplicada', o.id + ' toma ' + q + ' × ' + recNombre(rv.rid), opts); cambios.push({ rv, a: 'Aplicada', q }); } }
+    else if (antes !== 'A revalidar' || q !== (rv.aplicadaCant || 0)) {
+      rv.estado = 'A revalidar'; rv.orden = o.id; rv.aplicadaCant = q;
+      reservaLog(rv, 'A revalidar', o.id + (q > 0 ? ' toma ' + q + ' de ' + rv.cantidad + ' × ' + recNombre(rv.rid) + ' (menos de lo reservado)' : ' se planificó con otra opción: no usa ' + recNombre(rv.rid)), opts);
+      cambios.push({ rv, a: 'A revalidar', q });
+    }
+  }
+  if (cambios.length && !opts.silencioso) {
+    logEv(o, 'Reservas de área revisadas', cambios.map(c => areaMD(c.rv.area)?.nombre + ' · ' + recNombre(c.rv.rid) + ' ' + c.rv.cantidad + ' → ' + c.a.toLowerCase()).join(' · ') + ' (el área revalida lo que quedó sin usar)', { rol: opts.rol || S.ctx.rol, ...opts });
+  }
+  return cambios;
+}
+function reservasARevalidar(areaId) { return reservas().filter(r => r.estado === 'A revalidar' && (!areaId || r.area === areaId)); }
+function reservasTxt(rs) { return rs.map(r => r.cantidad + ' × ' + recNombre(r.rid) + ' (' + (areaMD(r.area)?.nombre || r.area) + ')').join(' · '); }
+
+/* =====================================================================
    MÓDULOS POR ROL / SECTOR (SUPUESTO S20) y edición de toneladas / fechas por Comercial (SUPUESTO S19)
    ===================================================================== */
 const MODULO_DE_PANTALLA = { exp: 'ordenes', nueva: 'ordenes', programacion: 'arribos' };
@@ -1250,6 +1436,7 @@ function editarDatosServicio(o, d, motivo, opts = {}) {
   if (d.inicio && d.fin) { if (d.fin <= d.inicio) return { ok: false, motivo: 'el fin del servicio debe ser posterior al inicio' }; if (d.inicio !== o.ventana?.inicio || d.fin !== o.ventana?.fin) { cambios.push('ventana ' + ventanaTxt(o.ventana) + ' → ' + ventanaTxt({ inicio: d.inicio, fin: d.fin })); o.ventana = { inicio: d.inicio, fin: d.fin }; } }
   if (!cambios.length) return { ok: true, sinCambio: true };
   logEv(o, 'Toneladas y fechas del servicio modificadas', cambios.join(' · ') + (motivo ? ' · motivo: ' + motivo : ''), { rol: 'COM', ...opts });
+  if (o.origen?.tipo === 'lineup') recalcularNominacion(o.origen.id);
   if (o.estado === 'PEND_PLAN' && !sinOrigenOperativo(o)) { o.recomendacion = recomendar(o); logEv(o, 'Recomendación regenerada', o.recomendacion?.sinOpciones ? 'sin combinación factible' : resumenRecursos(o.recomendacion.recursos), { rol: 'PLAN' }); }
   return { ok: true, cambios };
 }

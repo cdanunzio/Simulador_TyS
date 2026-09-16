@@ -4,7 +4,7 @@
 const NAV = [
   { grp: 'Operación' },
   { id: 'inicio', n: 'Inicio' }, { id: 'arribos', n: 'Logística de arribo' }, { id: 'bandeja', n: 'Workflow · mi etapa', cnt: 'bandeja' }, { id: 'ordenes', n: 'Operaciones · órdenes', cnt: 'ordenes', alias: ['exp', 'nueva'] },
-  { id: 'recursos', n: 'Recursos' }, { id: 'deposito', n: 'Depósito', cnt: 'deposito' }, { id: 'comparativas', n: 'Comparativas' },
+  { id: 'area', n: 'Mi área', cnt: 'area' }, { id: 'recursos', n: 'Recursos' }, { id: 'deposito', n: 'Depósito', cnt: 'deposito' }, { id: 'comparativas', n: 'Comparativas' },
   { grp: 'Configuración' }, { id: 'md', n: 'Datos maestros' }, { id: 'admin', n: 'Administración' },
   { grp: 'Maqueta' }, { id: 'casos', n: 'Casos guiados' }, { id: 'supuestos', n: 'Supuestos' },
 ];
@@ -39,6 +39,7 @@ function render(opts = {}) {
     case 'ordenes': html = viewOrdenes(); break;
     case 'exp': html = viewExpediente(orden(S.ctx.orderId)); break;
     case 'nueva': html = viewNueva(); break;
+    case 'area': html = viewArea(); break;
     case 'recursos': html = viewRecursos(); break;
     case 'deposito': html = viewDeposito(); break;
     case 'comparativas': html = viewComparativas(); break;
@@ -239,6 +240,57 @@ function formLineup(lu) {
     toast(lu2.id + ' · ' + lu2.buque + ' registrado', 'ok');
   } });
 }
+/* ---------- reservas de capacidad de las áreas (revisión 16/09, S24) ---------- */
+function origenesReservables() {
+  const E = S.ctx.entidad; const out = [];
+  for (const l of S.ops.lineups) if ((E === 'ALL' || l.terminal === E) && !['Zarpó', 'Cancelado'].includes(l.estado)) out.push({ v: 'lineup:' + l.id, t: 'Lineup ' + l.id + ' · ' + l.buque + ' · ETB ' + fmtDT(l.etb) });
+  for (const c of S.ops.cupos) if ((E === 'ALL' || c.terminal === E) && c.estado !== 'Cumplido') out.push({ v: 'cupo:' + c.id, t: 'Cupo ' + c.id + ' · ' + c.camiones + ' camiones · ' + fmtD(c.fecha) });
+  for (const t of S.ops.trenes) out.push({ v: 'tren:' + t.id, t: 'Tren ' + t.id + ' · ' + t.formacion + ' · ' + fmtD(t.fecha) });
+  return out;
+}
+function formReservaArea(ridPre) {
+  const a = areaActiva(); if (!a) { toast('No hay un área activa en este contexto', 'warn'); return; }
+  const recs = recursosDeArea(a); if (!recs.length) { toast('El área no tiene recursos asignados', 'warn'); return; }
+  const ors = origenesReservables(); if (!ors.length) { toast('No hay arribos futuros para referenciar', 'warn'); return; }
+  const g0 = ors[0].v.split(':'); const w0 = ventanaDeOrigen({ tipo: g0[0], id: g0[1] }) || { inicio: iso(1, 6), fin: iso(2, 18) };
+  const body = alertBox('info', '<div><b>' + esc(a.nombre) + '</b> reserva capacidad de su sector para un operativo futuro. La reserva referencia un <b>lineup, un cupo o un operativo ferroviario</b>; la planificación y la ejecución de las órdenes de ese origen quedan informadas y, si eligen otra opción, la reserva vuelve al área para revalidar. ' + sup('S24') + '</div>') +
+    '<div class="form-grid">' +
+    field('Operativo de referencia', sel('m-org', ors, ors[0].v)) +
+    field('Recurso del sector', sel('m-rid', recs.map(x => { const c = capacidadRecurso(x.r, x.tipo); return { v: x.r.id, t: x.r.nombre + ' · ' + fmtT(c.total) + ' ' + c.um + (x.r.bu ? ' · ' + buName(x.r.bu) : '') }; }), ridPre || recs[0].r.id)) +
+    field('Cantidad a reservar', '<input type="number" min="1" id="m-cant" value="1">') +
+    field('Desde', '<input type="datetime-local" id="m-desde" value="' + toLocalInput(w0.inicio) + '">') +
+    field('Hasta', '<input type="datetime-local" id="m-hasta" value="' + toLocalInput(w0.fin) + '">') +
+    field('Motivo', sel('m-mot', md().motivosReservaArea.map(v => ({ v, t: v })), md().motivosReservaArea[0])) + '</div>' +
+    '<p class="help">La ventana se propone desde el origen (ETB → ETC del lineup, franja del cupo, día del operativo ferroviario) y se puede ajustar.</p>';
+  modal({ title: 'Nueva reserva de capacidad · ' + esc(a.nombre), body, ok: 'Reservar capacidad', onOk: () => {
+    const [tipo, id] = mv('m-org').split(':');
+    const res = crearReservaArea({ area: a.id, rid: mv('m-rid'), cantidad: +mv('m-cant') || 1, origen: { tipo, id }, desde: fromLocalInput(mv('m-desde')), hasta: fromLocalInput(mv('m-hasta')), motivo: mv('m-mot') }, { rol: 'ARE' });
+    if (!res.ok) { toast(res.motivo, 'crit'); return false; }
+    toast(res.rv.id + ' · ' + fmtT(res.rv.cantidad) + ' × ' + recNombre(res.rv.rid) + ' reservado para ' + origenLabel(res.rv.origen), 'ok');
+  } });
+}
+function formLiberarReserva(id) {
+  const rv = byId(reservas(), id); if (!rv) return;
+  const body = alertBox('warn', '<div>Se libera <b>' + fmtT(rv.cantidad) + ' × ' + esc(recNombre(rv.rid)) + '</b> reservado para <b>' + esc(origenLabel(rv.origen)) + '</b>. La capacidad vuelve a estar disponible para cualquier operativo.</div>') +
+    field('Motivo', sel('m-mot', md().motivosLiberacionReserva.map(v => ({ v, t: v })), md().motivosLiberacionReserva[0])) + field('Detalle', '<input id="m-det" placeholder="opcional">');
+  modal({ title: 'Liberar la reserva ' + esc(rv.id), body, ok: 'Liberar', okCls: 'danger', onOk: () => {
+    const r = liberarReservaArea(id, mv('m-mot') + (mv('m-det') ? ' · ' + mv('m-det') : ''), { rol: S.ctx.rol });
+    if (!r.ok) { toast(r.motivo, 'crit'); return false; }
+    toast(rv.id + ' liberada', 'ok');
+  } });
+}
+function formRevalidarReserva(id) {
+  const rv = byId(reservas(), id); if (!rv) return;
+  const o = rv.orden ? orden(rv.orden) : null; const q = o ? cantidadEnOrden(o, rv.rid) : 0;
+  const body = alertBox('warn', '<div><b>' + esc(recNombre(rv.rid)) + ' · ' + fmtT(rv.cantidad) + ' reservado' + (rv.cantidad > 1 ? 's' : '') + '</b> para ' + esc(origenLabel(rv.origen)) + '.<br>' + esc((rv.log || [])[0]?.detalle || '') + (o ? '<br>La orden ' + esc(o.id) + ' está ' + esc(estadoName(o.estado).toLowerCase()) + ' y toma ' + fmtT(q) + ' de ' + fmtT(rv.cantidad) + '.' : '') + '</div>') +
+    '<div class="form-grid">' + field('Decisión', sel('m-dec', [{ v: 'liberar', t: 'Aceptar el cambio y liberar la capacidad' }, { v: 'mantener', t: 'Mantener la reserva y pedir que se revise el plan' }], 'liberar')) + field('Detalle', '<input id="m-det" placeholder="opcional">') + '</div>' +
+    '<p class="help">Si el área mantiene la reserva, vuelve al estado "Reservada" y el Planificador la ve de nuevo al abrir la orden: la capacidad sigue comprometida para ese operativo.</p>';
+  modal({ title: 'Revalidar la reserva ' + esc(rv.id), body, ok: 'Registrar la decisión', onOk: () => {
+    const r = revalidarReservaArea(id, mv('m-dec'), mv('m-det'), { rol: S.ctx.rol });
+    if (!r.ok) { toast(r.motivo, 'crit'); return false; }
+    toast(r.mantiene ? rv.id + ': el área mantiene la reserva' : rv.id + ' liberada', r.mantiene ? 'warn' : 'ok');
+  } });
+}
 /* ---------- cambio de fecha de arribo desde la planificación (SUPUESTO S15) ---------- */
 function formArribo(o, rid) {
   const am = arriboModificable(o); if (!am.ok) { toast('No se puede cambiar la fecha de arribo: ' + am.motivo, 'warn'); return; }
@@ -363,6 +415,7 @@ function wGuardar(enviar) {
   let o;
   if (W.edit) { const prev = orden(W.edit); o = crearOrdenBase({ ...spec, id: prev.id, creadoTs: prev.creado }); o.historial = prev.historial; logEv(o, 'Borrador actualizado', 'Selección revisada por Comercial'); S.orders[S.orders.indexOf(prev)] = o; }
   else { o = crearOrdenBase(spec); S.orders.push(o); }
+  if (o.origen?.tipo === 'lineup') recalcularNominacion(o.origen.id); /* la nominación del lineup (M-17) se alimenta de la creación del operativo */
   const c = condiciones(o);
   if (enviar) { if (!c.ok) logEv(o, 'Advertencia registrada', c.motivos.join(' · ') + ': se envía a planificación; el inicio quedará bloqueado hasta regularizar'); transition(o, 'PEND_PLAN', 'Crear y enviar a planificación'); }
   W = null; toast(o.id + (enviar ? ' creada y enviada a planificación · pasa al Planificador' : ' guardada como borrador') + (c.ok ? '' : ' · con advertencias'), c.ok ? 'ok' : 'warn');
@@ -388,6 +441,12 @@ function onClick(e) {
     case 'devolver': if (o) formDevolver(o); break;
     case 'datos-servicio': if (o) formDatosServicio(o); break;
     case 'anular': if (o) formAnular(o); break;
+    /* ---- Mi área: capacidad y reservas (revisión 16/09) ---- */
+    case 'area-tab': S.ctx.areaTab = d.t; render({ keep: true }); break;
+    case 'ra-nueva': if (S.ctx.rol !== 'ARE' && S.ctx.rol !== 'MD') { toast('Las reservas de capacidad las hace el área (rol Responsable de área).', 'warn'); break; } formReservaArea(d.rid || null); break;
+    case 'ra-liberar': formLiberarReserva(d.id); break;
+    case 'ra-revalidar': formRevalidarReserva(d.id); break;
+    case 'pf-usar-reservas': { const o = orden(d.id); const R = pfInit(o, o.estado === 'PLANIF' ? 'ajuste' : 'plan'); const t = aplicarReservasAAsignacion(o, R); toast(t.length ? 'Asignación actualizada con lo reservado por las áreas: ' + t.join(' · ') : 'La asignación ya toma todo lo reservado', t.length ? 'ok' : 'info'); render({ keep: true }); break; }
     case 'md-nuevo': formMD(d.m, d.coll, null); break;
     case 'md-editar': { const c = mdCollDe(d.m, d.id); if (c) formMD(d.m, c.coll, c.rec); break; }
     case 'md-baja': { const c = mdCollDe(d.m, d.id); if (!c) break; if (permisoMD(d.m) !== 'abm') { toast(rolName(S.ctx.rol) + ' no tiene permiso de ABM sobre ' + d.m, 'warn'); break; }
@@ -447,6 +506,7 @@ function onChange(e) {
   if (d.mod !== undefined) { const [rol, m] = d.mod.split(':'); const r = setModulo(rol, m, el.checked); toast(r.ok ? (byId(md().modulos, m)?.nombre || m) + ' ' + (el.checked ? 'habilitado' : 'deshabilitado') + ' para ' + rolName(rol) : r.motivo, r.ok ? 'ok' : 'warn'); render({ keep: true }); return; }
   if (d.moddim !== undefined) { const [dim, key, m] = d.moddim.split(':'); const r = setModuloDim(dim, key, m, el.checked); const quien = dim === 'rol' ? rolName(key) : dim === 'entidad' ? entName(key) : buName(key); toast(r.ok ? (byId(md().modulos, m)?.nombre || m).split(' (')[0] + ' ' + (el.checked ? 'habilitado' : 'deshabilitado') + ' para ' + quien : r.motivo, r.ok ? 'ok' : 'warn'); if (!moduloHabilitado(S.ctx.screen)) S.ctx.screen = 'inicio'; render({ keep: true }); return; }
   if (d.sim !== undefined) { S.ctx.sim = S.ctx.sim || { rol: S.ctx.rol, ent: S.ctx.entidad, bu: S.ctx.bu }; S.ctx.sim[d.sim] = el.value; if (d.sim === 'ent' && S.ctx.sim.bu !== 'ALL' && bu(S.ctx.sim.bu)?.entidad !== el.value && el.value !== 'ALL') S.ctx.sim.bu = 'ALL'; render({ keep: true }); return; }
+  if (d.areasel !== undefined) { S.ctx.area = el.value; render(); return; }
   if (d.mdsel !== undefined) { S.ctx.mdM = el.value; S.ctx.mdSub = S.ctx.mdSub || 'REG'; render(); return; }
   if (d.perm !== undefined) { if (S.ctx.rol !== 'MD') { toast('Solo Máster data modifica los permisos', 'warn'); render({ keep: true }); return; } const [m, rol] = d.perm.split(':'); const r = setPermisoMD(m, rol, el.value); toast(r.ok ? m + ' · ' + rolName(rol) + ': ' + nivelPermiso(el.value).nombre : r.motivo, r.ok ? 'ok' : 'crit'); render({ keep: true }); return; }
   if (d.bind === 'ordFilter') { S.ctx.ordFilter = el.value; render({ keep: true }); return; }

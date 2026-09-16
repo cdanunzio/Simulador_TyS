@@ -61,7 +61,19 @@ const MD_SEED = {
     { id: 'OPS', nombre: 'Operaciones', usuario: 'R. Ocampo', etapa: 3 },
     { id: 'DEP', nombre: 'Depósito', usuario: 'S. Villalba', etapa: 4 },
     { id: 'LAR', nombre: 'Logística de arribo', usuario: 'P. Giménez', etapa: 0, sup: true, nota: 'Administra lineup, cupos de camiones y operativos ferroviarios; no tiene etapa en el workflow de la orden.' },
+    { id: 'ARE', nombre: 'Responsable de área', usuario: 'D. Arrieta', etapa: 0, sup: true, nota: 'Administra la capacidad de su propio sector (recursos, ABM por workflow de master data) y hace reservas para operativos futuros referenciando un lineup, un cupo o un operativo ferroviario. No tiene etapa en el workflow de la orden. El área activa se elige en el módulo Mi área (en el sistema real vendría del usuario).' },
     { id: 'MD', nombre: 'Máster data', usuario: 'L. Benítez', etapa: 0, sup: true, nota: 'Administra la master data (ABM de todos los maestros), valida y publica las altas de otros roles y otorga o quita a cada rol el permiso sobre cada maestro (no lo visualiza · solo consulta · puede ABM). No interviene en el workflow de la orden.' },
+  ],
+
+  /* áreas operativas (sectores) que administran su propia capacidad y reservan para operativos futuros — M-39 ★ Maqueta (revisión 16/09, SUPUESTO S23) */
+  areas: [
+    { id: 'AR-LOG', nombre: 'Logística', entidad: 'TYS', departamento: 'PLAN', bus: ['TYS-LOG', 'TYS-MAQ'], tipos: ['logistica'], responsable_usuario: 'D. Arrieta', estado: 'activa' },
+    { id: 'AR-RENT', nombre: 'Rental', entidad: 'TYS', departamento: 'ADM', bus: ['TYS-RENT'], tipos: ['logistica'], responsable_usuario: 'N. Pereyra', estado: 'activa' },
+    { id: 'AR-DEP', nombre: 'Depósitos', entidad: 'TYS', departamento: 'DEP', bus: ['TYS-DEP'], tipos: ['deposito'], responsable_usuario: 'S. Villalba', estado: 'activa' },
+    { id: 'AR-RRHH', nombre: 'RRHH', entidad: 'TYS', departamento: 'PERS', bus: [], tipos: ['funcion', 'mano'], responsable_usuario: 'C. Ibarra', estado: 'activa' },
+    { id: 'AR-BAL', nombre: 'Portería y balanza', entidad: 'TYS', departamento: 'OPS', bus: [], tipos: ['balanza'], responsable_usuario: 'M. Quiroga', estado: 'activa' },
+    { id: 'AR-LOG-TT', nombre: 'Logística TT', entidad: 'TT', departamento: 'TT-OPS', bus: ['TT-LOG'], tipos: ['logistica'], responsable_usuario: 'F. Duarte', estado: 'activa', sup: true },
+    { id: 'AR-DEP-TT', nombre: 'Depósitos TT', entidad: 'TT', departamento: 'TT-OPS', bus: ['TT-DEP'], tipos: ['deposito'], responsable_usuario: 'F. Duarte', estado: 'activa', sup: true },
   ],
 
   relaciones: [
@@ -247,13 +259,15 @@ const MD_SEED = {
   /* módulos (pantallas) habilitables por rol / sector (revisión 15/09) — Inicio no se puede deshabilitar */
   modulos: [
     { id: 'inicio', nombre: 'Inicio', fijo: true, grupo: 'operacion' }, { id: 'arribos', nombre: 'Logística de arribo', grupo: 'operacion' }, { id: 'bandeja', nombre: 'Workflow · mi etapa', grupo: 'operacion' }, { id: 'ordenes', nombre: 'Operaciones · órdenes (incluye Nueva orden y expediente)', grupo: 'operacion' },
-    { id: 'recursos', nombre: 'Recursos', grupo: 'operacion' }, { id: 'deposito', nombre: 'Depósito', grupo: 'operacion' }, { id: 'comparativas', nombre: 'Comparativas', grupo: 'operacion' }, { id: 'md', nombre: 'Datos maestros', grupo: 'configuracion' }, { id: 'admin', nombre: 'Administración', grupo: 'configuracion' },
+    { id: 'area', nombre: 'Mi área (capacidad y reservas)', grupo: 'operacion' }, { id: 'recursos', nombre: 'Recursos', grupo: 'operacion' }, { id: 'deposito', nombre: 'Depósito', grupo: 'operacion' }, { id: 'comparativas', nombre: 'Comparativas', grupo: 'operacion' }, { id: 'md', nombre: 'Datos maestros', grupo: 'configuracion' }, { id: 'admin', nombre: 'Administración', grupo: 'configuracion' },
     { id: 'casos', nombre: 'Casos guiados (maqueta)', grupo: 'maqueta' }, { id: 'supuestos', nombre: 'Supuestos (maqueta)', grupo: 'maqueta' },
   ],
   /* módulos por rol (S20) y, para el menú de Operación, por entidad y por unidad de negocio (S22): el menú muestra la intersección con el contexto activo */
   permisosModulos: {
-    LAR: { bandeja: false, deposito: false },
+    COM: { area: false },
+    LAR: { bandeja: false, deposito: false, area: false },
     MD: { deposito: false },
+    ARE: { deposito: false, comparativas: false },
   },
   permisosModulosEntidad: {
     AMA: { deposito: false, comparativas: false },
@@ -261,6 +275,8 @@ const MD_SEED = {
   permisosModulosBU: {
     'TYS-RENT': { arribos: false, deposito: false }, 'TYS-CORP': { arribos: false, deposito: false, recursos: false }, 'TYS-ADM': { arribos: false, deposito: false, recursos: false }, 'TYS-MANT': { arribos: false, deposito: false }, 'TYS-MAQ': { deposito: false },
   },
+  motivosReservaArea: ['Operativo comprometido con el cliente', 'Mantenimiento programado del resto de la flota', 'Pico de demanda previsto', 'Capacidad comprometida con otra área', 'Otro'],
+  motivosLiberacionReserva: ['El operativo se planificó con otra opción', 'Cambio de fecha del arribo', 'La orden se anuló', 'Capacidad necesaria para otro operativo', 'Otro'],
   motivosDevolucion: ['Datos de la orden incompletos o incorrectos', 'Cambio en la solicitud del cliente', 'Recursos planificados no disponibles', 'Ventana operativa modificada', 'Error de carga o de asignación', 'Otro'],
   motivosAnulacion: ['Cancelación del arribo o del servicio por el cliente', 'Orden duplicada', 'Error de alta', 'Reprogramación: se crea una orden nueva', 'Otro'],
 
@@ -385,10 +401,12 @@ const SUPUESTOS = [
   { id: 'A3', origen: 'Análisis A3', tema: 'Relación Departamento ↔ BU', supuesto: 'Dimensiones independientes: el departamento organiza usuarios y maestros a nivel entidad; la BU imputa presupuesto, costos y facturación. Relación N:N configurable.', impacto: 'Permisos, bandejas y ámbito de maestros.', donde: 'Administración › Departamentos' },
   { id: 'A4', origen: 'Análisis A4', tema: 'Entidad efectiva por fecha al convertir una BU en entidad', supuesto: 'La orden guarda la entidad y la BU vigentes al crearse (mismo criterio que las condiciones contractuales congeladas). La conversión rige desde su fecha de vigencia solo para órdenes nuevas.', impacto: 'Historial y consolidación.', donde: 'Administración › Entidades › Convertir BU' },
   { id: 'A5', origen: 'Análisis A5', tema: 'Ventana operativa y fecha de inicio', supuesto: 'La ventana de la orden se toma del origen (ETB→ETC, fecha del cupo o del tren). La maqueta no bloquea iniciar fuera de la ventana; solo advierte.', impacto: 'Reservas y validaciones de superposición.', donde: 'Expediente › Planificación' },
+  { id: 'S23', origen: 'Revisión 16/09', tema: 'Áreas operativas: qué recursos administra cada sector', supuesto: 'Se crea el maestro M-39 Áreas operativas y capacidad con las cinco áreas indicadas (Logística, Rental, Depósitos, RRHH, Portería y balanza) y se les asigna la capacidad por tipo de recurso: Logística administra camiones internos y de transportista, tolvas y cintas (BU Logística y Maquinarias); Rental las maquinarias de alquiler; Depósitos las celdas, tanques, galpones y silos; RRHH los puestos de personal propio y las manos de proveedores; Portería y balanza las balanzas. Cada área ve su capacidad total, el pico comprometido por órdenes en los próximos 14 días y lo reservado, y hace el ABM de sus recursos con el mismo workflow de la master data (las altas y modificaciones nacen en validación y Máster data las publica; la baja es lógica). En la maqueta el área activa se elige en el módulo; en el sistema real vendría del usuario (M-38). Queda sin área dueña asignada la infraestructura de muelles y equipos de descarga / carga (grúas y bombas).', impacto: 'Menú Mi área, ABM por rol de área, permisos por maestro del rol Responsable de área.', donde: 'Mi área · Datos maestros › M-39' },
+  { id: 'S24', origen: 'Revisión 16/09', tema: 'Reservas de capacidad de un área para un operativo futuro', supuesto: 'El área reserva capacidad de su sector referenciando un lineup, un cupo o un operativo ferroviario, con cantidad, ventana y motivo. La reserva nace "Reservada" y se informa expresamente en la planificación y en el ajuste de Operaciones de todas las órdenes de ese origen, con un botón para tomar lo reservado. Al confirmar el plan o el ajuste: si la asignación toma lo reservado, la reserva queda "Aplicada"; si toma menos o elige otra opción, pasa a "A revalidar" y vuelve a la bandeja del área, que decide liberar la capacidad o mantener la reserva y pedir que se revise el plan. Anular la orden también deja las reservas de ese origen a revalidar. Una reserva de otro operativo se informa como aviso en la validación de recursos (no bloquea). Queda por definir si debería bloquear, quién resuelve el conflicto entre un área y el Planificador y si la reserva caduca sola al vencer la ventana.', impacto: 'Planificación, ajuste de Operaciones, bandeja del área, validación de recursos.', donde: 'Mi área › Reservas · Expediente › Planificación y Origen' },
 ];
 
 /* =====================================================================
-   CASOS GUIADOS (13)
+   CASOS GUIADOS (21)
    ===================================================================== */
 const CASOS = [
   { n: 1, titulo: 'Operación completa sin incidencias', esperado: 'Crear → planificar → ejecutar con tickets → cerrar y comparar.', rol: 'COM', screen: 'nueva',
@@ -429,4 +447,17 @@ const CASOS = [
     pasos: ['Como Comercial, creá una orden: TyS › Alquiler de maquinaria › BU Rental › Medio "Interna": en Cliente aparecen las otras BU (elegí Depósitos). Instrumento: acuerdo interno. En Detalle del servicio marcá una o más maquinarias con su cantidad (por ejemplo 2 palas cargadoras y 1 autoelevador), la fecha desde y hasta, y los km de entrega y de devolución; se estima el costo. Enviá a planificación.', 'Repetí con Medio "Externa": en Cliente aparece la nómina de clientes y el instrumento pasa a ser el del cliente.', 'Creá otra: TyS › Servicios logísticos › BU Logística › "Externa" › Agroexport › Urea › instrumento del cliente. En Detalle del servicio elegí el camión (propio o de transportista) y la cantidad, el origen (Planta San Nicolás) y el destino (Depósito Pergamino del cliente): los km del tramo se calculan solos, con los viajes estimados por las toneladas y los km totales ida y vuelta; fijá las fechas y enviá.', 'Como Planificador, en ambas órdenes lo solicitado ya viene cargado en la asignación de recursos: validá disponibilidad en la ventana y confirmá. El expediente › Origen muestra el detalle del servicio; Costos incluye los km. Referencias ya cargadas: OS-2026-0009 (Rental → Depósitos, interna) y OS-2026-0010 (Logística → Terminal Timbúes, del grupo).'] },
   { n: 19, titulo: 'Menú de Operación por entidad y por BU; Máster data edita convenciones y reglas (agregado 16/09)', esperado: 'Cada entidad y cada unidad de negocio tiene habilitados solo los módulos de Operación que le corresponden; el menú cambia con el contexto. Máster data hace el ABM de convenciones, reglas, definiciones y decisiones del modelo.', rol: 'MD', screen: 'admin', admTab: 'MOD',
     pasos: ['En Administración › Menú por rol, entidad y BU, además de la matriz por rol hay dos matrices para el menú de Operación: por entidad y por unidad de negocio. Destildá "Recursos" para Terminal Timbúes y "Comparativas" para Logística; cada cambio queda en el registro de cambios.', 'Cambiá el contexto de la barra superior: con Entidad = Terminal Timbúes desaparece Recursos; con BU = Rental desaparecen Logística de arribo y Depósito (valores iniciales); con "Todas las BU" o "Grupo (consolidado)" no se aplica esa dimensión. Si la pantalla actual queda deshabilitada, la aplicación vuelve a Inicio con aviso.', 'Como Máster data, en Datos maestros › Convenciones, Reglas o Definiciones y decisiones aparecen "Nuevo registro", Editar y Dar de baja: agregá una convención CV-10 o una regla nueva para M-29; nace vigente, versiona al editar y la baja es lógica. Como otro rol, esas pestañas quedan en solo consulta.'] },
+  { n: 20, titulo: 'Áreas: capacidad propia, ABM del sector y nominación del lineup (agregado 16/09)', esperado: 'Cada área ve su capacidad total y la comprometida, hace el ABM de sus recursos por el workflow de la master data y el lineup muestra la nominación que alimentan los operativos.', rol: 'ARE', screen: 'area',
+    pasos: ['Como Responsable de área, abrí <b>Mi área</b>: el área activa es Logística. Mirá la capacidad total del sector (camiones internos y de transportista, tolvas y cintas), el pico comprometido por órdenes en los próximos 14 días y lo reservado.',
+      'Cambiá el área activa a Depósitos y a Portería y balanza: cada sector ve solo sus recursos, con su capacidad y su estado de registro.',
+      'En Logística, dale de alta un recurso nuevo (Nuevo recurso en Logística y equipos auxiliares): el alta nace <b>en validación</b>; como Máster data, publicala desde su Workflow. El ABM del área pasa por el mismo workflow de la master data.',
+      'Como Logística de arribo, abrí una escala del lineup: la tarjeta muestra <b>Nominación a TyS</b> con las toneladas para TyS sobre las toneladas nominadas del buque y las órdenes vinculadas; las escalas sin orden figuran como no nominadas.',
+      'Como Comercial, creá una orden sobre una carga de una escala sin órdenes (por ejemplo MV Southern Wind): al crearla, M-17 completa toneladas_para_tys, nominado_a_tys y operativo_vinculado. En Datos maestros › M-17 se ven las tres columnas actualizadas; si anulás la orden, la nominación se revierte.'] },
+  { n: 21, titulo: 'Reserva de un área para un operativo futuro y revalidación (agregado 16/09)', esperado: 'La reserva referencia un lineup, cupo u operativo ferroviario; la planificación y Operaciones quedan informadas y, si eligen otra opción, el área revalida.', rol: 'ARE', screen: 'area',
+    pasos: ['Como Responsable de área (Depósitos), en Mi área › Reservas está la reserva de la Celda 2 para el lineup de MV Ocean Harvest. Creá otra con <b>Nueva reserva</b>: elegí el operativo, el recurso del sector, la cantidad, la ventana (se propone desde el origen) y el motivo.',
+      'Como Planificador, abrí OS-2026-0005 (la orden de esa escala) › Planificación: arriba aparece <b>Capacidad reservada por las áreas para este operativo</b> con cada recurso, el área y si la asignación actual lo toma. Usá <b>Usar lo reservado por las áreas</b> para tomarlo y confirmá: la reserva queda <b>Aplicada</b>.',
+      'Probá el otro camino: como Planificador elegí otro depósito y confirmá. La reserva pasa a <b>A revalidar</b> y vuelve a la bandeja del área con el motivo.',
+      'Como Responsable de área, en Workflow · mi etapa aparece la reserva a revalidar: podés <b>liberar</b> la capacidad o <b>mantener la reserva</b> y pedir que se revise el plan.',
+      'Ejemplo ya cargado: la Balanza 2 reservada por Portería y balanza para MV Río Carcarañá quedó A revalidar porque OS-2026-0002 se planificó con la Balanza 1.',
+      'Como Operaciones, en una orden planificada usá Ajustar recursos: el mismo aviso aparece antes de guardar y, si quitás un recurso reservado, el área lo revalida.'] },
 ];

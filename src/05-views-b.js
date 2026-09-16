@@ -44,7 +44,7 @@ function plannerForm(o, mode) {
   const rec = o.recomendacion; const difiere = rec && !rec.sinOpciones && JSON.stringify(normRec(rec.recursos)) !== JSON.stringify(normRec(R));
   const num = (id, val, hint) => '<input type="number" min="0" step="1" data-pf="' + id + '" value="' + (val || 0) + '" style="width:70px">' + (hint ? ' <span class="xs muted">' + hint + '</span>' : '');
   const opt = (list, cur, extraT) => [{ v: '', t: '— sin asignar —' }, ...list.map(x => { const ch = chequearRecurso(x.id, 1, o); return { v: x.id, t: x.nombre + (extraT ? ' · ' + extraT(x) : '') + (ch.errores.length ? ' ⚠' : ''), dis: false }; })];
-  let form = '';
+  let form = reservasOrigenCard(o, R);
   if (!sinOrigenOperativo(o)) {
     form += (!sinOrigenOperativo(o) ? recCard(o) : '') +
       '<div class="form-grid" style="margin-bottom:12px">' +
@@ -52,7 +52,7 @@ function plannerForm(o, mode) {
       (s.usaDeposito ? field('Depósito destino', sel('pf-dep', opt(md().depositos.filter(x => x.entidad === E && mdUsable(x)), R.deposito, x => fmtT(x.capacidadT - x.ocupadoT) + ' t libres' + (x.fiscal ? ' · fiscal' : '')), R.deposito || '', 'data-pf="deposito"')) : '') +
       field('Balanza', sel('pf-bz', opt(md().balanzas.filter(x => x.entidad === E && mdUsable(x)), R.balanza, x => (x.fiscal ? 'fiscal' : 'no fiscal')), R.balanza || '', 'data-pf="balanza"')) + '</div>';
     if (o.medio === 'BUQ') form += equiposBlock(o, R, ajuste);
-    form += '<div class="grid g3"><div><h3 style="margin:6px 0">Personal externo (manos por turno)</h3><div class="stack" style="gap:6px">' + md().manos.filter(m => mdUsable(m) && (!fam || m.familias.includes(fam))).map(m => '<div class="small">' + num('mano:' + m.id, R.manos?.[m.id], '') + ' <b>' + esc(m.nombre) + '</b><br><span class="xs muted">' + Object.entries(m.roles).map(([r, q]) => q + ' ' + r.toLowerCase()).join(', ') + ' · ' + fmtUSD(m.costoTurno) + '/turno · ' + esc(provName(m.proveedor)) + '</span></div>').join('') + '</div></div>' +
+    form += '<div class="grid g3"><div><h3 style="margin:6px 0">Personal externo (manos por turno)</h3><div class="stack" style="gap:6px">' + md().manos.filter(m => mdUsable(m) && (!fam || (m.familias || []).includes(fam))).map(m => '<div class="small">' + num('mano:' + m.id, R.manos?.[m.id], '') + ' <b>' + esc(m.nombre) + '</b><br><span class="xs muted">' + Object.entries(m.roles).map(([r, q]) => q + ' ' + r.toLowerCase()).join(', ') + ' · ' + fmtUSD(m.costoTurno) + '/turno · ' + esc(provName(m.proveedor)) + '</span></div>').join('') + '</div></div>' +
       '<div><h3 style="margin:6px 0">Personal propio (por función)</h3><div class="stack" style="gap:6px">' + md().funciones.filter(mdUsable).map(f => '<div class="small">' + num('func:' + f.id, R.funciones?.[f.id], '') + ' ' + esc(f.nombre) + ' <span class="xs muted">dotación ' + f.dotacion + '</span></div>').join('') + '</div></div>' +
       '<div><h3 style="margin:6px 0">Logística y equipos auxiliares</h3><div class="stack" style="gap:6px">' + md().logistica.filter(l => l.entidad === E && mdUsable(l)).map(l => '<div class="small">' + num('log:' + l.id, R.logistica?.[l.id], '') + ' ' + esc(l.nombre) + ' <span class="xs muted">' + l.cantidad + ' disp. · ' + fmtUSD(l.costoHora) + '/h' + (l.capacidadTh ? ' · ' + l.capacidadTh + ' t/h' : '') + '</span></div>').join('') + '</div></div></div>';
   } else {
@@ -291,11 +291,11 @@ function viewRecursos() {
         return '<div class="c">' + (mant ? '<span class="b mant">mantenimiento</span>' : '') + rvs.map(rv => '<a href="#" class="b ' + rv.o.estado + '" data-action="open" data-id="' + rv.o.id + '" title="' + esc(rv.o.id + ' · ' + srv(rv.o.servicio)?.nombre + ' · ' + ventanaTxt({ inicio: rv.desde, fin: rv.hasta })) + '">' + rv.o.id.slice(-4) + (rv.cantidad > 1 ? ' ×' + rv.cantidad : '') + '</a>').join('') + '</div>'; }).join('')).join('') + '</div>';
   let body = '';
   if (tab === 'depositos') {
-    body = table([{ h: 'Ubicación', f: d => '<b>' + esc(d.nombre) + '</b> <span class="xs muted">' + esc(d.tipo) + ' · ' + esc(entName(d.entidad)) + '</span>' + (d.fiscal ? ' ' + chip('Fiscal', 'info') : '') }, { h: 'Compatibilidad', f: d => d.familias.map(famName).join(', ') + (d.restricciones ? '<br><span class="xs muted">' + esc(d.restricciones) + '</span>' : '') }, { h: 'Ocupación', f: d => { const comp = sum(reservasRecurso(d.id, null), rv => Math.max(0, rv.o.toneladas - (rv.o.ejecucion?.acumulado || 0))); return '<div class="meter">' + bar((d.ocupadoT + comp) / d.capacidadT, (d.ocupadoT + comp) / d.capacidadT > 0.9 ? 'warn' : '') + '<span class="num xs">' + fmtT(d.ocupadoT) + ' ocupado + ' + fmtT(comp) + ' comprometido / ' + fmtT(d.capacidadT) + ' t</span></div>'; } }, { h: 'Órdenes vinculadas', f: d => reservasRecurso(d.id, null).map(rv => osLink(rv.o.id)).join(' ') || '<span class="dim">—</span>' }], md().depositos.filter(inE));
+    body = table([{ h: 'Ubicación', f: d => '<b>' + esc(d.nombre) + '</b> <span class="xs muted">' + esc(d.tipo) + ' · ' + esc(entName(d.entidad)) + '</span>' + (d.fiscal ? ' ' + chip('Fiscal', 'info') : '') }, { h: 'Compatibilidad', f: d => ((d.familias || []).map(famName).join(', ') || '<span class="dim">sin restricción declarada</span>') + (d.restricciones ? '<br><span class="xs muted">' + esc(d.restricciones) + '</span>' : '') }, { h: 'Ocupación', f: d => { const comp = sum(reservasRecurso(d.id, null), rv => Math.max(0, rv.o.toneladas - (rv.o.ejecucion?.acumulado || 0))); return '<div class="meter">' + bar((d.ocupadoT + comp) / d.capacidadT, (d.ocupadoT + comp) / d.capacidadT > 0.9 ? 'warn' : '') + '<span class="num xs">' + fmtT(d.ocupadoT) + ' ocupado + ' + fmtT(comp) + ' comprometido / ' + fmtT(d.capacidadT) + ' t</span></div>'; } }, { h: 'Órdenes vinculadas', f: d => reservasRecurso(d.id, null).map(rv => osLink(rv.o.id)).join(' ') || '<span class="dim">—</span>' }], md().depositos.filter(inE));
   } else if (tab === 'balanzas') {
     body = table([{ h: 'Balanza', f: b => '<b>' + esc(b.nombre) + '</b> <span class="xs muted">' + esc(entName(b.entidad)) + '</span>' }, { h: 'Fiscal', f: b => b.fiscal ? chip('Sí', 'info') : chip('No', '') }, { h: 'Capacidad', cls: 'num', f: b => b.capacidadT + ' t' }, { h: 'Calibración hasta', f: b => fmtD(b.calibracionHasta) }, { h: 'Estado', f: b => chip(b.estado, b.estado === 'Operativo' ? 'ok' : 'warn') }, { h: 'Órdenes que la usan', f: b => reservasRecurso(b.id, null).map(rv => osLink(rv.o.id)).join(' ') || '<span class="dim">—</span>' }], md().balanzas.filter(inE));
   } else if (tab === 'manos') {
-    body = table([{ h: 'Composición', f: m => '<b>' + esc(m.nombre) + '</b>' }, { h: 'Roles', f: m => Object.entries(m.roles).map(([r, q]) => q + ' ' + r.toLowerCase()).join(', ') }, { h: 'Personas', cls: 'num', f: m => sum(Object.values(m.roles)) }, { h: 'Costo / turno', cls: 'num', f: m => fmtUSD(m.costoTurno) }, { h: 'Proveedor', f: m => esc(provName(m.proveedor)) }, { h: 'Productos', f: m => m.familias.map(famName).join(', ') }, { h: 'Reservas', f: m => reservasRecurso(m.id, null).map(rv => osLink(rv.o.id) + ' ×' + rv.cantidad).join(' ') || '<span class="dim">—</span>' }], md().manos) + '<p class="help" style="margin-top:8px">El personal externo se planifica por recurso (composición y cantidad por turno), no por nombre; la disponibilidad la garantiza el proveedor.</p>';
+    body = table([{ h: 'Composición', f: m => '<b>' + esc(m.nombre) + '</b>' }, { h: 'Roles', f: m => Object.entries(m.roles || {}).map(([r, q]) => q + ' ' + r.toLowerCase()).join(', ') }, { h: 'Personas', cls: 'num', f: m => sum(Object.values(m.roles)) }, { h: 'Costo / turno', cls: 'num', f: m => fmtUSD(m.costoTurno) }, { h: 'Proveedor', f: m => esc(provName(m.proveedor)) }, { h: 'Productos', f: m => m.familias.map(famName).join(', ') }, { h: 'Reservas', f: m => reservasRecurso(m.id, null).map(rv => osLink(rv.o.id) + ' ×' + rv.cantidad).join(' ') || '<span class="dim">—</span>' }], md().manos) + '<p class="help" style="margin-top:8px">El personal externo se planifica por recurso (composición y cantidad por turno), no por nombre; la disponibilidad la garantiza el proveedor.</p>';
   } else {
     const list = md()[tab].filter(inE);
     body = '<div class="tlw">' + tl(list) + '</div>' + (tab === 'equipos' ? '<div class="btn-row" style="margin-top:10px"><span class="small muted">Simular disponibilidad ' + sup('S4') + ':</span>' + list.map(e => btn(e.estado === 'Operativo' ? 'Poner ' + e.id + ' en mantenimiento' : 'Reactivar ' + e.id, 'toggle-equipo', { id: e.id }, 'sm')).join('') + '</div>' : '');
@@ -393,4 +393,112 @@ function viewSupuestos() {
   return pageH('Supuestos de trabajo', 'Definiciones pendientes resueltas provisoriamente para que el circuito sea recorrible de punta a punta. Cada supuesto está marcado en la maqueta con la etiqueta <span class="sup">SUPUESTO</span> y debe validarse con el grupo.') +
     table([{ h: '#', f: s => '<span class="sup">' + esc(s.id) + '</span>' }, { h: 'Origen', f: s => '<span class="small muted">' + esc(s.origen) + '</span>' }, { h: 'Definición pendiente', f: s => '<b>' + esc(s.tema) + '</b>' }, { h: 'Supuesto adoptado', f: s => esc(s.supuesto) }, { h: 'Impacto', f: s => '<span class="small muted">' + esc(s.impacto) + '</span>' }, { h: 'Dónde se ve', f: s => '<span class="small">' + esc(s.donde) + '</span>' }], SUPUESTOS) +
     '<div class="card" style="margin-top:14px"><div class="card-h"><h2>Fuera del alcance de la maqueta</h2></div><p class="small muted">Facturación y cobranzas (los cargos aprobados se emiten como evento), administración del lineup / cupos / trenes (consulta únicamente), integración con balanzas y portería en línea, circuitos específicos de los servicios de Rental, Depósitos, Mantenimiento, Administración y Corporate, y el alcance de Maquinarias.</p></div>';
+}
+
+/* =====================================================================
+   MI ÁREA — capacidad propia, ABM del sector y reservas para operativos futuros
+   (revisión 16/09, SUPUESTOS S23 · S24)
+   ===================================================================== */
+function estadoResChip(e) { return chip(e, e === 'Aplicada' ? 'ok' : e === 'A revalidar' ? 'warn' : e === 'Liberada' ? '' : 'info'); }
+function areaSelector(a) {
+  const list = areasCtx();
+  return '<label class="field"><span>Área activa</span>' + sel('area-sel', list.map(x => ({ v: x.id, t: x.nombre + ' · ' + entName(x.entidad) })), a.id, 'data-areasel="1"') + '</label>';
+}
+function viewArea() {
+  const list = areasCtx();
+  if (!list.length) return pageH('Mi área', 'Capacidad del sector y reservas para operativos futuros') + alertBox('warn', '<div>No hay áreas definidas para ' + esc(S.ctx.entidad === 'ALL' ? 'el grupo' : ent(S.ctx.entidad)?.nombre) + '. Las áreas se administran en Datos maestros › <b>M-39 Áreas operativas y capacidad</b>. ' + sup('S23') + '</div>');
+  const a = areaActiva(); const tab = S.ctx.areaTab || 'CAP';
+  const recs = recursosDeArea(a); const win = ventanaArea();
+  const rvs = reservasDeArea(a.id); const vig = rvs.filter(r => r.estado !== 'Liberada'); const rev = rvs.filter(r => r.estado === 'A revalidar');
+  const puedeABM = S.ctx.rol === 'ARE' || S.ctx.rol === 'MD';
+  const capTxt = recs.length ? [...new Set(recs.map(x => x.tipo))].map(t => { const rs = recs.filter(x => x.tipo === t); const tot = sum(rs, x => capacidadRecurso(x.r, t).total); return fmtT(tot) + ' ' + capacidadRecurso(rs[0].r, t).um; }).join(' · ') : '—';
+  const head = pageH('Mi área · ' + esc(a.nombre), 'Capacidad total del sector, ABM de sus recursos (por workflow de master data) y reservas para operativos futuros ' + sup('S23'),
+    (puedeABM ? btn('Nueva reserva para un operativo', 'ra-nueva', {}, 'pri') : '')) +
+    '<div class="form-grid" style="margin-bottom:10px">' + areaSelector(a) + field('Responsable', '<input value="' + esc(a.responsable_usuario || '—') + '" disabled>') + field('Departamento · BU', '<input value="' + esc((byId(md().departamentos, a.departamento)?.nombre || '—') + ((a.bus || []).length ? ' · ' + a.bus.map(buName).join(', ') : '')) + '" disabled>') + '</div>' +
+    '<div class="grid g4" style="margin-bottom:12px">' + [['Recursos del sector', recs.length, [...new Set(recs.map(x => TIPO_NOMBRE[x.tipo]))].join(' · ')], ['Capacidad total', capTxt, ''], ['Reservas vigentes', vig.length, 'para operativos futuros'], ['A revalidar', rev.length, rev.length ? 'la planificación eligió otra opción' : 'sin pendientes']]
+      .map(([l, v, d2]) => '<div class="kpi tight"><span class="v" style="font-size:20px">' + (typeof v === 'number' ? v : esc(v)) + '</span><span class="l">' + esc(l) + '</span><span class="d">' + esc(d2) + '</span></div>').join('') + '</div>' +
+    (rev.length ? alertBox('warn', '<div><b>' + rev.length + ' reserva' + (rev.length > 1 ? 's' : '') + ' a revalidar:</b> la planificación o la ejecución eligió otra opción. Revalidá si liberás la capacidad o si pedís revisar el plan. ' + sup('S24') + '</div>') : '') +
+    '<div class="tabs">' + [['CAP', 'Capacidad y ABM del sector (' + recs.length + ')'], ['RES', 'Reservas (' + vig.length + ')'], ['LOG', 'Historial de reservas']].map(([k, t]) => '<button class="' + (tab === k ? 'on' : '') + '" data-action="area-tab" data-t="' + k + '">' + t + '</button>').join('') + '</div>';
+  if (tab === 'CAP') return head + areaCapacidad(a, recs, win, puedeABM);
+  if (tab === 'RES') return head + areaReservas(a, rvs, puedeABM);
+  return head + areaHistorial(rvs);
+}
+function areaCapacidad(a, recs, win, puedeABM) {
+  const tipos = [...new Set(recs.map(x => x.tipo))];
+  const bloques = tipos.map(t => {
+    const m = TIPO_MAESTRO[t]; const coll = TIPO_COLL[t]; const nivel = permisoMD(m);
+    const rows = recs.filter(x => x.tipo === t).map(x => {
+      const cap = capacidadRecurso(x.r, t); const oc = ocupacionRecurso(x.r.id, t, win);
+      const resv = sum(reservasVigentes().filter(r => r.rid === x.r.id), r => r.cantidad);
+      const libre = Math.max(0, cap.total - oc.ordenes);
+      return { x, cap, oc, resv, libre };
+    });
+    const cols = [
+      { h: 'Recurso', f: r => '<b>' + esc(r.x.r.nombre) + '</b> <span class="tag">' + esc(r.x.r.id) + '</span>' + (r.x.r.bu ? '<br><span class="xs muted">' + esc(buName(r.x.r.bu)) + '</span>' : '') },
+      { h: 'Capacidad total', cls: 'num', f: r => '<b>' + fmtT(r.cap.total) + '</b> <span class="xs muted">' + esc(r.cap.um) + '</span>' },
+      { h: 'Comprometido (14 días)', cls: 'num', f: r => (r.oc.ordenes ? fmtT(r.oc.ordenes) : '<span class="dim">0</span>') + (r.oc.detalle.length ? '<br><span class="xs muted">' + r.oc.detalle.slice(0, 3).map(d => esc(d.o.id)).join(' · ') + '</span>' : '') },
+      { h: 'Reservado por el área', cls: 'num', f: r => r.resv ? '<b class="warn-t">' + fmtT(r.resv) + '</b><br><span class="xs muted">' + reservasVigentes().filter(z => z.rid === r.x.r.id).map(z => origenLabel(z.origen).split(' · ')[0]).join(' · ') + '</span>' : '<span class="dim">—</span>' },
+      { h: 'Libre', cls: 'num', f: r => fmtT(r.libre) },
+      { h: 'Estado del registro', f: r => estadoChipMD(estadoRegistro(r.x.r)) + (r.x.r.estado ? ' <span class="xs muted">' + esc(r.x.r.estado) + '</span>' : '') },
+    ];
+    if (puedeABM && nivel === 'abm') cols.push({ h: '', f: r => deBaja(r.x.r) ? '' : '<div class="btn-row" style="gap:3px">' + btn('Editar', 'md-editar', { m, id: r.x.r.id }, 'sm') + btn('Baja', 'md-baja', { m, id: r.x.r.id }, 'sm danger') + btn('Reservar', 'ra-nueva', { rid: r.x.r.id }, 'sm') + '</div>' });
+    return '<div class="card"><div class="card-h"><h3>' + esc(TIPO_NOMBRE[t]) + ' <span class="tag">' + esc(m) + '</span></h3>' +
+      (puedeABM && nivel === 'abm' ? '<div class="btn-row">' + btn('Nuevo recurso', 'md-nuevo', { m, coll }, 'sm pri') + '</div>' : '<span class="small muted">' + esc(nivelPermiso(nivel).nombre) + ' para ' + esc(rolName(S.ctx.rol)) + '</span>') + '</div>' +
+      table(cols, rows, { cls: 'compact', rowAttr: r => deBaja(r.x.r) ? 'style="opacity:.55"' : '' }) + '</div>';
+  }).join('');
+  return bloques + '<p class="help">El ABM del sector usa el mismo formulario y el mismo <b>workflow de la master data</b>: las altas y modificaciones del área nacen <b>en validación</b> y Máster data las publica; la baja es lógica y se rechaza si el recurso está reservado por una orden planificada o en ejecución. "Comprometido" es el pico de uso por órdenes planificadas o en ejecución en los próximos 14 días. ' + sup('S23') + '</p>';
+}
+function areaReservas(a, rvs, puedeABM) {
+  const vig = rvs.filter(r => r.estado !== 'Liberada'); const lib = rvs.filter(r => r.estado === 'Liberada');
+  const cols = [
+    { h: 'Reserva', f: r => '<b class="mono">' + esc(r.id) + '</b><br><span class="xs muted">' + fmtDT(r.creadoTs) + ' · ' + esc(r.creadoPor) + '</span>' },
+    { h: 'Operativo de referencia', f: r => esc(origenLabel(r.origen)) + '<br><span class="xs muted">' + esc(({ lineup: 'Lineup (M-17)', cupo: 'Cupo de camiones (M-31)', tren: 'Operativo ferroviario (M-32)' })[r.origen?.tipo] || '—') + '</span>' },
+    { h: 'Recurso', f: r => esc(recNombre(r.rid)) + ' <span class="tag">' + esc(r.rid) + '</span>' },
+    { h: 'Cantidad', cls: 'num', f: r => '<b>' + fmtT(r.cantidad) + '</b>' },
+    { h: 'Ventana', f: r => '<span class="small nowrap">' + fmtDT(r.desde) + '<br>→ ' + fmtDT(r.hasta) + '</span>' },
+    { h: 'Motivo', f: r => '<span class="small">' + esc(r.motivo) + '</span>' },
+    { h: 'Estado', f: r => estadoResChip(r.estado) + (r.orden ? '<br>' + osLink(r.orden) : '') + (r.estado === 'A revalidar' ? '<br><span class="xs muted">' + esc((r.log || [])[0]?.detalle || '') + '</span>' : '') },
+  ];
+  if (puedeABM) cols.push({ h: '', f: r => r.estado === 'Liberada' ? '' : '<div class="btn-row" style="gap:3px">' + (r.estado === 'A revalidar' ? btn('Revalidar', 'ra-revalidar', { id: r.id }, 'sm pri') : '') + btn('Liberar', 'ra-liberar', { id: r.id }, 'sm danger') + '</div>' });
+  return '<div class="card"><div class="card-h"><h3>Reservas vigentes</h3>' + (puedeABM ? '<div class="btn-row">' + btn('Nueva reserva', 'ra-nueva', {}, 'sm pri') + '</div>' : '') + '</div>' +
+    table(cols, vig, { cls: 'compact', empty: 'El área todavía no reservó capacidad para operativos futuros.' }) +
+    '<p class="help">La reserva referencia un <b>lineup, un cupo o un operativo ferroviario</b> y se informa expresamente en la planificación y en la ejecución de las órdenes de ese origen. Si el Planificador u Operaciones eligen otra opción, la reserva pasa a <b>A revalidar</b> y vuelve a esta bandeja. ' + sup('S24') + '</p></div>' +
+    (lib.length ? '<div class="card"><div class="card-h"><h3>Liberadas</h3><span class="small muted">' + lib.length + '</span></div>' + table(cols.slice(0, 7), lib, { cls: 'compact' }) + '</div>' : '');
+}
+function areaHistorial(rvs) {
+  const rows = [];
+  for (const r of rvs) for (const l of (r.log || [])) rows.push({ r, l });
+  rows.sort((a, b) => b.l.ts.localeCompare(a.l.ts));
+  return '<div class="card"><div class="card-h"><h3>Historial de las reservas del área</h3><span class="small muted">' + rows.length + ' movimientos</span></div>' +
+    table([{ h: 'Cuándo', f: x => '<span class="nowrap">' + fmtDT(x.l.ts) + '</span>' }, { h: 'Reserva', f: x => '<span class="mono">' + esc(x.r.id) + '</span>' }, { h: 'Acción', f: x => chip(x.l.accion, x.l.accion === 'Aplicada' ? 'ok' : x.l.accion === 'A revalidar' ? 'warn' : 'info') }, { h: 'Detalle', f: x => '<span class="small">' + esc(x.l.detalle) + '</span>' }, { h: 'Quién', f: x => esc(x.l.usuario) + '<br><span class="xs muted">' + esc(rolName(x.l.rol)) + '</span>' }], rows, { cls: 'compact', empty: 'Sin movimientos.' }) + '</div>';
+}
+/* banner de reservas de área para la planificación y el ajuste de Operaciones (S24) */
+function reservasOrigenCard(o, R) {
+  const rs = reservasDeOrigen(o.origen); if (!rs.length) return '';
+  const filas = rs.map(r => { const q = R ? cantidadEnOrdenR(R, r.rid) : cantidadEnOrden(o, r.rid); const ok = q >= r.cantidad;
+    return '<li>' + (ok ? '✔ ' : '⚠ ') + '<b>' + esc(recNombre(r.rid)) + '</b> · ' + fmtT(r.cantidad) + ' reservada' + (r.cantidad > 1 ? 's' : '') + ' por <b>' + esc(areaMD(r.area)?.nombre || r.area) + '</b> para ' + esc(origenLabel(r.origen)) + ' (' + esc(r.motivo) + ') — ' + (ok ? 'la asignación actual la toma' : q > 0 ? 'la asignación actual toma ' + fmtT(q) + ': el área deberá revalidar' : 'la asignación actual <b>no la usa</b>: al guardar, el área deberá revalidar') + '</li>'; }).join('');
+  const faltan = rs.some(r => (R ? cantidadEnOrdenR(R, r.rid) : cantidadEnOrden(o, r.rid)) < r.cantidad);
+  return alertBox(faltan ? 'warn' : 'info', '<div><b>Capacidad reservada por las áreas para este operativo</b> ' + sup('S24') + '<ul style="margin:6px 0 0 16px">' + filas + '</ul>' +
+    (R && faltan ? '<div class="btn-row" style="margin-top:8px">' + btn('Usar lo reservado por las áreas', 'pf-usar-reservas', { id: o.id }, 'sm') + '</div>' : '') + '</div>');
+}
+/* cantidad de un recurso dentro de una asignación en edición (no confirmada) */
+function cantidadEnOrdenR(R, rid) {
+  if (!R) return 0;
+  if (R.muelle === rid || R.deposito === rid || R.balanza === rid) return 1;
+  if ((R.equipos || []).includes(rid)) return 1;
+  return (R.logistica?.[rid] || 0) + (R.manos?.[rid] || 0) + (R.funciones?.[rid] || 0);
+}
+function aplicarReservasAAsignacion(o, R) {
+  const rs = reservasDeOrigen(o.origen); const tocados = [];
+  for (const r of rs) {
+    const t = recursoTipo(r.rid);
+    if (t === 'deposito') { if (R.deposito !== r.rid) { R.deposito = r.rid; tocados.push(recNombre(r.rid)); } }
+    else if (t === 'balanza') { if (R.balanza !== r.rid) { R.balanza = r.rid; tocados.push(recNombre(r.rid)); } }
+    else if (t === 'muelle') { if (R.muelle !== r.rid) { R.muelle = r.rid; tocados.push(recNombre(r.rid)); } }
+    else if (t === 'equipo') { R.equipos = R.equipos || []; if (!R.equipos.includes(r.rid)) { R.equipos.push(r.rid); tocados.push(recNombre(r.rid)); } }
+    else if (t === 'logistica') { R.logistica = R.logistica || {}; if ((R.logistica[r.rid] || 0) < r.cantidad) { R.logistica[r.rid] = r.cantidad; tocados.push(r.cantidad + ' × ' + recNombre(r.rid)); } }
+    else if (t === 'mano') { R.manos = R.manos || {}; if ((R.manos[r.rid] || 0) < r.cantidad) { R.manos[r.rid] = r.cantidad; tocados.push(r.cantidad + ' × ' + recNombre(r.rid)); } }
+    else if (t === 'funcion') { R.funciones = R.funciones || {}; if ((R.funciones[r.rid] || 0) < r.cantidad) { R.funciones[r.rid] = r.cantidad; tocados.push(r.cantidad + ' × ' + recNombre(r.rid)); } }
+  }
+  return tocados;
 }

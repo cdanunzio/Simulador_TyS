@@ -12,6 +12,16 @@ const MD_EXT = {
     { codigo: 'M-36', nombre: 'Matriz de ejecución y relaciones', descripcion: 'Qué BU ejecuta —e imputa— cada componente de los servicios a terceros por entidad (SUPUESTO S1) y cómo se imputa cada relación de la orden (interna · entre empresas del grupo · externa).', dominio: '2.7 Servicios, tarifas y contratos', nivel: 2, clave: 'entidad+componente', depende: 'M-01 · M-14 · M-35', existeHoy: 'No', fuenteCarga: 'Definición 15/09 (pendiente 1): qué BU ejecuta cada servicio de TyS y TT.', administra: 'Comercial · Administración', autoriza: 'Administración y Finanzas', equivV22: '—', transacciones: 'Alta de la orden (líneas de ejecución) · costos y cargos', nAtributos: 5, comentario: 'Agregado por la maqueta v2 (S1 / A1).', maqueta: true },
     { codigo: 'M-37', nombre: 'Workflows de la orden de servicio', descripcion: 'Estados de la orden, transiciones, rol responsable y validación de cada acción; rol de cierre configurable por servicio (SUPUESTO S6).', dominio: '2.9 Parámetros generales', nivel: 1, clave: 'de+a', depende: 'M-14 · M-38', existeHoy: 'No', fuenteCarga: 'Definición 15/09 (workflow de 4 etapas y 6 estados).', administra: 'Máster data / Administrador', autoriza: 'Operaciones · Comercial', equivV22: '—', transacciones: 'Todas las acciones de la orden', nAtributos: 6, comentario: 'Agregado por la maqueta v2.', maqueta: true },
     { codigo: 'M-38', nombre: 'Usuarios, roles y permisos', descripcion: 'Roles del circuito (Comercial / Backoffice, Planificador, Operaciones, Depósito, Logística de arribo), su etapa del workflow, bandeja y permisos. Los usuarios se referencian desde la auditoría de cada maestro.', dominio: '2.1 Organización y contabilidad', nivel: 1, clave: 'codigo', depende: 'M-05 · M-35', existeHoy: 'Parcial', fuenteCarga: 'Definición 15/09 (roles del workflow) + relevamiento de usuarios por área.', administra: 'Máster data / Administrador', autoriza: 'Gerencia', equivV22: '—', transacciones: 'Todas (autorización por rol)', nAtributos: 6, comentario: 'Agregado por la maqueta v2.', maqueta: true },
+    { codigo: 'M-39', nombre: 'Áreas operativas y capacidad', descripcion: 'Sectores que administran su propia capacidad (Logística, Rental, Depósitos, RRHH, Portería y balanza): qué recursos les pertenecen, cuánta capacidad total tienen, el ABM de esos recursos por workflow y las reservas para operativos futuros referenciadas a un lineup, un cupo o un operativo ferroviario (revisión 16/09).', dominio: '2.1 Organización y contabilidad', nivel: 1, clave: 'codigo', depende: 'M-01 · M-05 · M-35', existeHoy: 'No (nuevo en el modelo)', fuenteCarga: 'Definición 16/09 con cada área: qué recursos administra, capacidad total y responsable.', administra: 'Máster data / Administrador', autoriza: 'Gerencia de operaciones', equivV22: '—', transacciones: 'Reservas de capacidad · ABM de recursos del área', nAtributos: 8, comentario: 'Agregado por la maqueta v2 (revisión 16/09).', maqueta: true },
+  ],
+  /* orden canónico de los atributos pedido el 16/09 (planilla de la agencia): mdAtributos los renumera con esta lista */
+  orden: {
+    'M-17': ['codigo', 'puerto', 'buque', 'operador', 'cliente', 'shipper', 'agencia', 'producto', 'tipo_operacion', 'plano_de_carga', 'toneladas_nominadas_total_buque', 'toneladas_para_tys', 'alcance_geografico', 'origen', 'destino', 'eta_original', 'eta', 'eta_', 'etb', 'sitio_atraque', 'operativo_vinculado', 'fuente', 'fecha_version', 'estado', 'etc', 'orden_puerto', 'buque_texto_fuente', 'cliente_texto_fuente', 'producto_texto_fuente', 'homologado', 'nominado_a_tys', 'observaciones', 'cargas'],
+    'M-21': ['codigo', 'nombre', 'identificacion_fiscal', 'rol', 'agencia_domicilio', 'agencia_telefono', 'agencia_email1', 'agencia_email2', 'estado'],
+  },
+  /* renombres sobre el modelo v3.1 pedidos en la revisión del 16/09 */
+  renombres: [
+    { m: 'M-17', de: 'toneladas_nominadas', a: 'toneladas_nominadas_total_buque', regla: 'Toneladas totales nominadas del buque (todas las terminales de la escala). Lo que opera TyS va en toneladas_para_tys, que ahora se alimenta de las órdenes de servicio creadas sobre las cargas de la escala (revisión 16/09).' },
   ],
   /* atributos ★ Maqueta (origen: definiciones del 15/09) */
   atributos: [
@@ -46,6 +56,24 @@ const MD_EXT = {
     { m: 'M-37', n: 4, atributo: 'accion', star: false, tipo: 'Texto (80)', obligatorio: 'Sí', dominio: '—', parametro: 'No', regla: 'Acción que ejecuta la transición.', origen: 'Maqueta v2 (15/09)', caracter: 'propio', equivV22: '—', revision: 'Pendiente' },
     { m: 'M-37', n: 5, atributo: 'validacion', star: false, tipo: 'Texto (250)', obligatorio: 'Sí', dominio: '—', parametro: 'No', regla: 'Validaciones que deben cumplirse para la transición.', origen: 'Maqueta v2 (15/09)', caracter: 'propio', equivV22: '—', revision: 'Pendiente' },
     { m: 'M-37', n: 6, atributo: 'rol_cierre_por_servicio', star: false, tipo: 'Ref. M-14 → M-38', obligatorio: 'Sí', dominio: 'DEP · OPS · COM', parametro: 'Sí', regla: 'Rol de cierre configurable por servicio (S6).', origen: 'Maqueta v2 (15/09)', caracter: 'propio', equivV22: '—', revision: 'Pendiente' },
+    /* M-17 LineUp: alineación de atributos pedida el 16/09 (planilla de la agencia) */
+    { m: 'M-17', n: 31, atributo: 'plano_de_carga', star: true, tipo: 'Texto (120) · Ref. M-08.plan_bodegas', obligatorio: 'No', dominio: '—', parametro: 'No', regla: 'Distribución de la carga por bodega tal como la declara la agencia; se usa para estimar la secuencia de descarga y los equipos por bodega.', origen: 'Revisión 16/09', caracter: 'propio', equivV22: '—', revision: 'Pendiente' },
+    { m: 'M-17', n: 32, atributo: 'eta_original', star: true, tipo: 'Fecha y hora', obligatorio: 'No', dominio: '—', parametro: 'No', regla: 'ETA de la primera versión del lineup. No se pisa: cada cambio de fecha de arribo (S15) mueve eta / etb / etc y deja eta_original como referencia para medir el desvío del arribo.', origen: 'Revisión 16/09', caracter: 'propio', equivV22: '—', revision: 'Pendiente' },
+    { m: 'M-17', n: 33, atributo: 'eta_', star: true, tipo: 'Fecha y hora', obligatorio: 'No', dominio: '—', parametro: 'No', regla: 'ATENCIÓN: el nombre del atributo llegó truncado en la planilla del 16/09 (¿eta_confirmada, eta_actualizada, eta_real?). Está definido en el modelo y sin uso en el circuito hasta confirmar su significado (S23).', origen: 'Revisión 16/09', caracter: 'propio', equivV22: '—', revision: 'A confirmar' },
+    /* M-21 Agencia marítima / Armador: datos de contacto (revisión 16/09) */
+    { m: 'M-21', n: 5, atributo: 'agencia_domicilio', star: true, tipo: 'Texto (120)', obligatorio: 'No', dominio: '—', parametro: 'No', regla: 'Domicilio de la agencia para notificaciones y documentación de la escala.', origen: 'Revisión 16/09', caracter: 'propio', equivV22: '—', revision: 'Pendiente' },
+    { m: 'M-21', n: 6, atributo: 'agencia_telefono', star: true, tipo: 'Texto (30)', obligatorio: 'No', dominio: '—', parametro: 'No', regla: 'Teléfono de guardia de la agencia (coordinación del arribo y del cambio de fecha, S15).', origen: 'Revisión 16/09', caracter: 'propio', equivV22: '—', revision: 'Pendiente' },
+    { m: 'M-21', n: 7, atributo: 'agencia_email1', star: true, tipo: 'Texto (80)', obligatorio: 'No', dominio: 'correo válido', parametro: 'No', regla: 'Correo principal: destinatario de los avisos de lineup y de los cambios de ETA / ETB / ETC.', origen: 'Revisión 16/09', caracter: 'propio', equivV22: '—', revision: 'Pendiente' },
+    { m: 'M-21', n: 8, atributo: 'agencia_email2', star: true, tipo: 'Texto (80)', obligatorio: 'No', dominio: 'correo válido', parametro: 'No', regla: 'Correo alternativo (copia).', origen: 'Revisión 16/09', caracter: 'propio', equivV22: '—', revision: 'Pendiente' },
+    /* M-39 Áreas operativas y capacidad (revisión 16/09) */
+    { m: 'M-39', n: 1, atributo: 'codigo', star: true, tipo: 'Código (10)', obligatorio: 'Sí', dominio: '—', parametro: 'No', regla: '—', origen: 'Revisión 16/09', caracter: 'propio', equivV22: '—', revision: 'Pendiente' },
+    { m: 'M-39', n: 2, atributo: 'nombre', star: true, tipo: 'Texto (60)', obligatorio: 'Sí', dominio: 'Logística · Rental · Depósitos · RRHH · Portería y balanza', parametro: 'No', regla: 'Áreas definidas el 16/09. Muelles y equipos de descarga / carga todavía no tienen área dueña asignada (definición pendiente 23).', origen: 'Revisión 16/09', caracter: 'propio', equivV22: '—', revision: 'Pendiente' },
+    { m: 'M-39', n: 3, atributo: 'entidad', star: true, tipo: 'Ref. M-01', obligatorio: 'Sí', dominio: '—', parametro: 'No', regla: 'Entidad fiscal del área.', origen: 'Revisión 16/09', caracter: 'propio', equivV22: '—', revision: 'Pendiente' },
+    { m: 'M-39', n: 4, atributo: 'departamento', star: true, tipo: 'Ref. M-05', obligatorio: 'No', dominio: '—', parametro: 'No', regla: 'Departamento al que reporta el área.', origen: 'Revisión 16/09', caracter: 'propio', equivV22: '—', revision: 'Pendiente' },
+    { m: 'M-39', n: 5, atributo: 'bus', star: true, tipo: 'Ref. M-35 (múltiple)', obligatorio: 'No', dominio: '—', parametro: 'No', regla: 'Unidades de negocio cuyos recursos administra el área; vacío = todos los de la entidad para los tipos indicados.', origen: 'Revisión 16/09', caracter: 'propio', equivV22: '—', revision: 'Pendiente' },
+    { m: 'M-39', n: 6, atributo: 'tipos', star: true, tipo: 'Lista de enumerados', obligatorio: 'Sí', dominio: 'logistica · deposito · balanza · muelle · equipo · funcion · mano', parametro: 'No', regla: 'Tipos de recurso que el área administra: definen su capacidad total y sobre qué maestros hace el ABM (M-12, M-10a, M-26, M-05, M-13).', origen: 'Revisión 16/09', caracter: 'propio', equivV22: '—', revision: 'Pendiente' },
+    { m: 'M-39', n: 7, atributo: 'responsable_usuario', star: true, tipo: 'Ref. M-38', obligatorio: 'No', dominio: '—', parametro: 'No', regla: 'Responsable del área; en el sistema real determina qué área ve cada usuario (en la maqueta se elige en el módulo).', origen: 'Revisión 16/09', caracter: 'propio', equivV22: '—', revision: 'Pendiente' },
+    { m: 'M-39', n: 8, atributo: 'estado', star: true, tipo: 'Enumerado', obligatorio: 'Sí', dominio: 'activa · inactiva', parametro: 'No', regla: '—', origen: 'Revisión 16/09', caracter: 'propio', equivV22: '—', revision: 'Pendiente' },
     { m: 'M-38', n: 1, atributo: 'codigo', star: false, tipo: 'Código (8)', obligatorio: 'Sí', dominio: 'COM · PLAN · OPS · DEP · LAR', parametro: 'No', regla: '—', origen: 'Maqueta v2 (15/09)', caracter: 'propio', equivV22: '—', revision: 'Pendiente' },
     { m: 'M-38', n: 2, atributo: 'nombre', star: false, tipo: 'Texto (60)', obligatorio: 'Sí', dominio: '—', parametro: 'No', regla: '—', origen: 'Maqueta v2 (15/09)', caracter: 'propio', equivV22: '—', revision: 'Pendiente' },
     { m: 'M-38', n: 3, atributo: 'etapa_workflow', star: false, tipo: 'Entero', obligatorio: 'No', dominio: '1..4 · vacío = sin etapa', parametro: 'No', regla: 'Etapa del workflow de la orden que trabaja el rol (Logística de arribo no tiene etapa, S10).', origen: 'Maqueta v2 (15/09)', caracter: 'propio', equivV22: '—', revision: 'Pendiente' },
@@ -356,9 +384,42 @@ const MD_EXT = {
     msRec('MS-OPS-DESCARGA', 'Procedimiento general de descarga y carga de buques', 'procedimiento operativo', 'PRO-OPS-001 rev. 6', ['tipo de servicio'], 365, 'alertar y registrar desvío'),
   );
 
-  /* M-17 LineUp: atributos del modelo */
+  /* M-17 LineUp: atributos del modelo, alineados a la planilla de la agencia (revisión 16/09) */
   const estLU = { Anunciado: 'proyectado', Confirmado: 'confirmado', 'En rada': 'en rada', 'En operación': 'operando', Zarpó: 'finalizado', Cancelado: 'cancelado' };
-  for (const lu of O.lineups) { Object.assign(lu, { puerto: lu.terminal === 'TT' ? 'PL-TT' : 'PU-SN', operador: lu.terminal === 'TT' ? 'TT' : 'TYS', shipper: lu.cargas[0] ? (M.clientes.find(c => c.id === lu.cargas[0].cliente)?.nombre || '') : '', agencia: 'AG-01', tipo_operacion: lu.tipo === 'Carga' ? 'carga' : 'descarga', toneladas_nominadas: lu.cargas.reduce((s, c) => s + c.toneladas, 0), toneladas_para_tys: lu.cargas.reduce((s, c) => s + c.toneladas, 0), alcance_geografico: 'solo San Nicolás', origen: lu.tipo === 'Carga' ? 'San Nicolás' : 'Exterior (según BL)', destino: lu.tipo === 'Carga' ? 'Exterior' : (lu.terminal === 'TT' ? 'Timbúes' : 'San Nicolás'), fuente: 'LineUp agencia', fecha_version: isoDay(-1), orden_puerto: 1, homologado: true, nominado_a_tys: true, observaciones: '' }); lu.estadoM17 = estLU[lu.estado] || lu.estado; }
+  /* renombres pedidos sobre el modelo v3.1: el atributo cambia de nombre y de regla, y conserva su número */
+  for (const [mm, lista] of Object.entries(MD_EXT.orden)) {
+    const todos = [...MODEL_ATRIBUTOS, ...MD_EXT.atributos].filter(a => a.m === mm);
+    for (const a of todos) { const k = lista.indexOf(a.atributo === 'toneladas_nominadas' ? 'toneladas_nominadas_total_buque' : a.atributo); a.n = k >= 0 ? k + 1 : 90 + (a.n || 0); }
+    const fh = [...MODEL_FICHAS, ...MD_EXT.fichas].find(f => f.codigo === mm); if (fh) fh.nAtributos = todos.length;
+  }
+  for (const rn of MD_EXT.renombres) { const a = MODEL_ATRIBUTOS.find(x => x.m === rn.m && x.atributo === rn.de); if (a) { a.atributo = rn.a; a.regla = rn.regla; a.star = true; a.origen = 'Revisión 16/09'; } }
+  const ordenPuerto = {};
+  for (const lu of [...O.lineups].sort((a, b) => a.etb.localeCompare(b.etb))) {
+    const c0 = lu.cargas[0] || {}; const cl = M.clientes.find(c => c.id === c0.cliente); const pr = M.productos.find(x => x.id === c0.producto);
+    const bq = M.buques.find(b => b.id === lu.buqueId); const nb = bq?.cantidad_bodegas || 5; const tot = lu.cargas.reduce((x, c) => x + c.toneladas, 0);
+    ordenPuerto[lu.terminal] = (ordenPuerto[lu.terminal] || 0) + 1;
+    Object.assign(lu, {
+      puerto: lu.terminal === 'TT' ? 'PL-TT' : 'PU-SN', operador: lu.terminal === 'TT' ? 'TT' : 'TYS',
+      cliente: c0.cliente || null, shipper: cl ? cl.nombre : '', agencia: 'AG-01', producto: c0.producto || null,
+      tipo_operacion: lu.tipo === 'Carga' ? 'carga' : 'descarga',
+      plano_de_carga: nb + ' bodegas · ' + Math.round(tot / nb).toLocaleString('es-AR') + ' t por bodega (declarado por la agencia)',
+      toneladas_nominadas_total_buque: ordenPuerto[lu.terminal] % 3 === 2 ? tot + Math.round(tot * 0.6 / 1000) * 1000 : tot, toneladas_para_tys: 0,
+      alcance_geografico: ordenPuerto[lu.terminal] % 3 === 2 ? 'San Nicolás + upriver' : 'solo San Nicolás', origen: lu.tipo === 'Carga' ? 'San Nicolás' : 'Exterior (según BL)', destino: lu.tipo === 'Carga' ? 'Exterior' : (lu.terminal === 'TT' ? 'Timbúes' : 'San Nicolás'),
+      eta_original: lu.eta, eta_: null, sitio_atraque: '',
+      operativo_vinculado: '', fuente: 'LineUp agencia', fecha_version: isoDay(-1), orden_puerto: ordenPuerto[lu.terminal],
+      buque_texto_fuente: (lu.buque || '').toUpperCase(), cliente_texto_fuente: (cl ? cl.nombre : '').toUpperCase(), producto_texto_fuente: (pr ? pr.nombre : '').toUpperCase(),
+      homologado: true, nominado_a_tys: false, observaciones: '',
+    });
+    lu.estadoM17 = estLU[lu.estado] || lu.estado;
+  }
+
+  /* M-21 Agencia marítima / Armador: datos de contacto (revisión 16/09) */
+  const contactoAG = {
+    'AG-01': { agencia_domicilio: 'Av. Savio 1250, San Nicolás de los Arroyos (B2900)', agencia_telefono: '+54 336 442-1180', agencia_email1: 'operaciones@maritimadelta.com.ar', agencia_email2: 'lineup@maritimadelta.com.ar' },
+    'AG-02': { agencia_domicilio: 'Córdoba 1450, piso 8, Rosario (S2000)', agencia_telefono: '+54 341 424-9070', agencia_email1: 'ops@marsa.com.ar', agencia_email2: '' },
+    'AG-03': { agencia_domicilio: 'Av. Corrientes 880, piso 12, CABA (C1043)', agencia_telefono: '+54 11 4326-5500', agencia_email1: 'agency@navieraaustral.com', agencia_email2: 'documentacion@navieraaustral.com' },
+  };
+  for (const a of M.agencias) Object.assign(a, contactoAG[a.id] || { agencia_domicilio: '', agencia_telefono: '', agencia_email1: '', agencia_email2: '' });
 
   /* M-31 Cupos de ingreso: estados del modelo y tramo de portería */
   for (const cu of O.cupos) { if (cu.estado === 'Vigente') cu.estado = 'Confirmado'; Object.assign(cu, { planta: 'PL-SN', contrato: ({ 'CLI-04': 'CTO-2026-033', 'CLI-01': 'CTO-2026-014', 'CLI-05': 'TAR-SPOT-2026' })[cu.cliente] || null, turno: cu.franja.startsWith('06') ? 'T1 · T2' : 'todo el día', tipo_movimiento: 'ingreso', porton: 'P1', confirmacion_planta: cu.estado === 'Solicitado' ? 'pendiente' : 'confirmado', observaciones: '' }); }
@@ -380,8 +441,8 @@ const MD_EXT = {
 
   /* M-38 permisos por maestro y rol (SUPUESTO S17): niveles oculto · consulta · abm. Máster data siempre abm; el resto consulta salvo lo indicado.
      Valores de demostración: cada área administra los maestros de su ámbito y no visualiza los contables o comerciales que no le corresponden. */
-  const ABM_POR_ROL = { COM: ['M-06', 'M-15', 'M-16', 'M-22', 'M-23'], PLAN: ['M-20', 'M-24'], OPS: ['M-12', 'M-29', 'M-30'], DEP: ['M-10', 'M-10a', 'M-23', 'M-24'], LAR: ['M-08', 'M-17', 'M-21', 'M-31', 'M-32'] };
-  const OCULTO_POR_ROL = { COM: ['M-30'], PLAN: ['M-03', 'M-04'], OPS: ['M-03', 'M-04', 'M-15'], DEP: ['M-03', 'M-04', 'M-15'], LAR: ['M-02', 'M-03', 'M-04', 'M-15', 'M-30'] };
+  const ABM_POR_ROL = { COM: ['M-06', 'M-15', 'M-16', 'M-22', 'M-23'], PLAN: ['M-20', 'M-24'], OPS: ['M-12', 'M-29', 'M-30'], DEP: ['M-10', 'M-10a', 'M-23', 'M-24'], LAR: ['M-08', 'M-17', 'M-21', 'M-31', 'M-32'], ARE: ['M-05', 'M-10a', 'M-12', 'M-13', 'M-26', 'M-30', 'M-39'] };
+  const OCULTO_POR_ROL = { COM: ['M-30'], PLAN: ['M-03', 'M-04'], OPS: ['M-03', 'M-04', 'M-15'], DEP: ['M-03', 'M-04', 'M-15'], LAR: ['M-02', 'M-03', 'M-04', 'M-15', 'M-30'], ARE: ['M-03', 'M-04', 'M-15', 'M-16'] };
   const codigos = [...MODEL_FICHAS.map(f => f.codigo), ...MD_EXT.fichas.map(f => f.codigo)];
   M.permisosMD = {};
   for (const c of codigos) { M.permisosMD[c] = {}; for (const r of M.roles) M.permisosMD[c][r.id] = r.id === 'MD' ? 'abm' : (ABM_POR_ROL[r.id] || []).includes(c) ? 'abm' : (OCULTO_POR_ROL[r.id] || []).includes(c) ? 'oculto' : 'consulta'; }

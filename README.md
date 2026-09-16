@@ -1,6 +1,6 @@
 # TyS · Maqueta ERP v2 — Orden de servicio (código fuente)
 
-Maqueta navegable del circuito de la orden de servicio de TyS (Comercial → Planificador → Operaciones → Depósito), con Logística de arribo, Máster data, permisos por maestro y por módulo, y el modelo de master data v3.1 completo. Archivo único HTML + CSS + JS sin dependencias (solo la tipografía IBM Plex desde Google Fonts, con fallback). Versión actual: **v2.9.1** (`const VERSION` en `src/04-engine.js`).
+Maqueta navegable del circuito de la orden de servicio de TyS (Comercial → Planificador → Operaciones → Depósito), con Logística de arribo, Máster data, permisos por maestro y por módulo, y el modelo de master data v3.1 completo. Archivo único HTML + CSS + JS sin dependencias (solo la tipografía IBM Plex desde Google Fonts, con fallback). Versión actual: **v2.10** (`const VERSION` en `src/04-engine.js`).
 
 ## Cómo se arma
 
@@ -38,7 +38,8 @@ Convenciones: las acciones se declaran en el HTML con `data-action="..."` y se r
 - `package.json`, `vercel.json`, `.github/workflows/ci.yml` — scripts, configuración del despliegue y pruebas automáticas en cada push.
 - `test/walk.js` — recorrido automatizado (Playwright / Chromium) con ~240 comprobaciones, incluidas las de diseño móvil; `test/shots-*.js` generan capturas (`shots-mobile.js`: teléfono y tablet); los únicos errores de consola esperados son los de Google Fonts sin red.
 - `tools/extract_model.py` — extractor del Excel del modelo v3.1 (openpyxl).
-- `docs/spec.md` y `docs/nota-construccion.md` — especificación funcional y nota de construcción (mismas versiones que en el proyecto de Claude).
+- `tools/fd/` — generador del **Diseño Funcional v2.0 (Word)** a partir de la maqueta: `node tools/fd/extract.js` (vuelca la configuración de la maqueta compilada a `data.json` con Playwright) y `node tools/fd/build-fd.js` (arma el `.docx` con la librería `docx`; `npm i -g docx` si no está). `data.json` y el `.docx` no se versionan.
+- `docs/spec.md`, `docs/nota-construccion.md` y `docs/fd-v2.0-nota.md` — especificación funcional, nota de construcción y nota del FD v2.0 (mismas versiones que en el proyecto de Claude).
 
 ## Publicar en GitHub
 

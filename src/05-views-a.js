@@ -46,7 +46,9 @@ function viewInicio() {
   ];
   const pendLAR = rol === 'LAR' ? arribosSinOrden() : null; const pendMD = rol === 'MD' ? registrosEnValidacion() : null;
   if (pendMD) { kpis[0] = { v: pendMD.length, l: 'Registros en validación', d: 'Máster data', cls: pendMD.length ? 'acc' : '' }; }
-  return pageH('Inicio', ctxTxt(), rol === 'COM' ? btn('Nueva orden de servicio', 'go', { screen: 'nueva' }, 'pri') : rol === 'LAR' ? btn('Logística de arribo', 'go', { screen: 'arribos' }, 'pri') : rol === 'MD' ? btn('Datos maestros', 'go', { screen: 'md' }, 'pri') : '') +
+  const areaAct = rol === 'ARE' ? areaActiva() : null;
+  if (areaAct) { const rev = reservasARevalidar(areaAct.id); kpis[0] = { v: rev.length, l: 'Reservas a revalidar', d: areaAct.nombre, cls: rev.length ? 'warn' : '' }; kpis.splice(1, 1, { v: reservasDeArea(areaAct.id).filter(r => r.estado !== 'Liberada').length, l: 'Reservas vigentes del área', d: 'para operativos futuros' }); }
+  return pageH('Inicio', ctxTxt(), rol === 'COM' ? btn('Nueva orden de servicio', 'go', { screen: 'nueva' }, 'pri') : rol === 'LAR' ? btn('Logística de arribo', 'go', { screen: 'arribos' }, 'pri') : rol === 'MD' ? btn('Datos maestros', 'go', { screen: 'md' }, 'pri') : rol === 'ARE' ? btn('Mi área', 'go', { screen: 'area' }, 'pri') : '') +
     '<div class="grid gauto" style="margin-bottom:14px">' + kpis.map(k => '<div class="kpi ' + (k.cls || '') + '"><span class="v">' + k.v + '</span><span class="l">' + esc(k.l) + '</span><span class="d">' + esc(k.d) + '</span></div>').join('') + '</div>' +
     '<div class="grid g2">' +
     '<div class="card"><div class="card-h"><h2>Pendientes de ' + esc(rolName(rol)) + '</h2>' + (moduloHabilitado(rol === 'LAR' ? 'arribos' : rol === 'MD' ? 'md' : 'bandeja') ? btn(rol === 'LAR' ? 'Logística de arribo' : rol === 'MD' ? 'Datos maestros' : 'Ir al workflow', 'go', { screen: rol === 'LAR' ? 'arribos' : rol === 'MD' ? 'md' : 'bandeja' }, 'sm ghost') : '') + '</div>' +
@@ -91,6 +93,9 @@ function luCard(l, admin, estSel) {
   const bq = buqueDeLineup(l); const eb = bq?.equipos_propios || l.equiposBuque; const os = ordenesDeOrigen('lineup', l.id);
   const estadoCls = l.estado === 'En operación' ? 'acc' : ['Zarpó', 'Cumplido', 'Cancelado'].includes(l.estado) ? '' : 'info';
   const kvs = [['ETA', fmtDT(l.eta)], ['ETB → ETC', '<span class="nowrap">' + fmtDT(l.etb) + ' → ' + fmtDT(l.etc) + '</span>'], ['Terminal', esc(ent(l.terminal)?.nombre || l.terminal)], ['Equipos del buque (M-08)', eb ? esc(tipoEquipoInfo(eb.tipo).buque) + ' · ' + eb.cantidad + ' × ' + eb.capacidadTh + ' t/h' : '<span class="dim">sin equipos propios (gearless)</span>'], ['Toneladas', fmtT(sum(l.cargas, c => c.toneladas)) + ' t en ' + l.cargas.length + ' carga' + (l.cargas.length > 1 ? 's' : '') + ' · ' + os.length + ' orden' + (os.length === 1 ? '' : 'es')]];
+  const rsv = reservasVigentes().filter(r => r.origen?.tipo === 'lineup' && r.origen.id === l.id);
+  kvs.push(['Nominación a TyS (M-17)', l.nominado_a_tys ? '<b>' + fmtT(l.toneladas_para_tys) + ' t</b> de ' + fmtT(l.toneladas_nominadas_total_buque || 0) + ' t del buque · ' + os.length + ' orden' + (os.length > 1 ? 'es' : '') : '<span class="dim">sin órdenes: se nomina al crear el operativo</span>']);
+  if (rsv.length) kvs.push(['Capacidad reservada por las áreas', rsv.map(r => fmtT(r.cantidad) + ' × ' + esc(recNombre(r.rid)) + ' <span class="xs muted">' + esc(areaMD(r.area)?.nombre || r.area) + ' · ' + esc(r.estado) + '</span>').join('<br>') + ' ' + sup('S24')]);
   return '<div class="lu' + (l.estado === 'En operación' ? ' on' : '') + '">' +
     '<div class="lu-h"><div class="lu-t"><span class="mono">' + esc(l.id) + '</span><b>' + esc(l.buque) + '</b>' + (bq ? '<span class="tag">' + esc(bq.id) + (bq.numero_imo ? ' · IMO ' + esc(bq.numero_imo) : ' · sin IMO') + '</span>' : '') + (l.tipo ? chip(l.tipo, 'info') : chip('Descarga', '')) + '</div>' +
     '<div class="lu-meta small muted">' + esc(l.bandera) + ' · eslora ' + l.eslora + ' m · calado ' + l.calado + ' m · ' + esc(agName(l.agencia)) + '</div>' +
@@ -112,6 +117,14 @@ function viewBandeja() {
     const arr = arribosSinOrden();
     return pageH('Workflow · Logística de arribo', 'Logística de arribo no tiene etapa en el workflow de la orden: administra los arribos que Comercial toma como origen. ' + sup('S10'), btn('Ir a Logística de arribo', 'go', { screen: 'arribos' }, 'pri')) + pipeline +
       '<div class="card"><div class="card-h"><h2>Arribos programados sin orden de servicio</h2></div>' + table([{ h: 'Arribo', f: x => '<span class="mono">' + esc(x.id) + '</span> ' + esc(x.label) }, { h: 'Detalle', f: x => esc(x.det) }, { h: 'Fecha', f: x => '<span class="mono">' + fmtDT(x.ts) + '</span>' }], arr, { cls: 'compact', empty: 'Todos los arribos tienen orden' }) + '</div>';
+  }
+  if (rol === 'ARE') {
+    const a = areaActiva(); const rev = reservasARevalidar(a?.id); const vig = a ? reservasDeArea(a.id).filter(r => r.estado !== 'Liberada') : [];
+    const pend = registrosEnValidacion().filter(x => x.rec._aud?.creado_por === userOf('ARE') || x.rec._aud?.modificado_por === userOf('ARE'));
+    return pageH('Workflow · ' + esc(a ? a.nombre : 'área'), 'El área no tiene etapa en el workflow de la orden: administra la capacidad de su sector y revalida las reservas cuando la planificación o la ejecución eligen otra opción. ' + sup('S24'), btn('Ir a Mi área', 'go', { screen: 'area' }, 'pri')) +
+      '<div class="card"><div class="card-h"><h2>Reservas a revalidar</h2><span class="small muted">' + rev.length + ' de ' + vig.length + ' reservas vigentes</span></div>' +
+      table([{ h: 'Reserva', f: r => '<b class="mono">' + esc(r.id) + '</b>' }, { h: 'Operativo', f: r => esc(origenLabel(r.origen)) }, { h: 'Recurso', f: r => esc(recNombre(r.rid)) + ' × ' + fmtT(r.cantidad) }, { h: 'Qué pasó', f: r => '<span class="small">' + esc((r.log || [])[0]?.detalle || '') + '</span>' }, { h: 'Orden', f: r => r.orden ? osLink(r.orden) : '<span class="dim">—</span>' }, { h: '', f: r => '<div class="btn-row" style="gap:3px">' + btn('Revalidar', 'ra-revalidar', { id: r.id }, 'sm pri') + btn('Liberar', 'ra-liberar', { id: r.id }, 'sm danger') + '</div>' }], rev, { cls: 'compact', empty: 'Sin reservas para revalidar: la planificación respetó lo reservado por el área.' }) + '</div>' +
+      '<div class="card" style="margin-top:14px"><div class="card-h"><h2>Altas y modificaciones del área en validación</h2><span class="small muted">el ABM del sector pasa por el workflow de la master data</span></div>' + registrosValidacionTable(pend) + '</div>';
   }
   if (rol === 'MD') {
     const pend = registrosEnValidacion();
@@ -195,7 +208,11 @@ function secOrigen(o) {
   else if (g?.cu) { const c = g.cu; body = kv([['Cupo', '<span class="mono">' + esc(c.id) + '</span>'], ['Fecha · franja', fmtD(c.fecha) + ' · ' + esc(c.franja)], ['Camiones', c.camiones], ['Toneladas estimadas', fmtT(c.toneladas) + ' t'], ['Transportista', esc(provName(c.transportista))], ['Estado', esc(c.estado)]]); }
   else if (g?.tr) { const t = g.tr; body = kv([['Operativo', '<span class="mono">' + esc(t.id) + '</span>'], ['Fecha', fmtD(t.fecha)], ['Operador', esc(t.operador)], ['Formación', esc(t.formacion) + ' · ' + t.vagones + ' vagones'], ['Toneladas', fmtT(t.toneladas) + ' t'], ['Tipo', esc(t.tipo)], ['Estado', esc(t.estado)]]); }
   else if (g?.so) { const s = g.so; body = kv([['Solicitud', '<span class="mono">' + esc(s.id) + '</span> ' + chip(s.tipo, 'acc')], ['Solicitante', esc(destinatarioNombre(s.solicitante))], ['Detalle', esc(s.detalle)], ['Ventana solicitada', '<span class="mono">' + fmtDT(s.desde) + ' → ' + fmtDT(s.hasta) + '</span>'], ['Estado', esc(s.estado)]]) + '<p class="help" style="margin-top:8px">' + sup('S7') + ' Los circuitos específicos de los servicios por solicitud quedan por definir.</p>'; }
-  return '<section class="card sec" id="s-origen">' + secH('origen', 'Origen') + body + '</section>';
+  /* nominación del lineup (M-17) y capacidad reservada por las áreas para este origen (revisión 16/09) */
+  let extra = '';
+  if (g?.lu) extra += alertBox('info', '<div><b>Nominación del lineup (M-17):</b> esta orden alimenta la nominación de la escala. ' + esc(g.lu.id) + ' tiene <b>' + fmtT(g.lu.toneladas_para_tys) + ' t para TyS</b> de ' + fmtT(g.lu.toneladas_nominadas_total_buque || 0) + ' t nominadas del buque, nominado_a_tys = <b>' + (g.lu.nominado_a_tys ? 'Sí' : 'No') + '</b> y operativo_vinculado = ' + (ordenesDeOrigen('lineup', g.lu.id).map(x => osLink(x.id)).join(' · ') || '—') + '. Al anular la orden, la nominación se revierte.</div>');
+  extra += reservasOrigenCard(o, null);
+  return '<section class="card sec" id="s-origen">' + secH('origen', 'Origen') + body + extra + '</section>';
 }
 function secContrato(o) {
   const c = o.contrato;
