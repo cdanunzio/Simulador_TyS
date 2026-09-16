@@ -1,0 +1,357 @@
+/* =====================================================================
+   VISTAS (A) — helpers de UI, Inicio, Programación, Bandeja, Órdenes,
+   Expediente de la orden
+   ===================================================================== */
+function pill(estado) { return '<span class="pill ' + esc(estado) + '">' + esc(estadoName(estado)) + '</span>'; }
+function chip(txt, cls, title) { return '<span class="chip ' + (cls || '') + '"' + (title ? ' title="' + esc(title) + '"' : '') + '>' + esc(txt) + '</span>'; }
+function sup(id) { const s = byId(SUPUESTOS, id); return s ? '<span class="sup" title="' + esc(s.tema + ' — ' + s.supuesto) + '">SUPUESTO ' + esc(id) + '</span>' : ''; }
+function osLink(id) { return '<a href="#" class="osid" data-action="open" data-id="' + esc(id) + '">' + esc(id) + '</a>'; }
+function condChips(o) {
+  const c = condiciones(o); const out = [];
+  if (c.nac.aplica) out.push(c.nac.ok ? chip('Nacionalizada', 'ok') : chip('No nacionalizada', 'crit', 'Bloquea el inicio del operativo'));
+  if (c.ms.aplica) out.push(c.ms.ok ? chip('Método seguro habilitado', 'ok', 'Desde la master data: ' + (c.ms.ms?.id || '')) : chip(c.ms.ms ? 'MS vencido' : 'MS no definido', 'crit', 'Bloquea el inicio del operativo'));
+  return out.join(' ');
+}
+function relChip(o) { const r = byId(md().relaciones, o.relacion); return chip(r?.nombre || o.relacion, o.relacion === 'Externa' ? 'info' : 'acc', r?.imputacion); }
+function table(cols, rows, opts = {}) {
+  const th = cols.map(c => '<th class="' + (c.cls || '') + '">' + c.h + '</th>').join('');
+  const body = rows.length ? rows.map(r => '<tr' + (opts.rowAttr ? ' ' + opts.rowAttr(r) : '') + '>' + cols.map(c => '<td class="' + (c.cls || '') + '">' + (c.f ? c.f(r) : esc(r[c.k])) + '</td>').join('') + '</tr>').join('')
+    : '<tr><td class="empty" colspan="' + cols.length + '">' + esc(opts.empty || 'Sin registros') + '</td></tr>';
+  return '<div class="tw"><table class="t ' + (opts.cls || '') + '"><thead><tr>' + th + '</tr></thead><tbody>' + body + '</tbody>' + (opts.foot || '') + '</table></div>';
+}
+function kv(pairs) { return '<dl class="kv">' + pairs.filter(p => p).map(([k, v]) => '<dt>' + esc(k) + '</dt><dd>' + (v ?? '—') + '</dd>').join('') + '</dl>'; }
+function btn(label, action, data = {}, cls = '', attrs = '') { return '<button class="btn ' + cls + '" data-action="' + action + '" ' + Object.entries(data).map(([k, v]) => 'data-' + k + '="' + esc(v) + '"').join(' ') + ' ' + attrs + '>' + label + '</button>'; }
+function pageH(title, sub, acts) { return '<div class="page-h"><div><h1>' + title + '</h1>' + (sub ? '<p class="sub">' + sub + '</p>' : '') + '</div>' + (acts ? '<div class="acts">' + acts + '</div>' : '') + '</div>'; }
+function alertBox(type, html) { return '<div class="alert ' + type + '">' + html + '</div>'; }
+function bar(pct, cls) { return '<div class="bar"><i class="' + (cls || '') + '" style="width:' + Math.max(0, Math.min(100, pct * 100)).toFixed(1) + '%"></i></div>'; }
+function sel(id, options, value, attrs = '') { return '<select id="' + id + '" ' + attrs + '>' + options.map(op => '<option value="' + esc(op.v) + '"' + (op.v === value ? ' selected' : '') + (op.dis ? ' disabled' : '') + '>' + esc(op.t) + '</option>').join('') + '</select>'; }
+function field(label, control, cls = '', attrs = '') { return '<label class="field ' + cls + '" ' + attrs + '><span>' + label + '</span>' + control + '</label>'; }
+function ventanaTxt(v) { return v ? fmtDT(v.inicio) + ' → ' + fmtDT(v.fin) : '—'; }
+function ctxTxt() { const c = S.ctx; return (c.entidad === 'ALL' ? 'Grupo (consolidado)' : ent(c.entidad)?.nombre) + ' · ' + (c.bu === 'ALL' ? 'todas las BU' : buName(c.bu)) + ' · ' + rolName(c.rol) + ' (' + userOf(c.rol) + ')'; }
+
+/* ---------- Inicio ---------- */
+function viewInicio() {
+  const rol = S.ctx.rol; const bj = bandeja(rol); const al = alertas(); const os = ordersCtx();
+  const porEstado = md().estados.map(e => ({ e, n: os.filter(o => o.estado === e.id).length }));
+  const hoy = isoDay(0), lim = isoDay(7);
+  const arribos = S.ops.lineups.filter(l => (S.ctx.entidad === 'ALL' || l.terminal === S.ctx.entidad) && dayOf(l.etb) >= hoy && dayOf(l.etb) <= lim).sort((a, b) => a.etb.localeCompare(b.etb));
+  const cupos = S.ops.cupos.filter(c => c.fecha >= hoy && c.fecha <= lim && (S.ctx.entidad === 'ALL' || c.terminal === S.ctx.entidad));
+  const trenes = S.ops.trenes.filter(t => t.fecha >= hoy && t.fecha <= lim && (S.ctx.entidad === 'ALL' || t.terminal === S.ctx.entidad));
+  const kpis = [
+    { v: bj.length, l: 'En mi bandeja', d: rolName(rol), cls: bj.length ? 'acc' : '' },
+    { v: os.filter(o => o.estado === 'EJEC').length, l: 'Operativos en ejecución', d: fmtT(sum(os.filter(o => o.estado === 'EJEC'), o => o.ejecucion?.acumulado || 0)) + ' t acumuladas' },
+    { v: os.filter(o => ['PEND_PLAN', 'PLANIF'].includes(o.estado) && !condiciones(o).ok).length, l: 'Pendientes de habilitación', d: 'nacionalización o método seguro', cls: 'warn' },
+    { v: os.filter(o => cargosDe(o).some(c => c.estado === 'Pendiente de aprobación')).length, l: 'Órdenes con cargos a aprobar', d: 'atribuibles al cliente' },
+    { v: arribos.length + cupos.length + trenes.length, l: 'Arribos próximos 7 días', d: arribos.length + ' buques · ' + cupos.length + ' cupos · ' + trenes.length + ' trenes' },
+  ];
+  const pendLAR = rol === 'LAR' ? arribosSinOrden() : null; const pendMD = rol === 'MD' ? registrosEnValidacion() : null;
+  if (pendMD) { kpis[0] = { v: pendMD.length, l: 'Registros en validación', d: 'Máster data', cls: pendMD.length ? 'acc' : '' }; }
+  return pageH('Inicio', ctxTxt(), rol === 'COM' ? btn('Nueva orden de servicio', 'go', { screen: 'nueva' }, 'pri') : rol === 'LAR' ? btn('Logística de arribo', 'go', { screen: 'arribos' }, 'pri') : rol === 'MD' ? btn('Datos maestros', 'go', { screen: 'md' }, 'pri') : '') +
+    '<div class="grid gauto" style="margin-bottom:14px">' + kpis.map(k => '<div class="kpi ' + (k.cls || '') + '"><span class="v">' + k.v + '</span><span class="l">' + esc(k.l) + '</span><span class="d">' + esc(k.d) + '</span></div>').join('') + '</div>' +
+    '<div class="grid g2">' +
+    '<div class="card"><div class="card-h"><h2>Pendientes de ' + esc(rolName(rol)) + '</h2>' + btn(rol === 'LAR' ? 'Logística de arribo' : rol === 'MD' ? 'Datos maestros' : 'Ir al workflow', 'go', { screen: rol === 'LAR' ? 'arribos' : rol === 'MD' ? 'md' : 'bandeja' }, 'sm ghost') + '</div>' +
+    (pendMD ? registrosValidacionTable(pendMD.slice(0, 8)) : pendLAR ? (pendLAR.length ? table([{ h: 'Arribo', f: a => '<span class="mono">' + esc(a.id) + '</span> ' + esc(a.label) }, { h: 'Detalle', f: a => esc(a.det) }, { h: 'Fecha', f: a => '<span class="mono">' + fmtDT(a.ts) + '</span>' }, { h: 'Situación', f: a => chip('Sin orden de servicio', 'warn') }], pendLAR.slice(0, 8), { cls: 'compact' }) : '<p class="muted">Todos los arribos programados tienen orden.</p>') :
+    bj.length ? table([{ h: 'Orden', f: r => osLink(r.o.id) }, { h: 'Estado', f: r => pill(r.o.estado) }, { h: 'Qué hacer', f: r => esc(r.motivo) }, { h: 'Ventana', f: r => '<span class="mono">' + ventanaTxt(r.o.ventana) + '</span>' }], bj.slice(0, 8), { rowAttr: r => 'class="click" data-action="open" data-id="' + r.o.id + '"' }) : '<p class="muted">Nada pendiente para este rol en el contexto actual.</p>') + '</div>' +
+    '<div class="card"><div class="card-h"><h2>Alertas</h2></div>' + (al.length ? '<div class="stack" style="gap:6px">' + al.map(a => '<div class="alert ' + a.tipo + '">' + (a.orden ? osLink(a.orden) + ' ' : '') + esc(a.txt.replace(a.orden ? a.orden + ': ' : '', '')) + (a.screen ? ' ' + btn('Ver', 'go', { screen: a.screen, mdtab: a.mdTab || '' }, 'sm ghost') : '') + '</div>').join('') + '</div>' : '<p class="muted">Sin alertas.</p>') + '</div>' +
+    '<div class="card"><div class="card-h"><h2>Órdenes por estado</h2>' + btn('Ver órdenes', 'go', { screen: 'ordenes' }, 'sm ghost') + '</div>' +
+    table([{ h: 'Estado', f: r => pill(r.e.id) }, { h: 'Responsable', f: r => esc(r.e.responsable ? rolName(r.e.responsable) : 'Consulta') }, { h: 'Órdenes', cls: 'num', f: r => r.n }, { h: 'Próximo paso', f: r => '<span class="muted">' + esc(r.e.proximo) + '</span>' }], porEstado, { cls: 'compact' }) + '</div>' +
+    '<div class="card"><div class="card-h"><h2>Próximos arribos</h2>' + btn('Logística de arribo', 'go', { screen: 'arribos' }, 'sm ghost') + '</div>' +
+    table([{ h: 'Fecha', f: r => '<span class="mono">' + fmtDT(r.ts) + '</span>' }, { h: 'Medio', f: r => esc(r.medio) }, { h: 'Detalle', f: r => esc(r.det) }, { h: 'Cliente · producto', f: r => esc(r.cp) }, { h: 't', cls: 'num', f: r => fmtT(r.t) }, { h: 'Orden', f: r => r.os.length ? r.os.map(osLink).join(' ') : '<span class="dim">sin orden</span>' }],
+      [...arribos.map(l => ({ ts: l.etb, medio: 'Buque', det: l.buque + ' (ETB)', cp: l.cargas.map(c => cli(c.cliente)?.nombre.split(' ')[0] + ' · ' + prod(c.producto)?.nombre).join(' / '), t: sum(l.cargas, c => c.toneladas), os: ordenesDeOrigen('lineup', l.id).map(o => o.id) })),
+      ...cupos.map(c => ({ ts: c.fecha + 'T' + c.franja.slice(0, 5) + ':00', medio: 'Camión', det: c.id + ' · ' + c.camiones + ' camiones', cp: cli(c.cliente)?.nombre.split(' ')[0] + ' · ' + prod(c.producto)?.nombre, t: c.toneladas, os: ordenesDeOrigen('cupo', c.id).map(o => o.id) })),
+      ...trenes.map(t => ({ ts: t.fecha + 'T08:00:00', medio: 'Tren', det: t.formacion + ' · ' + t.vagones + ' vagones', cp: cli(t.cliente)?.nombre.split(' ')[0] + ' · ' + prod(t.producto)?.nombre, t: t.toneladas, os: ordenesDeOrigen('tren', t.id).map(o => o.id) }))].sort((a, b) => a.ts.localeCompare(b.ts)), { cls: 'compact', empty: 'Sin ingresos programados en los próximos 7 días' }) + '</div>' +
+    '</div>';
+}
+
+/* ---------- Logística de arribo ---------- */
+function viewArribos() {
+  const E = S.ctx.entidad; const admin = S.ctx.rol === 'LAR';
+  const lus = S.ops.lineups.filter(l => E === 'ALL' || l.terminal === E).sort((a, b) => a.etb.localeCompare(b.etb));
+  const cus = S.ops.cupos.filter(c => E === 'ALL' || c.terminal === E);
+  const trs = S.ops.trenes.filter(t => E === 'ALL' || t.terminal === E);
+  const sos = S.ops.solicitudes;
+  const estSel = (tipo, x, opts) => admin ? sel('est-' + x.id, opts.map(v => ({ v, t: v })), x.estado, 'data-arrestado="' + tipo + ':' + x.id + '" style="padding:2px 6px;border:1px solid var(--line);border-radius:4px;background:var(--surface);font-size:12px"') : chip(x.estado, x.estado === 'En operación' ? 'acc' : ['Zarpó', 'Cumplido', 'Cancelado'].includes(x.estado) ? '' : 'info');
+  const acts = admin ? btn('Nuevo lineup', 'lu-nuevo', {}, 'pri') + btn('Nuevo cupo de camiones', 'cu-nuevo', {}, '') + btn('Nuevo operativo ferroviario', 'tr-nuevo', {}, '') : '';
+  return pageH('Logística de arribo', (admin ? '<b>Rol administrador:</b> da de alta y modifica lineup, cupos de camiones y operativos ferroviarios; cada cambio queda registrado. ' : 'Consulta para los roles del workflow; la administración corresponde a <b>Logística de arribo</b> (cambiá el rol para editar). ') + sup('S10'), acts) +
+    (admin ? alertBox('info', '<div>' + arribosSinOrden().length + ' arribos programados sin orden de servicio. Comercial los toma como origen al crear la orden.</div>') : '') +
+    '<div class="stack" style="margin-top:12px">' +
+    '<div class="card"><div class="card-h"><h2>Lineup de buques ' + sup('A2') + '</h2><span class="small muted">' + lus.length + ' escalas</span></div>' +
+    table([{ h: 'Lineup', f: l => '<span class="mono">' + esc(l.id) + '</span>' }, { h: 'Buque', f: l => '<b>' + esc(l.buque) + '</b>' + (l.buqueId ? ' <span class="tag">' + esc(l.buqueId) + (buque(l.buqueId)?.numero_imo ? ' · IMO ' + esc(buque(l.buqueId).numero_imo) : '') + '</span>' : '') + '<br><span class="xs muted">' + esc(l.bandera) + ' · eslora ' + l.eslora + ' m · calado ' + l.calado + ' m · ' + esc(agName(l.agencia)) + (l.tipo ? ' · ' + esc(l.tipo) : '') + '</span>' },
+      { h: 'Terminal', f: l => esc(entName(l.terminal)) }, { h: 'ETA', f: l => '<span class="mono">' + fmtDT(l.eta) + '</span>' }, { h: 'ETB → ETC', f: l => '<span class="mono">' + fmtDT(l.etb) + ' → ' + fmtDT(l.etc) + '</span>' },
+      { h: 'Equipos del buque (M-08)', f: l => { const eb = buqueDeLineup(l)?.equipos_propios || l.equiposBuque; return eb ? '<span class="small">' + esc(tipoEquipoInfo(eb.tipo).buque) + '<br><span class="xs muted">' + eb.cantidad + ' × ' + eb.capacidadTh + ' t/h</span></span>' : '<span class="dim xs">sin equipos propios</span>'; } },
+      { h: 'Cargas (BL · cliente · producto · calidad · t)', f: l => l.cargas.map((c, i) => { const os = ordenesDeOrigen('lineup', l.id, i); return '<div><span class="mono">' + esc(c.bl) + '</span> · ' + esc(cli(c.cliente)?.nombre) + ' · ' + esc(prod(c.producto)?.nombre) + (c.calidad ? ' · <span class="muted">' + esc(c.calidad) + '</span>' : '') + ' · <b class="num">' + fmtT(c.toneladas) + ' t</b> → ' + (os.length ? os.map(o => osLink(o.id)).join(' ') : '<span class="dim">sin orden</span>') + '</div>'; }).join('') },
+      { h: 'Estado', f: l => estSel('lineup', l, ['Anunciado', 'Confirmado', 'En rada', 'En operación', 'Zarpó', 'Cancelado']) }, { h: '', f: l => admin ? btn('Editar', 'lu-editar', { id: l.id }, 'sm') : '' }], lus) + '</div>' +
+    '<div class="grid g2">' +
+    '<div class="card"><div class="card-h"><h2>Cupos de camiones</h2></div>' + table([{ h: 'Cupo', f: c => '<span class="mono">' + esc(c.id) + '</span>' }, { h: 'Fecha · franja', f: c => fmtD(c.fecha) + ' · ' + esc(c.franja) }, { h: 'Cliente · producto', f: c => esc(cli(c.cliente)?.nombre) + '<br><span class="xs muted">' + esc(prod(c.producto)?.nombre) + (c.calidad ? ' · ' + esc(c.calidad) : '') + '</span>' }, { h: 'Camiones', cls: 'num', k: 'camiones' }, { h: 't', cls: 'num', f: c => fmtT(c.toneladas) }, { h: 'Orden', f: c => { const os = ordenesDeOrigen('cupo', c.id); return os.length ? os.map(o => osLink(o.id)).join(' ') : '<span class="dim">sin orden</span>'; } }, { h: 'Estado', f: c => estSel('cupo', c, ['Solicitado', 'Vigente', 'Cumplido', 'Cancelado']) }], cus, { cls: 'compact' }) + '</div>' +
+    '<div class="card"><div class="card-h"><h2>Operativos ferroviarios</h2></div>' + table([{ h: 'Operativo', f: t => '<span class="mono">' + esc(t.id) + '</span>' }, { h: 'Fecha', f: t => fmtD(t.fecha) }, { h: 'Formación', f: t => esc(t.formacion) + ' · ' + t.vagones + ' vagones<br><span class="xs muted">' + esc(t.operador) + ' · ' + esc(t.tipo) + '</span>' }, { h: 'Cliente · producto', f: t => esc(cli(t.cliente)?.nombre) + '<br><span class="xs muted">' + esc(prod(t.producto)?.nombre) + (t.calidad ? ' · ' + esc(t.calidad) : '') + '</span>' }, { h: 't', cls: 'num', f: t => fmtT(t.toneladas) }, { h: 'Orden', f: t => { const os = ordenesDeOrigen('tren', t.id); return os.length ? os.map(o => osLink(o.id)).join(' ') : '<span class="dim">sin orden</span>'; } }, { h: 'Estado', f: t => estSel('tren', t, ['Anunciado', 'Confirmado', 'En playa', 'Cumplido', 'Cancelado']) }], trs, { cls: 'compact' }) + '</div>' +
+    '</div>' +
+    '<div class="card"><div class="card-h"><h2>Solicitudes internas y externas ' + sup('S7') + '</h2><span class="small muted">Origen de los servicios de las demás BU</span></div>' +
+    table([{ h: 'Solicitud', f: x => '<span class="mono">' + esc(x.id) + '</span>' }, { h: 'Tipo', f: x => chip(x.tipo, x.tipo === 'Externa' ? 'info' : 'acc') }, { h: 'Solicitante', f: x => esc(destinatarioNombre(x.solicitante)) }, { h: 'Detalle', k: 'detalle' }, { h: 'Ventana', f: x => '<span class="mono">' + fmtDT(x.desde) + ' → ' + fmtDT(x.hasta) + '</span>' }, { h: 'Orden', f: x => { const os = ordenesDeOrigen('solicitud', x.id); return os.length ? os.map(o => osLink(o.id)).join(' ') : '<span class="dim">sin orden</span>'; } }], sos, { cls: 'compact' }) + '</div>' +
+    '<div class="card"><div class="card-h"><h2>Registro de cambios de Logística de arribo</h2><span class="small muted">quién, cuándo y qué cambió</span></div>' +
+    ((S.arriboLog || []).length ? '<div class="hist">' + S.arriboLog.slice(0, 30).map(h => '<div class="ev"><span class="ts">' + fmtDT(h.ts) + '</span><span class="who">' + esc(rolName(h.rol)) + ' · ' + esc(h.usuario) + '</span><span class="what"><b>' + esc(h.accion) + ' · ' + esc(h.tipo) + ' ' + esc(h.id) + '</b>' + (h.detalle ? ' — ' + esc(h.detalle) : '') + '</span></div>').join('') + '</div>' : '<p class="muted small">Sin cambios registrados en esta sesión. El escenario inicial proviene de la carga base.</p>') + '</div>' +
+    '</div>';
+}
+
+/* ---------- Mi bandeja ---------- */
+function ordenRow(o, extra) {
+  return '<tr class="click" data-action="open" data-id="' + o.id + '"><td>' + osLink(o.id) + '</td><td>' + pill(o.estado) + '</td><td>' + esc(srv(o.servicio)?.nombre) + '<br><span class="xs muted">' + esc(medio(o.medio)?.nombre) + ' · ' + esc(entName(o.entidad)) + (o.bu ? ' / ' + esc(buName(o.bu)) : '') + '</span></td><td>' + esc(destinatarioNombre(o.destinatario)) + '</td><td>' + esc(prod(o.producto)?.nombre || '—') + '</td><td class="num">' + (o.toneladas ? fmtT(o.toneladas) : '—') + '</td><td><span class="mono xs">' + ventanaTxt(o.ventana) + '</span></td><td>' + condChips(o) + '</td>' + (extra != null ? '<td>' + extra + '</td>' : '') + '</tr>';
+}
+const ORD_HEAD = '<th>Orden</th><th>Estado</th><th>Servicio</th><th>Destinatario</th><th>Producto</th><th class="num">t</th><th>Ventana</th><th>Condiciones</th>';
+function viewBandeja() {
+  const rol = S.ctx.rol; const os = ordersCtx();
+  const mios = new Set(md().estados.filter(e => e.responsable === rol).map(e => e.id)); if (rol === 'OPS') mios.add('PEND_CIERRE');
+  const pipeline = '<div class="grid pipe" style="margin-bottom:14px">' + md().estados.map(e => { const n = os.filter(o => o.estado === e.id).length; const mine = mios.has(e.id) || (e.id === 'PEND_CIERRE' && os.some(o => o.estado === 'PEND_CIERRE' && rolCierre(o) === rol)); return '<div class="kpi tight" style="' + (mine ? 'border-color:var(--accent);background:var(--accent-soft)' : 'opacity:.55') + '"><span class="v" style="font-size:20px">' + n + '</span><span class="l">' + esc(e.nombre) + '</span><span class="d">' + (mine ? 'mi etapa · ' + esc(e.proximo) : e.responsable ? esc(rolName(e.responsable)) : 'consulta') + '</span></div>'; }).join('') + '</div>';
+  if (rol === 'LAR') {
+    const arr = arribosSinOrden();
+    return pageH('Workflow · Logística de arribo', 'Logística de arribo no tiene etapa en el workflow de la orden: administra los arribos que Comercial toma como origen. ' + sup('S10'), btn('Ir a Logística de arribo', 'go', { screen: 'arribos' }, 'pri')) + pipeline +
+      '<div class="card"><div class="card-h"><h2>Arribos programados sin orden de servicio</h2></div>' + table([{ h: 'Arribo', f: x => '<span class="mono">' + esc(x.id) + '</span> ' + esc(x.label) }, { h: 'Detalle', f: x => esc(x.det) }, { h: 'Fecha', f: x => '<span class="mono">' + fmtDT(x.ts) + '</span>' }], arr, { cls: 'compact', empty: 'Todos los arribos tienen orden' }) + '</div>';
+  }
+  if (rol === 'MD') {
+    const pend = registrosEnValidacion();
+    return pageH('Workflow · Máster data', 'Máster data no tiene etapa en el workflow de la orden: administra los datos maestros, valida y publica las altas y modificaciones de los demás roles y define los permisos por maestro. ' + sup('S17'), btn('Ir a Datos maestros', 'go', { screen: 'md' }, 'pri') + btn('Permisos por rol', 'go', { screen: 'md', mdtab: 'PERM' }, '')) + pipeline +
+      '<div class="card"><div class="card-h"><h2>Registros en validación</h2><span class="small muted">altas y modificaciones de otros roles pendientes de publicar</span></div>' + registrosValidacionTable(pend) + '</div>' +
+      '<div class="card" style="margin-top:14px"><div class="card-h"><h2>Últimos cambios en la master data</h2>' + btn('Ver registro completo', 'go', { screen: 'md', mdtab: 'LOG' }, 'sm ghost') + '</div>' + mdLogTable((S.mdLog || []).slice(0, 8)) + '</div>';
+  }
+  const bj = bandeja(rol);
+  const seguimiento = rol === 'DEP' ? os.filter(o => o.estado === 'EJEC' && usaDeposito(o)) : [];
+  return pageH('Workflow · mi etapa', 'Cada etapa ve solo las órdenes que debe trabajar. <b>' + esc(rolName(rol)) + '</b> (' + esc(userOf(rol)) + ') en ' + esc(S.ctx.entidad === 'ALL' ? 'todo el grupo' : ent(S.ctx.entidad)?.nombre) + '. Todas las órdenes, en consulta, están en <b>Operaciones</b>.', (rol === 'COM' ? btn('Nueva orden de servicio', 'go', { screen: 'nueva' }, 'pri') : '') + btn('Ver todas las órdenes', 'go', { screen: 'ordenes' }, '')) + pipeline +
+    '<div class="tw"><table class="t"><thead><tr>' + ORD_HEAD + '<th>Qué hacer</th></tr></thead><tbody>' + (bj.length ? bj.map(x => ordenRow(x.o, esc(x.motivo))).join('') : '<tr><td class="empty" colspan="9">Nada pendiente para ' + esc(rolName(rol)) + '. Cambiá el rol activo en la barra superior para ver otras etapas.</td></tr>') + '</tbody></table></div>' +
+    (seguimiento.length ? '<div class="card" style="margin-top:14px"><div class="card-h"><h2>Seguimiento de ingresos en curso</h2><span class="small muted">Sin traspaso formal: Depósito ve el progreso mientras Operaciones ejecuta</span></div>' + table([{ h: 'Orden', f: o => osLink(o.id) }, { h: 'Producto', f: o => esc(prod(o.producto)?.nombre) }, { h: 'Destino', f: o => esc(recNombre(o.plan?.recursos?.deposito)) }, { h: 'Progreso', f: o => '<div class="meter">' + bar(o.ejecucion.acumulado / o.toneladas) + '<span class="num">' + fmtT(o.ejecucion.acumulado) + ' / ' + fmtT(o.toneladas) + ' t</span></div>' }, { h: 'Tickets', cls: 'num', f: o => o.ejecucion.tickets.length }], seguimiento, { rowAttr: o => 'class="click" data-action="open" data-id="' + o.id + '"' }) + '</div>' : '');
+}
+
+/* ---------- Órdenes ---------- */
+function viewOrdenes() {
+  const f = S.ctx.ordFilter || 'ALL'; const q = (S.ctx.ordQ || '').toLowerCase();
+  let os = ordersCtx().slice().sort((a, b) => b.id.localeCompare(a.id));
+  if (f !== 'ALL') os = os.filter(o => o.estado === f);
+  if (q) os = os.filter(o => [o.id, srv(o.servicio)?.nombre, destinatarioNombre(o.destinatario), prod(o.producto)?.nombre, origenInfo(o)?.label].join(' ').toLowerCase().includes(q));
+  return pageH('Operaciones · todas las órdenes', 'Vista de operaciones: todas las órdenes del contexto, para cualquier rol, con acceso al expediente completo y su historial. Las acciones siguen restringidas a la etapa de cada rol.', S.ctx.rol === 'COM' ? btn('Nueva orden de servicio', 'go', { screen: 'nueva' }, 'pri') : '') +
+    '<div class="btn-row" style="margin-bottom:10px">' + sel('ord-filter', [{ v: 'ALL', t: 'Todos los estados' }, ...md().estados.map(e => ({ v: e.id, t: e.nombre }))], f, 'data-bind="ordFilter" class="btn"') + '<input id="ord-q" data-bind="ordQ" placeholder="Buscar por orden, cliente, producto, buque…" value="' + esc(S.ctx.ordQ || '') + '" style="padding:6px 10px;border:1px solid var(--line);border-radius:4px;min-width:260px;background:var(--surface)"><span class="small muted">' + os.length + ' órdenes</span></div>' +
+    '<div class="tw"><table class="t"><thead><tr>' + ORD_HEAD + '<th>Cierre</th></tr></thead><tbody>' + (os.length ? os.map(o => ordenRow(o, esc(rolName(rolCierre(o))))).join('') : '<tr><td class="empty" colspan="9">Sin órdenes para el filtro.</td></tr>') + '</tbody></table></div>';
+}
+
+/* ---------- Expediente ---------- */
+const SECS = [['resumen', 'Resumen'], ['origen', 'Origen'], ['contrato', 'Contrato'], ['habilitaciones', 'Habilitaciones'], ['planificacion', 'Planificación'], ['ejecucion', 'Ejecución'], ['deposito', 'Depósito'], ['costos', 'Costos y cargos'], ['historial', 'Comparativas e historial']];
+function viewExpediente(o) {
+  if (!o) return pageH('Orden no encontrada');
+  const rol = S.ctx.rol; const ap = accionPrincipal(o);
+  let actHtml = '';
+  if (ap) {
+    const mine = ap.rol === rol;
+    let valErr = 0; if (o.estado === 'PEND_PLAN' && mine) valErr = validarPlan(o, { recursos: pfInit(o) }).errores.length;
+    let fueraTol = false;
+    if (o.estado === 'PEND_CIERRE' && mine) { const CZ = S.ctx.cz && S.ctx.cz.id === o.id ? S.ctx.cz : null; const dif = (o.toneladas || 0) - (o.ejecucion?.acumulado || 0); const ev = evaluarMerma(o, CZ ? CZ.merma : (dif > 0 ? dif : 0), CZ ? CZ.excedente : (dif < 0 ? -dif : 0)); fueraTol = !ev.dentro && !CZ?.aprob; }
+    const disabled = !mine || ap.bloqueado || valErr > 0 || fueraTol;
+    const title = !mine ? 'Acción de ' + rolName(ap.rol) + ' — cambiá el rol activo para ejecutarla' : ap.bloqueado ? 'Bloqueado: ' + ap.motivos.join(' · ') : valErr ? 'La asignación de recursos tiene ' + valErr + ' error(es) de validación' : fueraTol ? 'Merma / excedente fuera de la tolerancia contractual: requiere aprobación de Comercial' : '';
+    actHtml = btn(ap.label, 'principal', { id: o.id, act: ap.action }, 'pri', (disabled ? 'disabled' : '') + ' title="' + esc(title) + '"') + (!mine ? '<span class="xs muted" style="align-self:center">Etapa de ' + esc(rolName(ap.rol)) + '</span>' : '');
+    if (o.estado === 'BORR' && mine) actHtml = btn('Editar borrador', 'editar-borrador', { id: o.id }, '') + actHtml;
+  }
+  /* devolver al paso anterior · anular (SUPUESTO S18): solo el rol responsable de la etapa */
+  if (!['CERRADA', 'ANULADA'].includes(o.estado) && rolResponsable(o) === rol) {
+    const pd = puedeDevolver(o);
+    if (pd.a) actHtml += btn('Devolver a ' + esc(estadoName(pd.a)), 'devolver', { id: o.id }, '', (pd.ok ? '' : 'disabled') + ' title="' + esc(pd.ok ? 'Vuelve al paso anterior con motivo; el rol anterior la recibe en su bandeja' : 'No se puede devolver: ' + pd.motivo) + '"');
+    actHtml += btn('Anular orden', 'anular', { id: o.id }, 'danger', 'title="Anula la orden con motivo: libera reservas y origen, conserva el historial"');
+  }
+  if (o.estado === 'ANULADA') actHtml = '<span class="chip crit" title="Orden anulada: solo consulta">Anulada · solo consulta</span>';
+  if (rol === 'LAR') actHtml = '<span class="chip info" title="Logística de arribo administra los arribos; no interviene en la orden">Solo consulta</span>';
+  if (rol === 'MD') actHtml = '<span class="chip info" title="Máster data administra los datos maestros; no interviene en la orden">Solo consulta</span>';
+  const sec = S.ctx.sec || 'resumen';
+  return '<div class="exp-h"><div class="row1"><h1>' + esc(o.id) + '</h1>' + pill(o.estado) + relChip(o) + '<div class="conds">' + condChips(o) + '</div><div class="acts">' + actHtml + '</div></div>' +
+    '<div class="row1 small muted">' + esc(srv(o.servicio)?.nombre) + ' · ' + esc(medio(o.medio)?.nombre) + ' · ' + esc(destinatarioNombre(o.destinatario)) + (o.producto ? ' · ' + esc(prod(o.producto)?.nombre) : '') + (o.toneladas ? ' · <b class="num">' + fmtT(o.toneladas) + ' t</b>' : '') + ' · ' + esc(entName(o.entidad)) + (o.bu ? ' / ' + esc(buName(o.bu)) : ' · nivel entidad') + '</div>' +
+    '<div class="exp-nav">' + SECS.map(([id, n]) => '<button class="' + (sec === id ? 'on' : '') + '" data-action="sec" data-sec="' + id + '">' + n + '</button>').join('') + '</div></div>' +
+    '<div class="stack" style="margin-top:14px">' + secResumen(o) + secOrigen(o) + secContrato(o) + secHabilitaciones(o) + secPlanificacion(o) + secEjecucion(o) + secDeposito(o) + secCostos(o) + secHistorial(o) + '</div>';
+}
+function bannersEstado(o) {
+  return (o.anulacion ? alertBox('crit', '<div><b>Orden anulada</b> el ' + fmtDT(o.anulacion.ts) + ' por ' + esc(rolName(o.anulacion.rol)) + ' (' + esc(o.anulacion.por) + ') desde el estado <b>' + esc(estadoName(o.anulacion.desde)) + '</b>. Motivo: ' + esc(o.anulacion.motivo) + '. Se liberaron las reservas de recursos y el origen; el historial se conserva' + (o.anulacion.acumulado ? '; ' + fmtT(o.anulacion.acumulado) + ' t ya descargadas quedan registradas sin cierre de depósito' : '') + '. ' + sup('S18') + '</div>') : '') +
+    (o.devolucion && o.devolucion.a === o.estado && o.estado !== 'ANULADA' ? alertBox('warn', '<div><b>Devuelta a ' + esc(estadoName(o.devolucion.a)) + '</b> por ' + esc(rolName(o.devolucion.rol)) + ' (' + esc(o.devolucion.por) + ') el ' + fmtDT(o.devolucion.ts) + ' desde <b>' + esc(estadoName(o.devolucion.de)) + '</b>. Motivo: ' + esc(o.devolucion.motivo) + '. ' + (o.planDevuelto && o.estado === 'PEND_PLAN' ? 'La planificación v' + (o.planDevuelto.version || 1) + ' anterior quedó como historial; hay que asignar y confirmar recursos de nuevo. ' : '') + sup('S18') + '</div>') : '');
+}
+function secH(id, n, extra) { return '<h2 id="sec-' + id + '"><span class="n">' + (SECS.findIndex(s => s[0] === id) + 1) + '</span>' + n + (extra ? ' ' + extra : '') + '</h2>'; }
+
+function secResumen(o) {
+  const r = byId(md().relaciones, o.relacion); const vo = ventanaOrigenDe(o); const tOrig = toneladasOrigenDe(o);
+  return '<section class="card sec" id="s-resumen">' + secH('resumen', 'Resumen', sup('A1')) + bannersEstado(o) + '<div class="grid g2">' +
+    kv([['Entidad', esc(ent(o.entidad)?.nombre)], ['Ámbito del servicio', (o.bu ? 'BU prestadora: <b>' + esc(buName(o.bu)) + '</b>' : '<b>Entidad</b> — el servicio impacta a ' + esc(entName(o.entidad)) + ' en su conjunto; las BU intervienen como ejecutoras') + ' ' + sup('S8')], ['Relación', relChip(o) + ' <span class="xs muted">' + esc(r?.imputacion || '') + '</span>'], ['Destinatario', esc(destinatarioNombre(o.destinatario))], ['Servicio', esc(srv(o.servicio)?.nombre)], ['Medio', esc(medio(o.medio)?.nombre)], ['Producto', esc(prod(o.producto)?.nombre || 'No aplica') + (o.calidad ? ' <span class="muted">· ' + esc(o.calidad) + '</span>' : '')], ['Toneladas a operar', (o.toneladas ? '<b class="num">' + fmtT(o.toneladas) + ' t</b>' : '—') + (tOrig != null && tOrig !== o.toneladas ? ' <span class="xs muted">de ' + fmtT(tOrig) + ' t del origen</span>' : '') + ' ' + sup('S19') + (puedeEditarDatosServicio(o) ? ' ' + btn('Editar toneladas y fechas', 'datos-servicio', { id: o.id }, 'sm') : '')]]) +
+    kv([['Estado', pill(o.estado)], ['Próximo paso', esc(byId(md().estados, o.estado)?.proximo)], ['Rol de cierre', esc(rolName(rolCierre(o))) + ' ' + sup('S6')], ['Ventana del servicio', '<span class="mono">' + ventanaTxt(o.ventana) + '</span> ' + sup('S19') + (vo && (vo.inicio !== o.ventana?.inicio || vo.fin !== o.ventana?.fin) ? '<br><span class="xs muted">' + esc(vo.txt) + ': ' + ventanaTxt(vo) + '</span>' : '') + '<br><span class="xs muted">definida por Comercial; valida la disponibilidad de los recursos</span>'], ['Origen', o.detalle ? '<span class="small">' + esc(detalleResumen(o)) + '</span>' : esc(origenInfo(o)?.label || '—')], ['Instrumento contractual', esc(o.contrato ? o.contrato.id + ' · ' + o.contrato.tipo : '—')], ['Creada', '<span class="mono">' + fmtDT(o.creado) + '</span>'], o.notas ? ['Notas', esc(o.notas)] : null]) + '</div>' +
+    '<h3 style="margin:14px 0 8px">Líneas de ejecución por componente ' + sup('S1') + '</h3>' +
+    table([{ h: 'Componente', f: l => esc(compName(l.componente)) }, { h: 'BU ejecutora', f: l => esc(buLabel(l.bu, o.entidad)) + (l.bu && bu(l.bu)?.entidad !== o.entidad ? ' <span class="xs muted">(' + esc(entName(bu(l.bu)?.entidad)) + ')</span>' : '') }, { h: 'Tarifa aplicada', cls: 'num', f: l => l.tarifa != null ? fmtN(l.tarifa, 2) + ' ' + esc(l.um) : '<span class="dim">—</span>' }, { h: 'Ingreso estimado', cls: 'num', f: l => l.tarifa != null && o.toneladas && l.componente !== 'SRV' ? fmtUSD(l.tarifa * o.toneladas * (l.componente === 'DEP' ? (o.contrato?.condiciones?.franquiciaDias || 1) : 1)) + (l.componente === 'DEP' ? ' <span class="xs dim">(' + (o.contrato?.condiciones?.franquiciaDias || 1) + ' días)</span>' : '') : '<span class="dim">—</span>' }], o.lineas, { cls: 'compact', empty: 'El servicio no tiene componentes definidos' }) + '</section>';
+}
+function secOrigen(o) {
+  const g = origenInfo(o); let body = '<p class="muted">Sin origen operativo vinculado.</p>';
+  if (o.detalle) { /* Rental / Logística: el detalle del servicio reemplaza al origen operativo (S21) */
+    const d = o.detalle; const k = kmDetalle(o); const dias = fmtN(hoursBetween(o.ventana.inicio, o.ventana.fin) / 24, 1);
+    body = d.tipo === 'rental'
+      ? kv([['Servicio', '<b>Alquiler de maquinaria</b> · ' + chip(medio(o.medio)?.nombre || o.medio, o.medio === 'INT' ? 'acc' : 'info') + ' ' + sup('S21')], ['Maquinarias solicitadas', Object.entries(d.maquinarias || {}).filter(([, n]) => n > 0).map(([id, n]) => '<b>' + n + ' ×</b> ' + esc(recNombre(id)) + ' <span class="xs muted">' + fmtUSD(recurso(id)?.costoHora || 0) + '/h</span>').join('<br>') || '—'], ['Período', '<span class="mono">' + ventanaTxt(o.ventana) + '</span> · ' + dias + ' días'], ['Km de entrega', (d.kmEntrega || 0) + ' km'], ['Km de devolución', (d.kmDevolucion || 0) + ' km'], ['Costo del traslado', k ? fmtUSD(k.kmCosto) + ' <span class="xs muted">' + esc(k.base) + '</span>' : '—']])
+      : kv([['Servicio', '<b>Servicios logísticos</b> · ' + chip(medio(o.medio)?.nombre || o.medio, o.medio === 'INT' ? 'acc' : 'info') + ' ' + sup('S21')], ['Camión', '<b>' + (d.cantidad || 1) + ' ×</b> ' + esc(recNombre(d.camion)) + ' <span class="xs muted">' + (recurso(d.camion)?.capacidadT || '—') + ' t · ' + fmtUSD(recurso(d.camion)?.costoHora || 0) + '/h' + (recurso(d.camion)?.tercero ? ' · tercero' : '') + '</span>'], ['Origen → destino', '<b>' + esc(lugarNombre(d.origen)) + '</b> → <b>' + esc(lugarNombre(d.destino)) + '</b>'], ['Km del tramo (automático)', k?.kmTramo != null ? k.kmTramo + ' km <span class="xs muted">geodésica × factor de ruta ' + (md().parametros.factorRuta || 1.3) + '</span>' : '—'], ['Viajes estimados', k?.viajes ? k.viajes + ' <span class="xs muted">(' + fmtT(o.toneladas) + ' t / ' + k.cap + ' t)</span>' : '—'], ['Km totales (ida y vuelta)', k?.kmTotal != null ? fmtT(k.kmTotal) + ' km · ' + fmtUSD(k.kmCosto) : '—'], ['Fechas', '<span class="mono">' + ventanaTxt(o.ventana) + '</span> · ' + dias + ' días']]);
+  }
+  else if (g?.lu) { const lu = g.lu; body = kv([['Lineup', '<span class="mono">' + esc(lu.id) + '</span>'], ['Buque', '<b>' + esc(lu.buque) + '</b> · ' + esc(lu.bandera)], ['Dimensiones', 'eslora ' + lu.eslora + ' m · calado ' + lu.calado + ' m'], ['Agencia marítima', esc(agName(lu.agencia))], ['Buque (M-08)', lu.buqueId ? '<span class="mono">' + esc(lu.buqueId) + '</span> · IMO ' + esc(buque(lu.buqueId)?.numero_imo || '—') + ' · ' + (buque(lu.buqueId)?.equipos_propios ? esc(equiposBuqueTxt(lu)) : 'sin equipos propios') : '—'], ['ETA', '<span class="mono">' + fmtDT(lu.eta) + '</span>'], ['ETB → ETC', '<span class="mono">' + fmtDT(lu.etb) + ' → ' + fmtDT(lu.etc) + '</span>'], ['Estado', esc(lu.estado)]]) +
+    '<h3 style="margin:12px 0 8px">Cargas de la escala ' + sup('A2') + '</h3>' + table([{ h: 'BL', f: c => '<span class="mono">' + esc(c.bl) + '</span>' }, { h: 'Cliente', f: c => esc(cli(c.cliente)?.nombre) }, { h: 'Producto', f: c => esc(prod(c.producto)?.nombre) }, { h: 't', cls: 'num', f: c => fmtT(c.toneladas) }, { h: 'Orden', f: (c) => { const i = lu.cargas.indexOf(c); const os = ordenesDeOrigen('lineup', lu.id, i); return os.length ? os.map(x => x.id === o.id ? '<b class="osid">' + x.id + ' (esta)</b>' : osLink(x.id)).join(' ') : '<span class="dim">sin orden</span>'; } }], lu.cargas, { cls: 'compact' }); }
+  else if (g?.cu) { const c = g.cu; body = kv([['Cupo', '<span class="mono">' + esc(c.id) + '</span>'], ['Fecha · franja', fmtD(c.fecha) + ' · ' + esc(c.franja)], ['Camiones', c.camiones], ['Toneladas estimadas', fmtT(c.toneladas) + ' t'], ['Transportista', esc(provName(c.transportista))], ['Estado', esc(c.estado)]]); }
+  else if (g?.tr) { const t = g.tr; body = kv([['Operativo', '<span class="mono">' + esc(t.id) + '</span>'], ['Fecha', fmtD(t.fecha)], ['Operador', esc(t.operador)], ['Formación', esc(t.formacion) + ' · ' + t.vagones + ' vagones'], ['Toneladas', fmtT(t.toneladas) + ' t'], ['Tipo', esc(t.tipo)], ['Estado', esc(t.estado)]]); }
+  else if (g?.so) { const s = g.so; body = kv([['Solicitud', '<span class="mono">' + esc(s.id) + '</span> ' + chip(s.tipo, 'acc')], ['Solicitante', esc(destinatarioNombre(s.solicitante))], ['Detalle', esc(s.detalle)], ['Ventana solicitada', '<span class="mono">' + fmtDT(s.desde) + ' → ' + fmtDT(s.hasta) + '</span>'], ['Estado', esc(s.estado)]]) + '<p class="help" style="margin-top:8px">' + sup('S7') + ' Los circuitos específicos de los servicios por solicitud quedan por definir.</p>'; }
+  return '<section class="card sec" id="s-origen">' + secH('origen', 'Origen') + body + '</section>';
+}
+function secContrato(o) {
+  const c = o.contrato;
+  const body = !c ? '<p class="muted">Sin instrumento contractual.</p>' :
+    '<div class="grid g2">' + kv([['Instrumento', '<span class="mono">' + esc(c.id) + '</span> · ' + esc(c.tipo) + (c.padre ? ' de <span class="mono">' + esc(c.padre) + '</span>' : '')], ['Moneda', esc(c.moneda)], ['Vigencia hasta', fmtD(c.vigenciaHasta)], ['Condiciones congeladas el', '<span class="mono">' + fmtDT(c.snapshot) + '</span>']]) +
+      kv(Object.entries(c.condiciones || {}).filter(([k, v]) => v != null && v !== '').map(([k, v]) => [({ ritmoComprometido: 'Ritmo comprometido', franquiciaDias: 'Franquicia de depósito', demoraCliente: 'Demoras a cargo del cliente', penalidadRitmo: 'Penalidad por ritmo', base: 'Base', toleranciaMermaPct: 'Tolerancia de merma / excedente' })[k] || k, k === 'ritmoComprometido' ? fmtT(v) + ' t/día' : k === 'franquiciaDias' ? v + ' días' : k === 'toleranciaMermaPct' ? fmtN(v, 1) + ' % sobre lo previsto ' + sup('S12') : esc(v)])) + '</div>' +
+      '<h3 style="margin:12px 0 8px">Tarifas aplicadas</h3>' + table([{ h: 'Componente', f: ([k]) => esc(compName(k)) }, { h: 'Tarifa', cls: 'num', f: ([k, v]) => fmtN(v, 2) + ' ' + c.moneda + (k === 'DEP' ? '/t/día' : k === 'SRV' ? '/h' : '/t') }], Object.entries(c.tarifas || {}), { cls: 'compact' }) +
+      alertBox('info', 'Las tarifas y condiciones quedan <b>guardadas en la orden</b>: cambios posteriores en el maestro de instrumentos no alteran su historia.');
+  return '<section class="card sec" id="s-contrato">' + secH('contrato', 'Contrato') + body + '</section>';
+}
+function secHabilitaciones(o) {
+  const c = condiciones(o); const h = o.habilitaciones; const rol = S.ctx.rol; const editable = rol === 'COM' && !['CERRADA', 'ANULADA'].includes(o.estado);
+  const nac = !c.nac.aplica ? '<p class="muted">No aplica a este servicio / destinatario.</p>' :
+    kv([['Estado', c.nac.ok ? chip('Nacionalizada', 'ok') : chip('No nacionalizada', 'crit')], ['Referencia', esc(h.nacRef || '—')], ['Registrado', h.nacTs ? '<span class="mono">' + fmtDT(h.nacTs) + '</span> · ' + esc(h.nacPor) : '—']]) +
+    (editable && !c.nac.ok ? '<div class="btn-row" style="margin-top:10px">' + btn('Registrar nacionalización', 'nac-form', { id: o.id }, 'pri sm') + '</div>' : '');
+  const msE = c.ms; const msInfo = msE.ms; const p = prod(o.producto);
+  const ms = !msE.aplica ? '<p class="muted">El producto no requiere método seguro (' + esc(famName(p?.familia)) + ').</p>' :
+    kv([['Habilitación', msE.ok ? chip('Habilitado', 'ok') : chip('No habilitado', 'crit')], ['Origen (master data)', msInfo ? '<span class="mono">' + esc(msInfo.id) + '</span> · ' + esc(msInfo.nombre) + ' <span class="xs muted">asignado ' + (msE.origen === 'producto' ? 'al producto ' + esc(p?.nombre) : 'a la familia ' + esc(famName(p?.familia))) + '</span>' : '<span class="crit">Sin método seguro definido para el producto ni su familia</span>'], ['Procedimiento', esc(msInfo?.procedimiento || '—')], ['Vigencia', msInfo ? (msE.vigente ? chip('Vigente hasta ' + fmtD(msInfo.vigenciaHasta), 'ok') : chip('Vencido el ' + fmtD(msInfo.vigenciaHasta), 'crit')) : '—']]) +
+    '<p class="help" style="margin-top:8px">La habilitación por método seguro no se confirma manualmente: la define la master data (método seguro asignado al producto o a su familia, con procedimiento y vigencia) y la administra Seguridad.</p>' +
+    (!msE.ok ? '<div class="btn-row" style="margin-top:8px">' + btn('Ir a Datos maestros › Seguridad', 'go', { screen: 'md', mdtab: 'SEG' }, 'sm') + '</div>' : '');
+  return '<section class="card sec" id="s-habilitaciones">' + secH('habilitaciones', 'Habilitaciones', sup('S3')) +
+    alertBox(c.ok ? 'ok' : 'warn', '<div><b>Regla central.</b> Nacionalización y método seguro generan advertencias y permiten enviar a planificación, pero <b>impiden iniciar el operativo</b> mientras no estén cumplidas. ' + (c.ok ? 'Ambas condiciones están cumplidas.' : 'Pendiente: ' + esc(c.motivos.join(' · ')) + '.') + '</div>') +
+    '<div class="grid g2" style="margin-top:12px"><div><h3 style="margin-bottom:8px">Nacionalización</h3>' + nac + '</div><div><h3 style="margin-bottom:8px">Método seguro</h3>' + ms + '</div></div></section>';
+}
+function recursosTable(R, o) {
+  const rows = [];
+  if (R.muelle) rows.push(['Muelle', recNombre(R.muelle), 1]);
+  for (const e of (R.equipos || [])) { const r = recurso(e); rows.push([(r?.tipo === 'Bombeo' ? 'Sistema de bombeo' : r?.tipo || 'Equipo') + (o?.medio === 'BUQ' ? (r?.buque ? ' · del buque' : ' · del muelle') : ''), recNombre(e) + ' <span class="xs muted">' + (r?.capacidadTh || 0) + ' t/h' + (r?.buque ? ' · sin costo para la terminal · recurso de tercero' : '') + '</span>', 1]); }
+  if (R.deposito) rows.push(['Depósito', recNombre(R.deposito) + (recurso(R.deposito)?.fiscal ? ' <span class="xs muted">fiscal</span>' : ''), 1]);
+  if (R.balanza) rows.push(['Balanza', recNombre(R.balanza), 1]);
+  for (const [id, n] of Object.entries(R.logistica || {})) if (n) rows.push(['Logística', recNombre(id), n]);
+  for (const [id, n] of Object.entries(R.manos || {})) if (n) { const m = recurso(id); rows.push(['Personal externo', recNombre(id) + ' <span class="xs muted">' + Object.entries(m?.roles || {}).map(([r, q]) => q + ' ' + r.toLowerCase()).join(', ') + ' · ' + esc(provName(m?.proveedor)) + '</span>', n + ' mano' + (n > 1 ? 's' : '') + '/turno']); }
+  for (const [id, n] of Object.entries(R.funciones || {})) if (n) rows.push(['Personal propio', recNombre(id), n]);
+  return table([{ h: 'Tipo', f: r => esc(r[0]) }, { h: 'Recurso', f: r => r[1] }, { h: 'Cant.', cls: 'num', f: r => r[2] }], rows, { cls: 'compact', empty: 'Sin recursos' });
+}
+function metricasCard(m, titulo, extra) {
+  return '<div class="grid g4" style="gap:8px;margin:10px 0">' + [['Duración', fmtN(m.horasTurnos, 0) + ' h', m.turnos + ' turnos de 6 h'], ['Ritmo previsto', fmtN(m.ritmo, 0) + ' t/h', fmtT(m.ritmo * 24) + ' t/día'], ['Costo estimado', fmtUSD(m.costo), 'recursos × duración'], ['Cumplimiento contractual', fmtPct(m.cumplimiento), 'ritmo previsto vs comprometido']].map(([l, v, d]) => '<div class="kpi tight"><span class="v" style="font-size:18px">' + v + '</span><span class="l">' + l + '</span><span class="d">' + d + '</span></div>').join('') + '</div>' + (extra || '');
+}
+function secPlanificacion(o) {
+  const rol = S.ctx.rol; const rec = o.recomendacion; const plan = o.plan;
+  let body = '';
+  /* planificación devuelta (S18): se conserva como historial mientras no haya un plan aceptado nuevo */
+  const devCard = o.planDevuelto && !plan ? '<div class="card tight" style="margin-bottom:12px"><div class="card-h"><h3>Planificación devuelta <span class="tag">v' + (o.planDevuelto.version || 1) + '</span></h3><span class="small muted">Devuelta ' + fmtDT(o.devolucion?.ts) + ' por ' + esc(rolName(o.devolucion?.rol || 'OPS')) + ' · motivo: ' + esc(o.devolucion?.motivo || '') + ' · se conserva como historial; las reservas fueron liberadas</span></div>' + recursosTable(o.planDevuelto.recursos, o) + '</div>' : '';
+  if (o.estado === 'BORR') body = devCard + '<p class="muted">La orden aún no fue enviada a planificación.</p>';
+  else if (o.estado === 'PEND_PLAN' && rol === 'PLAN') body = devCard + plannerForm(o);
+  else if (o.estado === 'PEND_PLAN') body = devCard + alertBox('info', 'Pendiente de planificación. La etapa corresponde al <b>Planificador</b>: cambiá el rol activo para asignar recursos.') + (!sinOrigenOperativo(o) ? recCard(o) : '');
+  else if (o.estado === 'PLANIF' && rol === 'OPS' && S.ctx.ajusteId === o.id) body = plannerForm(o, 'ajuste');
+  else if (!plan) body = devCard + alertBox('info', 'Sin planificación aceptada' + (o.estado === 'ANULADA' ? ': la orden fue anulada antes de planificarse' : '') + '.') + (rec && !rec.sinOpciones ? recCard(o) : '');
+  else {
+    body = (rec && !rec.sinOpciones ? recCard(o) : '') +
+      (o.planInicial ? '<div class="card tight" style="margin-bottom:12px"><div class="card-h"><h3>Plan inicial del Planificador <span class="tag">v' + o.planInicial.version + '</span></h3><span class="small muted">Confirmado ' + fmtDT(o.planInicial.confirmado) + ' · ' + esc(o.planInicial.por) + ' · se conserva para la comparativa</span></div>' + recursosTable(o.planInicial.recursos, o) + '</div>' : '') +
+      '<div class="card tight" style="border-color:var(--accent-line)"><div class="card-h"><h3>' + (o.planInicial ? 'Plan ajustado por Operaciones' : 'Planificación aceptada') + ' <span class="tag">v' + plan.version + '</span></h3><span class="small muted">' + (o.planInicial ? 'Ajustado ' + fmtDT(plan.ajustadoTs) + ' · ' + esc(plan.ajustadoPor) + ' · motivo: ' + esc(plan.motivoAjuste) : 'Confirmada ' + fmtDT(plan.confirmado) + ' · ' + esc(plan.por)) + '</span>' + (o.estado === 'PLANIF' && rol === 'OPS' ? btn('Ajustar recursos antes del inicio', 'ops-ajustar', { id: o.id }, 'sm') : '') + '</div>' +
+      (plan.difiere ? alertBox('warn', '<div><b>Difiere de la recomendación.</b> Motivo: ' + esc(plan.motivoDesvio) + '. Ambas propuestas se conservan y se comparan al cierre.</div>') : (rec && !rec.sinOpciones ? alertBox('ok', 'Coincide con la combinación recomendada.') : '')) +
+      (!sinOrigenOperativo(o) ? metricasCard(plan) : '<p class="small muted" style="margin:8px 0">Servicio por solicitud: duración según la ventana (' + fmtN(plan.horasTurnos, 0) + ' h · ' + plan.turnos + ' turnos) · costo estimado ' + fmtUSD(plan.costo) + '</p>') + recursosTable(plan.recursos, o) + '</div>';
+  }
+  const srs = solicitudesDe(o);
+  const srList = srs.length && !(o.estado === 'PEND_PLAN' && rol === 'PLAN') && !(o.estado === 'PLANIF' && rol === 'OPS' && S.ctx.ajusteId === o.id) ? '<h3 style="margin:12px 0 6px">Solicitudes de habilitación de recursos ' + sup('S13') + '</h3>' + table([{ h: 'Solicitud', f: x => '<span class="mono">' + esc(x.id) + '</span> · ' + fmtDT(x.creado) }, { h: 'Recurso', f: x => esc(recNombre(x.rid)) + (x.cantidad > 1 ? ' ×' + x.cantidad : '') }, { h: 'BU / área dueña', f: x => esc(x.destinatario?.nombre || '') }, { h: 'Motivo', f: x => '<span class="xs muted">' + x.motivos.map(esc).join(' · ') + '</span>' }, { h: 'Estado', f: x => chip(x.estado, x.estado === 'Habilitado' ? 'ok' : x.estado === 'Rechazado' ? 'crit' : 'warn') + (x.respuesta ? ' <span class="xs muted">' + esc(x.respuesta.detalle || '') + ' ' + (x.respuesta.cambios || []).map(esc).join(' · ') + '</span>' : '') }], srs, { cls: 'compact' }) : '';
+  return '<section class="card sec" id="s-planificacion">' + secH('planificacion', 'Planificación', sup('S2') + ' ' + sup('S4')) + body + srList + '</section>';
+}
+function recCard(o) {
+  const rec = o.recomendacion; if (!rec) return '';
+  if (rec.sinOpciones) return alertBox('crit', '<div><b>El sistema no encontró una combinación factible</b> con los recursos disponibles en la ventana. Revisá disponibilidad en Recursos o ajustá la ventana.</div>');
+  return '<div class="card tight" style="margin-bottom:12px"><div class="card-h"><h3>Combinación recomendada por el sistema</h3><span class="small muted">' + rec.nCombos + ' combinaciones evaluadas · generada ' + fmtDT(rec.generado) + '</span></div>' +
+    metricasCard(rec) + recursosTable(rec.recursos, o) +
+    '<details style="margin-top:10px"><summary class="small" style="cursor:pointer;color:var(--accent)">Criterio, supuestos y alternativas evaluadas</summary><div class="stack" style="margin-top:8px;gap:8px">' +
+    '<ul class="small muted" style="margin:0;padding-left:18px">' + rec.supuestos.map(s => '<li>' + esc(s) + '</li>').join('') + '</ul>' +
+    table([{ h: 'Alternativa', f: a => esc(a.resumen) }, { h: 'Duración', cls: 'num', f: a => fmtN(a.horasTurnos, 0) + ' h' }, { h: 'Ritmo', cls: 'num', f: a => fmtN(a.ritmo, 0) + ' t/h' }, { h: 'Costo', cls: 'num', f: a => fmtUSD(a.costo) }, { h: 'Cumpl.', cls: 'num', f: a => fmtPct(a.cumplimiento) }, { h: 'Puntaje', cls: 'num', f: a => fmtN(a.score, 3) }], [{ resumen: resumenRecursos(rec.recursos) + ' (recomendada)', horasTurnos: rec.horasTurnos, ritmo: rec.ritmo, costo: rec.costo, cumplimiento: rec.cumplimiento, score: rec.score }, ...(rec.alternativas || [])], { cls: 'compact' }) + '</div></details></div>';
+}
+function secEjecucion(o) {
+  const rol = S.ctx.rol; const ex = o.ejecucion; const c = condiciones(o);
+  let body;
+  if (!ex) {
+    body = o.estado === 'PLANIF' ? alertBox(c.ok ? 'ok' : 'crit', '<div><b>' + (c.ok ? 'Habilitaciones verificadas: el operativo puede iniciarse.' : 'Planificada y recibida por Operaciones, pero pendiente de habilitación para iniciar.') + '</b>' + (c.ok ? '' : '<ul>' + c.motivos.map(m => '<li>' + esc(m) + '</li>').join('') + '</ul>') + '</div>') + (rol === 'OPS' ? '<div class="btn-row" style="margin-top:10px">' + btn('Iniciar operativo', 'principal', { id: o.id, act: 'iniciar' }, 'pri', c.ok ? '' : 'disabled') + '</div>' : '') : '<p class="muted">El operativo aún no fue planificado.</p>';
+  } else {
+    const m = metricasReal(o); const pct = o.toneladas ? ex.acumulado / o.toneladas : 0; const activo = o.estado === 'EJEC' && rol === 'OPS';
+    const turno = turnoDe(ex.reloj);
+    body = '<div class="meter" style="margin-bottom:6px">' + bar(pct, pct >= 1 ? 'ok' : '') + '<b class="num">' + fmtT(ex.acumulado) + ' / ' + (o.toneladas ? fmtT(o.toneladas) : '—') + ' t · ' + fmtPct(pct) + '</b></div>' +
+      '<div class="grid g4" style="gap:8px;margin:10px 0">' + [['Reloj simulado', fmtDT(ex.reloj), ex.fin ? 'finalizado ' + fmtDT(ex.fin) : 'turno ' + turno], ['Horas transcurridas', fmtN(m.horas, 1) + ' h', 'inicio ' + fmtDT(ex.inicio)], ['Ritmo neto', fmtN(m.ritmoNeto, 0) + ' t/h', 'bruto ' + fmtN(m.ritmoBruto, 0) + ' t/h · ' + fmtN(m.horasDemora, 1) + ' h de demoras'], ['Tickets', ex.tickets.length, 'costo real acumulado ' + fmtUSD(m.costo)]].map(([l, v, d]) => '<div class="kpi tight"><span class="v" style="font-size:18px">' + v + '</span><span class="l">' + l + '</span><span class="d">' + esc(d) + '</span></div>').join('') + '</div>' +
+      (activo ? '<div class="btn-row" style="margin-bottom:12px">' + btn('Simular 1 hora', 'simular', { id: o.id, h: 1 }, '') + btn('Simular turno (6 h)', 'simular', { id: o.id, h: 6 }, '') + btn('Registrar ticket', 'ticket-form', { id: o.id }, '') + btn('Agregar recurso', 'recurso-form', { id: o.id }, 'pri') + btn('Registrar demora', 'demora-form', { id: o.id }, '') + '<span class="small muted">La maqueta simula tickets de balanza según el ritmo de los equipos activos.</span></div>' : '') +
+      '<h3 style="margin:10px 0 6px">Recursos activos y modificaciones <span class="small muted" style="font-weight:400">alta · modificación · reemplazo · baja de cualquier recurso de la planificación, con registro para la comparativa</span></h3>' +
+      table([{ h: 'Recurso', f: r => esc(recNombre(r.rid)) + (r.cantidad > 1 ? ' <span class="tag">×' + r.cantidad + '</span>' : '') }, { h: 'Origen', f: r => r.origen === 'plan' ? chip('Plan inicial', '') : r.origen === 'reemplazo' ? chip('Reemplazo de ' + (r.reemplazaA || ''), 'warn') : r.origen === 'modificado' ? chip('Cantidad ' + (r.cantidadAnterior || '') + ' → ' + r.cantidad, 'warn') : chip('Adicional', 'warn') }, { h: 'Desde → hasta', f: r => '<span class="mono xs">' + fmtDT(r.desde) + ' → ' + (r.hasta ? fmtDT(r.hasta) : 'activo') + '</span>' }, { h: 'Horas', cls: 'num', f: r => fmtN(horasRecurso(o, r), 1) }, { h: 'Motivo · responsable', f: r => (r.origen !== 'plan' ? esc(r.motivo) + '<br><span class="xs muted">' + esc(r.responsable) + (r.respaldo ? ' · ' + esc(r.respaldo) : '') + '</span>' : '') + (r.motivoLiberacion ? '<br><span class="xs muted">Baja: ' + esc(r.motivoLiberacion) + '</span>' : (r.origen === 'plan' ? '<span class="dim">—</span>' : '')) }, { h: 'Cargo al cliente', f: r => r.origen !== 'plan' ? (r.atribuibleCliente ? chip(fmtUSD(cargosDe(o).find(c => c.ref === 'rec:' + ex.recursos.indexOf(r))?.monto || 0) + ' · ' + (r.aprobacion || 'pendiente'), r.aprobacion === 'Aprobado' ? 'ok' : r.aprobacion === 'Rechazado' ? 'crit' : 'warn') : chip('No atribuible', '')) : '<span class="dim">—</span>' }, { h: 'ABM', f: r => activo && !r.hasta ? '<div class="btn-row" style="gap:3px">' + (['logistica', 'mano', 'funcion'].includes(r.tipo) ? btn('Modificar', 'modificar-form', { id: o.id, idx: ex.recursos.indexOf(r) }, 'sm') : '') + btn('Reemplazar', 'reemplazar-form', { id: o.id, idx: ex.recursos.indexOf(r) }, 'sm') + btn('Liberar', 'liberar-form', { id: o.id, idx: ex.recursos.indexOf(r) }, 'sm') + '</div>' : '' }], ex.recursos, { cls: 'compact' }) +
+      '<h3 style="margin:14px 0 6px">Demoras</h3>' +
+      table([{ h: 'Causa', f: d => esc(d.causaNombre) }, { h: 'Inicio → fin', f: d => '<span class="mono xs">' + fmtDT(d.inicio) + ' → ' + fmtDT(d.fin) + '</span>' }, { h: 'Horas', cls: 'num', f: d => fmtN(d.horas, 1) }, { h: 'Responsabilidad', f: d => chip(d.responsabilidad, d.responsabilidad === 'Propia' ? 'crit' : d.responsabilidad === 'Fuerza mayor' ? '' : 'warn') + (d.tercero ? '<br><span class="xs muted">' + esc(d.tercero) + '</span>' : '') }, { h: 'Gasto', cls: 'num', f: d => d.gasto ? fmtUSD(d.gasto) : '—' }, { h: 'Recuperable', f: d => d.gasto ? (d.recuperable ? chip('Sí · ' + (d.aprobacion || 'pendiente'), d.aprobacion === 'Aprobado' ? 'ok' : 'warn') : chip('No', '')) : '<span class="dim">—</span>' }, { h: 'Observaciones', f: d => '<span class="xs muted">' + esc(d.obs) + '</span>' }], ex.demoras, { cls: 'compact', empty: 'Sin demoras registradas' }) +
+      '<h3 style="margin:14px 0 6px">Tickets de balanza <span class="small muted" style="font-weight:400">últimos ' + Math.min(12, ex.tickets.length) + ' de ' + ex.tickets.length + '</span></h3>' +
+      table([{ h: 'Ticket', f: t => '<span class="mono">' + esc(t.id) + '</span>' + (t.manual ? ' <span class="tag">manual</span>' : '') }, { h: 'Fecha y hora', f: t => '<span class="mono">' + fmtDT(t.ts) + '</span>' }, { h: 'Camión', f: t => '<span class="mono">' + esc(t.camion) + '</span>' }, { h: 'Bruto', cls: 'num', f: t => fmtN(t.bruto, 2) }, { h: 'Tara', cls: 'num', f: t => fmtN(t.tara, 2) }, { h: 'Neto (t)', cls: 'num', f: t => '<b>' + fmtN(t.neto, 2) + '</b>' }, { h: 'Balanza → destino', f: t => esc(recNombre(t.balanza)) + ' → ' + esc(t.destino ? recNombre(t.destino) : 'camión del cliente') }], ex.tickets.slice(-12).reverse(), { cls: 'compact', empty: 'Sin tickets' });
+  }
+  return '<section class="card sec" id="s-ejecucion">' + secH('ejecucion', 'Ejecución') + body + '</section>';
+}
+function secDeposito(o) {
+  const rol = S.ctx.rol; const rc = rolCierre(o); const ex = o.ejecucion;
+  let body = '';
+  if (usaDeposito(o)) {
+    const dId = activo(o, 'deposito') || o.plan?.recursos?.deposito; const d = dId ? recurso(dId) : null; const ing = ingresosDeposito(o); const dPlan = o.plan?.recursos?.deposito;
+    body += d ? '<div class="grid g2">' + kv([['Destino', '<b>' + esc(d.nombre) + '</b> · ' + esc(d.tipo) + (d.fiscal ? ' ' + chip('Fiscal', 'info') : '') + (dPlan && dPlan !== dId ? ' ' + chip('Cambiado en ejecución (plan: ' + recNombre(dPlan) + ')', 'warn') : '')], ['Capacidad', fmtT(d.capacidadT) + ' t · ocupado ' + fmtT(d.ocupadoT) + ' t'], ['Restricciones', esc(d.restricciones || '—')]]) +
+      kv([['Ingresos de esta orden', '<b class="num">' + fmtT(ing.toneladas) + ' t</b> en ' + ing.tickets + ' tickets'], ['Último ingreso', ing.ultimo ? '<span class="mono">' + fmtDT(ing.ultimo) + '</span>' : '—'], ['Ocupación proyectada', '<div class="meter">' + bar((d.ocupadoT + (o.deposito.ingresado ? 0 : ing.toneladas)) / d.capacidadT) + '<span class="num">' + fmtPct((d.ocupadoT + (o.deposito.ingresado ? 0 : ing.toneladas)) / d.capacidadT) + '</span></div>']]) + '</div>' : '<p class="muted">Destino a definir en la planificación.</p>';
+    if (o.estado === 'EJEC') body += alertBox('info', 'Operativo en curso: Depósito ve el progreso <b>sin esperar el traspaso formal</b>.');
+  } else {
+    body += alertBox('info', '<div>Servicio <b>sin ingreso físico a depósito</b>. ' + sup('S6') + ' El cierre administrativo lo realiza <b>' + esc(rolName(rc)) + '</b>.</div>');
+  }
+  if (o.estado === 'PEND_CIERRE') {
+    const CZ = S.ctx.cz && S.ctx.cz.id === o.id ? S.ctx.cz : null;
+    const dif = Math.round(((o.toneladas || 0) - (o.ejecucion?.acumulado || 0)) * 100) / 100;
+    const merma = CZ ? CZ.merma : (dif > 0 ? dif : 0), exc = CZ ? CZ.excedente : (dif < 0 ? -dif : 0);
+    const ev = evaluarMerma(o, merma, exc);
+    body += '<h3 style="margin:14px 0 8px">Cierre del operativo</h3>' + cierreResumen(o) +
+      (rol === rc ? '<div class="card tight" style="margin-top:10px;border-color:var(--accent-line)"><div class="card-h"><h3>Merma o excedente ' + sup('S12') + '</h3><span class="small muted">Tolerancia contractual: <b>' + fmtN(ev.tol, 1) + ' %</b> sobre ' + fmtT(ev.previsto) + ' t previstas' + (o.contrato?.condiciones?.toleranciaMermaPct != null ? ' (' + esc(o.contrato.id) + ')' : ' (parámetro general)') + '</span></div>' +
+        '<p class="small muted" style="margin-bottom:8px">Previsto ' + fmtT(ev.previsto) + ' t · pesado ' + fmtT(ev.pesado) + ' t · diferencia ' + fmtN(ev.diferencia, 1) + ' t. Registrá manualmente la merma o el excedente que explica la diferencia; se propone por defecto.</p>' +
+        '<div class="form-grid">' + field('Merma (t)', '<input type="number" step="0.1" min="0" id="cz-merma" data-cz="merma" value="' + merma + '">') + field('Excedente (t)', '<input type="number" step="0.1" min="0" id="cz-exc" data-cz="excedente" value="' + exc + '">') + '</div>' +
+        (ev.merma || ev.excedente ? alertBox(ev.dentro ? 'ok' : 'crit', '<div><b>' + fmtN(ev.pct, 2) + ' %</b> sobre lo previsto · ' + (ev.dentro ? 'dentro de la tolerancia contractual (' + fmtN(ev.tol, 1) + ' %): el operativo puede cerrarse.' : 'FUERA de la tolerancia contractual (' + fmtN(ev.tol, 1) + ' %): el cierre requiere aprobación de Comercial.') + '</div>') : alertBox('ok', 'Sin merma ni excedente declarados.')) +
+        (!ev.dentro ? '<label class="field chk" style="margin-top:8px"><input type="checkbox" id="cz-aprob" data-cz="aprob"' + (CZ?.aprob ? ' checked' : '') + '><span>Registro la <b>aprobación de Comercial</b> para cerrar fuera de tolerancia</span></label>' + field('Referencia de la aprobación', '<input id="cz-aprob-ref" data-cz="aprobRef" value="' + esc(CZ?.aprobRef || '') + '" placeholder="p. ej. mail de Comercial 15/09">') : '') +
+        '<div style="margin-top:10px">' + field('Observaciones del cierre', '<textarea id="cierre-obs" placeholder="Incidencias, notas para facturación…">' + esc(CZ?.obs || '') + '</textarea>') + '</div><div class="btn-row" style="margin-top:10px">' + btn('Cerrar operativo', 'principal', { id: o.id, act: 'cerrar' }, 'pri', (!ev.dentro && !CZ?.aprob) ? 'disabled title="Fuera de tolerancia: requiere aprobación de Comercial"' : '') + '</div></div>' : alertBox('warn', 'Pendiente de cierre por <b>' + esc(rolName(rc)) + '</b>. Cambiá el rol activo para cerrar.'));
+  } else if (o.estado === 'CERRADA' && o.deposito.cierre) {
+    const cz = o.deposito.cierre;
+    body += '<h3 style="margin:14px 0 8px">Cierre del operativo</h3>' + kv([['Cerrado', '<span class="mono">' + fmtDT(cz.ts) + '</span> · ' + esc(cz.por) + ' (' + esc(rolName(cz.rol)) + ')'], ['Merma / excedente', (cz.merma ? 'merma ' + fmtN(cz.merma, 1) + ' t' : '') + (cz.excedente ? (cz.merma ? ' · ' : '') + 'excedente ' + fmtN(cz.excedente, 1) + ' t' : '') + (cz.merma || cz.excedente ? ' · ' + fmtN(cz.pctAjuste, 2) + ' % ' + (cz.dentroTolerancia ? chip('Dentro de tolerancia ' + fmtN(cz.tolerancia, 1) + ' %', 'ok') : chip('Fuera de tolerancia · aprobación Comercial: ' + (cz.aprobacionComercial || ''), 'crit')) : 'sin merma ni excedente')], ['Observaciones', esc(cz.obs || '—')]]) + '<div style="margin-top:10px">' + cierreResumen(o) + '</div>';
+  }
+  return '<section class="card sec" id="s-deposito">' + secH('deposito', 'Depósito') + body + '</section>';
+}
+function cierreResumen(o) {
+  const m = metricasReal(o); if (!m) return '';
+  return '<div class="grid g4" style="gap:8px">' + [['Toneladas', fmtT(m.acumulado) + ' t', o.ejecucion.diferencia != null && Math.abs(o.ejecucion.diferencia) > 0.5 ? 'diferencia ' + fmtN(o.ejecucion.diferencia, 1) + ' t' : 'sin diferencia'], ['Tiempo', fmtN(m.horas, 1) + ' h', m.turnos + ' turnos · ' + fmtN(m.horasDemora, 1) + ' h demoras'], ['Recursos', [...new Set(m.equipos)].join(', ') || 'sin equipos', m.manos + ' manos · ' + m.camiones + ' camiones'], ['Costos y cargos', fmtUSD(m.costo), 'cargos adicionales ' + fmtUSD(m.cargos)]].map(([l, v, d]) => '<div class="kpi tight"><span class="v" style="font-size:18px">' + v + '</span><span class="l">' + l + '</span><span class="d">' + esc(d) + '</span></div>').join('') + '</div>';
+}
+function secCostos(o) {
+  const rol = S.ctx.rol; const r = byId(md().relaciones, o.relacion);
+  const real = o.ejecucion ? costoReal(o) : null; const cargos = cargosDe(o);
+  const porBU = {}; if (real) for (const it of real.items) { const b = it.bu || o.bu || 'ENT'; porBU[b] = (porBU[b] || 0) + it.monto; }
+  return '<section class="card sec" id="s-costos">' + secH('costos', 'Costos y cargos', sup('S5')) +
+    '<div class="grid g4" style="gap:8px;margin-bottom:12px">' + [['Costo recomendado', o.recomendacion && !o.recomendacion.sinOpciones ? fmtUSD(o.recomendacion.costo) : '—'], ['Costo planificado', o.plan ? fmtUSD(o.plan.costo) : '—'], ['Costo real', real ? fmtUSD(real.total) : '—'], ['Cargos al cliente', cargos.length ? fmtUSD(sum(cargos, c => c.monto)) : '—']].map(([l, v]) => '<div class="kpi tight"><span class="v" style="font-size:18px">' + v + '</span><span class="l">' + l + '</span></div>').join('') + '</div>' +
+    alertBox('info', '<div><b>Imputación por relación ' + esc(r?.nombre) + ':</b> ' + esc(r?.imputacion) + '. Los costos reales se imputan a la BU dueña de cada recurso ' + sup('S1') + '.</div>') +
+    (real ? '<div class="grid g2" style="margin-top:12px"><div><h3 style="margin-bottom:6px">Costo real por recurso</h3>' + table([{ h: 'Recurso', f: i => esc(i.nombre) + (i.cantidad > 1 ? ' <span class="tag">×' + i.cantidad + '</span>' : '') + (i.origen === 'adicional' ? ' ' + chip('adicional', 'warn') : '') }, { h: 'Horas', cls: 'num', f: i => fmtN(i.horas, 1) }, { h: 'BU', f: i => esc(buLabel(i.bu || o.bu, o.entidad)) }, { h: 'USD', cls: 'num', f: i => fmtT(i.monto) }], real.items, { cls: 'compact', foot: '<tfoot><tr><td colspan="3">Total</td><td class="num">' + fmtT(real.total) + '</td></tr></tfoot>' }) + '</div>' +
+      '<div><h3 style="margin-bottom:6px">Imputación por BU</h3>' + table([{ h: 'BU', f: ([b]) => b === 'ENT' ? 'Entidad ' + esc(entName(o.entidad)) + ' <span class="xs muted">sin BU específica</span>' : esc(buName(b)) + ' <span class="xs muted">' + esc(entName(bu(b)?.entidad)) + '</span>' }, { h: 'USD', cls: 'num', f: ([, v]) => fmtT(v) }, { h: '%', cls: 'num', f: ([, v]) => fmtPct(v / real.total) }], Object.entries(porBU).sort((a, b) => b[1] - a[1]), { cls: 'compact' }) + '</div></div>' : '') +
+    '<h3 style="margin:14px 0 6px">Cargos adicionales atribuibles al cliente</h3>' +
+    table([{ h: 'Tipo', f: c => chip(c.tipo, c.tipo === 'Recurso adicional' ? 'warn' : 'info') }, { h: 'Concepto', f: c => esc(c.concepto) + (c.respaldo ? '<br><span class="xs muted">Respaldo: ' + esc(c.respaldo) + '</span>' : '') }, { h: 'Monto', cls: 'num', f: c => fmtUSD(c.monto) }, { h: 'Estado', f: c => chip(c.estado, c.estado === 'Aprobado' ? 'ok' : c.estado === 'Rechazado' ? 'crit' : 'warn') }, { h: '', f: c => rol === 'COM' && c.estado === 'Pendiente de aprobación' ? btn('Aprobar', 'cargo', { id: o.id, ref: c.ref, dec: 'Aprobado' }, 'sm') + ' ' + btn('Rechazar', 'cargo', { id: o.id, ref: c.ref, dec: 'Rechazado' }, 'sm') : '' }], cargos, { cls: 'compact', empty: 'Sin cargos adicionales' }) +
+    '<p class="help" style="margin-top:8px">Los cargos aprobados se emiten como evento a facturación; el circuito de facturación queda fuera del alcance de la maqueta.</p></section>';
+}
+function propiosTercerosBlock(o) {
+  if (!o.plan) return '';
+  const rows = recursosNecVsApl(o); const res = resumenPropiosTerceros(o); const real = !!o.ejecucion;
+  const d = (a, b) => { if (!real) return '<span class="dim">—</span>'; const x = b - a; return '<span style="color:var(--' + (x > 0.01 ? 'crit' : x < -0.01 ? 'ok' : 'ink-2') + ')">' + (x > 0 ? '+' : '') + fmtN(x, 1) + '</span>'; };
+  const dU = (a, b) => { if (!real) return '<span class="dim">—</span>'; const x = b - a; return '<span style="color:var(--' + (x > 0.5 ? 'crit' : x < -0.5 ? 'ok' : 'ink-2') + ')">' + (x > 0 ? '+' : '') + fmtT(x) + '</span>'; };
+  return '<h3 style="margin:16px 0 6px">Recursos propios y de terceros · necesario vs aplicado ' + sup('S11') + '</h3>' +
+    '<p class="small muted" style="margin-bottom:8px">Dimensiones de esta orden: <b>muelle</b> ' + esc(dimensionDe(o, 'muelle')) + ' · <b>mercadería</b> ' + esc(dimensionDe(o, 'mercaderia')) + ' · <b>calidad</b> ' + esc(dimensionDe(o, 'calidad')) + ' · <b>destino</b> ' + esc(dimensionDe(o, 'destino')) + '. Necesario = planificación aceptada; aplicado = ejecución real' + (real ? '' : ' (aún sin ejecución)') + '.</p>' +
+    '<div class="grid g2" style="gap:8px;margin-bottom:8px">' + ['Propio', 'Tercero'].map(k => '<div class="kpi tight"><span class="l" style="font-weight:600;color:var(--ink)">Recursos ' + (k === 'Propio' ? 'propios' : 'de terceros') + '</span><span class="d">necesario <b class="num">' + fmtN(res[k].nec, 0) + ' h·rec</b> · aplicado <b class="num">' + (real ? fmtN(res[k].apl, 0) : '—') + ' h·rec</b> · Δ ' + d(res[k].nec, res[k].apl) + '</span><span class="d">costo necesario <b>' + fmtUSD(res[k].costoNec) + '</b> · aplicado <b>' + (real ? fmtUSD(res[k].costoApl) : '—') + '</b> · Δ ' + dU(res[k].costoNec, res[k].costoApl) + '</span></div>').join('') + '</div>' +
+    table([{ h: 'Recurso', f: r => esc(r.nombre) }, { h: 'Clase', f: r => chip(r.clase, r.clase === 'Tercero' ? 'warn' : 'acc') }, { h: 'Cant. plan', cls: 'num', f: r => r.cantNec || '—' }, { h: 'Necesario (h·rec)', cls: 'num', f: r => fmtN(r.nec, 1) }, { h: 'Aplicado (h·rec)', cls: 'num', f: r => real ? fmtN(r.apl, 1) : '—' }, { h: 'Δ', cls: 'num', f: r => d(r.nec, r.apl) }, { h: 'Costo nec.', cls: 'num', f: r => fmtT(r.costoNec) }, { h: 'Costo apl.', cls: 'num', f: r => real ? fmtT(r.costoApl) : '—' }, { h: 'Δ USD', cls: 'num', f: r => dU(r.costoNec, r.costoApl) }], rows, { cls: 'compact' });
+}
+function secHistorial(o) {
+  const cmp = comparativas(o); const tieneReal = !!o.ejecucion;
+  const dcell = (a, b, r) => { if (a == null || b == null || r.text) return '<td class="delta dim">—</td>'; const d = b - a; const cls = d > 0.0001 ? 'plus' : d < -0.0001 ? 'minus' : ''; return '<td class="num delta ' + cls + '">' + (d > 0 ? '+' : '') + r.fmt(d) + '</td>'; };
+  const rows = cmp.filter(r => r.unit !== 'soloReal' || tieneReal).map(r => '<tr><td>' + esc(r.k) + '</td><td class="num">' + (r.rec == null ? '<span class="dim">—</span>' : r.text ? esc(r.rec) : r.fmt(r.rec)) + '</td><td class="num">' + (r.plan == null ? '<span class="dim">—</span>' : r.text ? esc(r.plan) : r.fmt(r.plan)) + '</td><td class="num">' + (r.real == null ? '<span class="dim">—</span>' : r.text ? esc(r.real) : r.fmt(r.real)) + '</td>' + dcell(r.rec, r.plan, r) + dcell(r.plan, r.real, r) + '</tr>').join('');
+  return '<section class="card sec" id="s-historial">' + secH('historial', 'Comparativas e historial') +
+    '<h3 style="margin-bottom:6px">Circuito recomendado · planificación inicial · ejecución real</h3>' +
+    '<div class="tw"><table class="t compact cmp"><thead><tr><th>Indicador</th><th class="num">Recomendado</th><th class="num">Plan inicial</th><th class="num">Real</th><th class="num">Δ plan − rec.</th><th class="num">Δ real − plan</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+    (o.plan?.difiere ? '<p class="small muted" style="margin-top:6px">El plan difiere de la recomendación: <b>' + esc(o.plan.motivoDesvio) + '</b>.</p>' : '') +
+    (o.cierreSnapshot ? '<p class="xs dim" style="margin-top:4px">Comparativas congeladas al cierre el ' + fmtDT(o.deposito.cierre?.ts) + '.</p>' : '') +
+    propiosTercerosBlock(o) +
+    '<h3 style="margin:14px 0 6px">Historial de eventos <span class="small muted" style="font-weight:400">' + o.historial.length + ' eventos · quién, cuándo y qué cambió</span></h3>' +
+    '<div class="hist">' + o.historial.slice().reverse().map(h => '<div class="ev"><span class="ts">' + fmtDT(h.ts) + '</span><span class="who">' + esc(rolName(h.rol)) + ' · ' + esc(h.usuario) + '</span><span class="what"><b>' + esc(h.evento) + '</b>' + (h.detalle ? ' — ' + esc(h.detalle) : '') + '</span></div>').join('') + '</div></section>';
+}
+
+/* ---------- Máster data: registros en validación y registro de cambios ---------- */
+function registrosValidacionTable(pend) {
+  const esMD = S.ctx.rol === 'MD';
+  return table([{ h: 'Maestro', f: x => '<button class="btn sm ghost" data-action="mdgo" data-m="' + esc(x.m) + '"><span class="mono xs">' + esc(x.m) + '</span>&nbsp;' + esc(mdFichas().find(f => f.codigo === x.m)?.nombre || '') + '</button>' }, { h: 'Registro', f: x => '<b class="mono">' + esc(x.rec.id) + '</b>' + (x.rec.nombre ? ' · ' + esc(x.rec.nombre) : '') + (x.tipo && x.tipo !== x.m ? ' <span class="xs muted">' + esc(x.tipo) + '</span>' : '') }, { h: 'Cambio', f: x => chip(x.rec._aud?.version > 1 ? 'Modificación v' + x.rec._aud.version : 'Alta', 'warn') }, { h: 'Quién · cuándo', f: x => esc(x.rec._aud?.modificado_por || x.rec._aud?.creado_por || '') + ' <span class="mono xs">' + fmtDT(x.rec._aud?.modificado_el || x.rec._aud?.creado_el) + '</span>' }, { h: 'Estado', f: x => estadoChipMD(estadoRegistro(x.rec)) }, { h: '', f: x => esMD ? '<div class="btn-row" style="gap:3px">' + btn('Validar y publicar', 'md-validar', { m: x.m, id: x.rec.id }, 'sm pri') + btn('Rechazar', 'md-rechazar', { m: x.m, id: x.rec.id }, 'sm danger') + '</div>' : '<span class="xs muted">valida Máster data</span>' }], pend, { cls: 'compact', empty: 'No hay registros pendientes de validación' });
+}
+function mdLogTable(rows) {
+  return (rows || []).length ? '<div class="hist">' + rows.map(h => '<div class="ev"><span class="ts">' + fmtDT(h.ts) + '</span><span class="who">' + esc(rolName(h.rol)) + ' · ' + esc(h.usuario) + '</span><span class="what"><b>' + esc(h.accion) + ' · ' + esc(h.maestro) + (h.registro ? ' ' + esc(h.registro) : '') + '</b>' + (h.detalle ? ' — ' + esc(h.detalle) : '') + '</span></div>').join('') + '</div>' : '<p class="muted small">Sin cambios registrados en esta sesión. Los registros de la carga base nacen vigentes con origen migración.</p>';
+}

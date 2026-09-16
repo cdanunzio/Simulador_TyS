@@ -1,0 +1,422 @@
+/* =====================================================================
+   TyS · Maqueta ERP v2.0 — DATOS MAESTROS, REGISTROS OPERATIVOS Y SUPUESTOS
+   Todo lo marcado con  sup:true  o dentro de SUPUESTOS es un supuesto de
+   trabajo adoptado para que el circuito sea recorrible; no una decisión.
+   ===================================================================== */
+
+/* ---- fechas relativas al día de hoy (la demo no envejece) ---- */
+const _D0 = (() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; })();
+function iso(dayOffset, hour = 0, min = 0) {
+  const d = new Date(_D0.getTime()); d.setDate(d.getDate() + dayOffset); d.setHours(hour, min, 0, 0);
+  return d.toISOString();
+}
+function pad2(n) { return String(n).padStart(2, '0'); }
+function dayOf(isoStr) { const d = new Date(isoStr); return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); }
+function isoDay(dayOffset) { return dayOf(iso(dayOffset)); }
+
+/* =====================================================================
+   1. ESTRUCTURA DE EMPRESAS Y UNIDADES DE NEGOCIO
+   ===================================================================== */
+const MD_SEED = {
+  grupo: { id: 'GRP', nombre: 'Grupo TyS', descripcion: 'Consolida la información de las entidades.' },
+
+  entidades: [
+    { id: 'TYS', nombre: 'Terminales y Servicio', sigla: 'TyS', tipo: 'Terminal portuaria y logística', localidad: 'San Nicolás', vigenciaDesde: '2004-01-01', origenBU: null },
+    { id: 'TT', nombre: 'Terminal Timbúes', sigla: 'TT', tipo: 'Terminal portuaria', localidad: 'Timbúes', vigenciaDesde: '2016-01-01', origenBU: null },
+    { id: 'AMA', nombre: 'Amarre', sigla: 'Amarre', tipo: 'Servicios de amarre', localidad: 'San Nicolás', vigenciaDesde: '2020-01-01', origenBU: null },
+  ],
+
+  bus: [
+    { id: 'TYS-RENT', entidad: 'TYS', nombre: 'Rental', presupuesto: 1450000, cc: 'CC-110' },
+    { id: 'TYS-LOG', entidad: 'TYS', nombre: 'Logística', presupuesto: 6200000, cc: 'CC-120' },
+    { id: 'TYS-OPS', entidad: 'TYS', nombre: 'Operaciones', presupuesto: 5400000, cc: 'CC-125', nota: 'Definición 15/09: la descarga la realiza Operaciones, no Logística. BU ejecutora del componente Descarga (y Carga, a confirmar).' },
+    { id: 'TYS-MAQ', entidad: 'TYS', nombre: 'Maquinarias', presupuesto: 2800000, cc: 'CC-130' },
+    { id: 'TYS-DEP', entidad: 'TYS', nombre: 'Depósitos', presupuesto: 3100000, cc: 'CC-140' },
+    { id: 'TYS-MANT', entidad: 'TYS', nombre: 'Mantenimiento', presupuesto: 1900000, cc: 'CC-150' },
+    { id: 'TYS-CORP', entidad: 'TYS', nombre: 'Corporate', presupuesto: 900000, cc: 'CC-160' },
+    { id: 'TYS-ADM', entidad: 'TYS', nombre: 'Administración', presupuesto: 1200000, cc: 'CC-170' },
+    { id: 'TT-LOG', entidad: 'TT', nombre: 'Logística TT', presupuesto: 2400000, cc: 'CC-220', sup: true },
+    { id: 'TT-OPS', entidad: 'TT', nombre: 'Operaciones TT', presupuesto: 2100000, cc: 'CC-225', sup: true },
+    { id: 'TT-DEP', entidad: 'TT', nombre: 'Depósitos TT', presupuesto: 1600000, cc: 'CC-240', sup: true },
+    { id: 'AMA-OPS', entidad: 'AMA', nombre: 'Operaciones de amarre', presupuesto: 700000, cc: 'CC-310', sup: true },
+  ],
+
+  /* Departamento a nivel entidad; relación N:N con BU (SUPUESTO A3) */
+  departamentos: [
+    { id: 'COM', nombre: 'Comercial / Backoffice', entidad: 'TYS', bus: ['TYS-LOG', 'TYS-DEP', 'TYS-RENT', 'TYS-MANT', 'TYS-ADM', 'TYS-CORP'] },
+    { id: 'PLAN', nombre: 'Planificación', entidad: 'TYS', bus: ['TYS-OPS', 'TYS-LOG', 'TYS-DEP', 'TYS-MAQ', 'TYS-RENT'] },
+    { id: 'OPS', nombre: 'Operaciones', entidad: 'TYS', bus: ['TYS-OPS', 'TYS-MAQ'] },
+    { id: 'DEP', nombre: 'Depósito', entidad: 'TYS', bus: ['TYS-DEP'] },
+    { id: 'PERS', nombre: 'Personal', entidad: 'TYS', bus: ['TYS-LOG', 'TYS-DEP', 'TYS-MAQ', 'TYS-MANT'] },
+    { id: 'SEG', nombre: 'Seguridad', entidad: 'TYS', bus: ['TYS-LOG', 'TYS-DEP', 'TYS-MAQ'] },
+    { id: 'ADM', nombre: 'Administración', entidad: 'TYS', bus: ['TYS-ADM', 'TYS-CORP'] },
+    { id: 'LAR', nombre: 'Logística de arribo', entidad: 'TYS', bus: ['TYS-LOG'], sup: true },
+    { id: 'TT-COM', nombre: 'Comercial / Backoffice TT', entidad: 'TT', bus: ['TT-LOG', 'TT-DEP'], sup: true },
+    { id: 'TT-OPS', nombre: 'Operaciones TT', entidad: 'TT', bus: ['TT-LOG', 'TT-DEP'], sup: true },
+  ],
+
+  roles: [
+    { id: 'COM', nombre: 'Comercial / Backoffice', usuario: 'M. Ferreyra', etapa: 1 },
+    { id: 'PLAN', nombre: 'Planificador', usuario: 'J. Ledesma', etapa: 2 },
+    { id: 'OPS', nombre: 'Operaciones', usuario: 'R. Ocampo', etapa: 3 },
+    { id: 'DEP', nombre: 'Depósito', usuario: 'S. Villalba', etapa: 4 },
+    { id: 'LAR', nombre: 'Logística de arribo', usuario: 'P. Giménez', etapa: 0, sup: true, nota: 'Administra lineup, cupos de camiones y operativos ferroviarios; no tiene etapa en el workflow de la orden.' },
+    { id: 'MD', nombre: 'Máster data', usuario: 'L. Benítez', etapa: 0, sup: true, nota: 'Administra la master data (ABM de todos los maestros), valida y publica las altas de otros roles y otorga o quita a cada rol el permiso sobre cada maestro (no lo visualiza · solo consulta · puede ABM). No interviene en el workflow de la orden.' },
+  ],
+
+  relaciones: [
+    { id: 'Interna', nombre: 'Interna', descripcion: 'Una BU presta un servicio a otra BU de la misma entidad.', imputacion: 'Transferencia interna a costo estándar (sin factura)', sup: true },
+    { id: 'Grupo', nombre: 'Entre empresas del grupo', descripcion: 'Una entidad presta un servicio a otra entidad del grupo.', imputacion: 'Factura intercompany a tarifa de transferencia', sup: true },
+    { id: 'Externa', nombre: 'Externa', descripcion: 'Una entidad presta un servicio a un cliente tercero.', imputacion: 'Factura al cliente según instrumento contractual', sup: false },
+  ],
+
+  /* =====================================================================
+     2. CATÁLOGO DE SERVICIOS
+     componentes: DES descarga · TRA transporte · DEP depósito · CAR carga · SRV prestación
+     cierre: rol que cierra (SUPUESTO A5: configurable por servicio)
+     ===================================================================== */
+  servicios: [
+    { id: 'SRV-DTD', nombre: 'Descarga, transporte y depósito', nivel: 'entidad', requiereProducto: true, ambito: ['TYS', 'TT'], destinatario: 'terceros', medios: ['BUQ', 'CAM', 'FFCC'], componentes: ['DES', 'TRA', 'DEP'], usaDeposito: true, cierre: 'DEP', busPrestadoras: ['TYS-OPS', 'TYS-LOG', 'TT-OPS', 'TT-LOG'] },
+    { id: 'SRV-DES', nombre: 'Descarga', nivel: 'entidad', requiereProducto: true, ambito: ['TYS', 'TT'], destinatario: 'terceros', medios: ['BUQ', 'CAM', 'FFCC'], componentes: ['DES', 'DEP'], usaDeposito: true, cierre: 'DEP', busPrestadoras: ['TYS-OPS', 'TT-OPS'], nota: 'Descarga a depósito de la terminal sin servicio de transporte (SUPUESTO).' },
+    { id: 'SRV-DCV', nombre: 'Descarga costado vapor', nivel: 'entidad', requiereProducto: true, ambito: ['TYS', 'TT'], destinatario: 'terceros', medios: ['BUQ'], componentes: ['DES'], usaDeposito: false, cierre: 'OPS', cierreSup: true, busPrestadoras: ['TYS-OPS', 'TT-OPS'], nota: 'Descarga directa del buque a camiones del cliente; sin ingreso a depósito.' },
+    { id: 'SRV-CAR', nombre: 'Carga', nivel: 'entidad', requiereProducto: true, ambito: ['TYS', 'TT'], destinatario: 'terceros', medios: ['BUQ', 'CAM', 'FFCC'], componentes: ['CAR'], usaDeposito: false, cierre: 'OPS', cierreSup: true, busPrestadoras: ['TYS-OPS', 'TT-OPS'], nota: 'Carga de buque, camión o vagón desde depósito; egreso, sin ingreso físico a depósito.' },
+    { id: 'SRV-ALQM', nombre: 'Alquiler de maquinaria', nivel: 'bu', requiereProducto: false, ambito: ['TYS'], destinatario: 'entidad-o-terceros', medios: ['INT', 'EXT'], detalle: 'rental', componentes: ['SRV'], usaDeposito: false, cierre: 'OPS', cierreSup: true, busPrestadoras: ['TYS-RENT'] },
+    { id: 'SRV-LOGI', nombre: 'Servicios logísticos', nivel: 'bu', requiereProducto: true, ambito: ['TYS', 'TT'], destinatario: 'entidad-o-terceros', medios: ['INT', 'EXT'], detalle: 'logistica', componentes: ['TRA'], usaDeposito: false, cierre: 'OPS', cierreSup: true, busPrestadoras: ['TYS-LOG', 'TT-LOG'] },
+    { id: 'SRV-ALQE', nombre: 'Alquiler de espacio', nivel: 'bu', requiereProducto: false, ambito: ['TYS', 'TT'], destinatario: 'entidad-o-terceros', medios: ['SOL'], componentes: ['DEP'], usaDeposito: true, cierre: 'DEP', busPrestadoras: ['TYS-DEP', 'TT-DEP'] },
+    { id: 'SRV-MANT', nombre: 'Servicios, repuestos e insumos', nivel: 'bu', requiereProducto: false, ambito: ['TYS'], destinatario: 'entidad-o-grupo', medios: ['SOL'], componentes: ['SRV'], usaDeposito: false, cierre: 'OPS', cierreSup: true, busPrestadoras: ['TYS-MANT'] },
+    { id: 'SRV-ADM', nombre: 'Prestación de servicios', nivel: 'bu', requiereProducto: false, ambito: ['TYS'], destinatario: 'entidad-o-grupo', medios: ['SOL'], componentes: ['SRV'], usaDeposito: false, cierre: 'OPS', cierreSup: true, busPrestadoras: ['TYS-ADM', 'TYS-CORP'] },
+    { id: 'SRV-MAQ', nombre: 'Maquinarias — alcance pendiente', nivel: 'bu', requiereProducto: false, ambito: ['TYS'], destinatario: 'pendiente', medios: [], componentes: [], usaDeposito: false, cierre: 'OPS', busPrestadoras: ['TYS-MAQ'], pendiente: true },
+  ],
+
+  componentes: [
+    { id: 'DES', nombre: 'Descarga' }, { id: 'TRA', nombre: 'Transporte' }, { id: 'DEP', nombre: 'Depósito' }, { id: 'CAR', nombre: 'Carga' }, { id: 'SRV', nombre: 'Prestación' },
+  ],
+
+  /* SUPUESTO 1 / A1: qué BU ejecuta cada componente (matriz configurable) */
+  matrizEjecucion: {
+    /* Definición 15/09: la descarga la realiza Operaciones, no Logística (la carga se asume igual — SUPUESTO S20) */
+    TYS: { DES: 'TYS-OPS', TRA: 'TYS-LOG', DEP: 'TYS-DEP', CAR: 'TYS-OPS', SRV: null },
+    TT: { DES: 'TT-OPS', TRA: 'TT-LOG', DEP: 'TT-DEP', CAR: 'TT-OPS', SRV: null },
+  },
+
+  medios: [
+    { id: 'BUQ', nombre: 'Buque', origen: 'lineup', origenNombre: 'Lineup' },
+    { id: 'CAM', nombre: 'Camión', origen: 'cupo', origenNombre: 'Cupo de camiones' },
+    { id: 'FFCC', nombre: 'Ferrocarril', origen: 'tren', origenNombre: 'Operativo de tren' },
+    { id: 'SOL', nombre: 'Solicitud interna / externa', origen: 'solicitud', origenNombre: 'Solicitud' },
+    /* Rental y Logística (revisión 15/09): el medio es Interna (otras BU y empresas del grupo) o Externa (nómina de clientes); el detalle del servicio reemplaza al origen operativo */
+    { id: 'INT', nombre: 'Interna', origen: 'detalle', origenNombre: 'Detalle del servicio' },
+    { id: 'EXT', nombre: 'Externa', origen: 'detalle', origenNombre: 'Detalle del servicio' },
+  ],
+
+  /* =====================================================================
+     MAESTROS GENERALES
+     ===================================================================== */
+  clientes: [
+    /* lugar: planta o depósito del cliente para origen / destino de los servicios logísticos (coordenadas de demostración) */
+    { id: 'CLI-01', nombre: 'Fertilizantes del Litoral SA', tipo: 'tercero', cuit: '30-61234567-8', segmento: 'Importador de fertilizantes', lugar: { nombre: 'Planta Villa Constitución', localidad: 'Villa Constitución (SF)', lat: -33.2265, lon: -60.3332 } },
+    { id: 'CLI-02', nombre: 'Agroexport SA', tipo: 'tercero', cuit: '30-70987654-3', segmento: 'Trader', lugar: { nombre: 'Depósito Pergamino', localidad: 'Pergamino (BA)', lat: -33.8899, lon: -60.5736 } },
+    { id: 'CLI-03', nombre: 'Nutrisur Químicos SRL', tipo: 'tercero', cuit: '30-71223344-1', segmento: 'Fertilizantes líquidos', lugar: { nombre: 'Planta de mezclas Ramallo', localidad: 'Ramallo (BA)', lat: -33.4861, lon: -60.0083 } },
+    { id: 'CLI-04', nombre: 'Cooperativa Agraria del Norte', tipo: 'tercero', cuit: '30-54321098-7', segmento: 'Acopio y exportación de granos', lugar: { nombre: 'Acopio Arrecifes', localidad: 'Arrecifes (BA)', lat: -34.0642, lon: -60.1033 } },
+    { id: 'CLI-05', nombre: 'Granos del Sur SRL', tipo: 'tercero', cuit: '30-69876543-2', segmento: 'Exportador de granos', lugar: { nombre: 'Planta Rosario Sur', localidad: 'Rosario (SF)', lat: -33.0146, lon: -60.6511 } },
+  ],
+  proveedores: [
+    { id: 'PRV-01', nombre: 'Cooperativa de Trabajo Portuario San Nicolás', rubro: 'Personal de mano' },
+    { id: 'PRV-02', nombre: 'Servicios Portuarios del Paraná SRL', rubro: 'Personal de mano' },
+    { id: 'PRV-03', nombre: 'Transportes Litoral SA', rubro: 'Transporte terrestre' },
+  ],
+  productos: [
+    { id: 'UREA', nombre: 'Urea granulada', familia: 'FERT-SOL', presentacion: 'Granel sólido', densidad: 0.75, requiereMS: true, um: 't' },
+    { id: 'DAP', nombre: 'Fosfato diamónico (DAP)', familia: 'FERT-SOL', presentacion: 'Granel sólido', densidad: 0.95, requiereMS: true, um: 't' },
+    { id: 'UAN', nombre: 'UAN 32 (solución nitrogenada)', familia: 'FERT-LIQ', presentacion: 'Líquido a granel', densidad: 1.32, requiereMS: true, um: 't' },
+    { id: 'NPK-BB', nombre: 'NPK embolsado (big bags 1 t)', familia: 'FERT-EMB', presentacion: 'Embolsado', densidad: 1.0, requiereMS: true, um: 't' },
+    { id: 'SOJA', nombre: 'Soja', familia: 'CEREAL', presentacion: 'Granel sólido', densidad: 0.72, requiereMS: false, um: 't' },
+    { id: 'MAIZ', nombre: 'Maíz', familia: 'CEREAL', presentacion: 'Granel sólido', densidad: 0.72, requiereMS: false, um: 't' },
+    { id: 'TRIGO', nombre: 'Trigo', familia: 'CEREAL', presentacion: 'Granel sólido', densidad: 0.78, requiereMS: false, um: 't' },
+  ],
+  /* estadoFisico define el tipo de equipo de descarga / carga (SUPUESTO S14): sólido → grúas · líquido → sistemas de bombeo */
+  familias: [
+    { id: 'FERT-SOL', nombre: 'Fertilizante sólido a granel', requiereMS: true, estadoFisico: 'solido' }, { id: 'FERT-LIQ', nombre: 'Fertilizante líquido', requiereMS: true, estadoFisico: 'liquido' },
+    { id: 'FERT-EMB', nombre: 'Fertilizante embolsado', requiereMS: true, estadoFisico: 'solido' }, { id: 'CEREAL', nombre: 'Cereales y oleaginosas', requiereMS: false, estadoFisico: 'solido' },
+  ],
+  unidades: [{ id: 't', nombre: 'Tonelada' }, { id: 'h', nombre: 'Hora' }, { id: 'turno', nombre: 'Turno (6 h)' }, { id: 'día', nombre: 'Día' }, { id: 'viaje', nombre: 'Viaje' }, { id: 'm2', nombre: 'Metro cuadrado' }],
+  monedas: [{ id: 'USD', nombre: 'Dólar estadounidense' }, { id: 'ARS', nombre: 'Peso argentino' }],
+
+  /* =====================================================================
+     COMERCIAL — instrumentos contractuales (tarifas en USD)
+     ===================================================================== */
+  instrumentos: [
+    { id: 'CTO-2026-014', cliente: 'CLI-01', tipo: 'Contrato marco', vigenciaDesde: '2026-01-01', vigenciaHasta: '2026-12-31', servicios: ['SRV-DTD', 'SRV-DES', 'SRV-DCV'], productos: ['UREA', 'DAP'], moneda: 'USD',
+      tarifas: { DES: 6.8, TRA: 3.2, DEP: 0.09 }, condiciones: { ritmoComprometido: 6000, franquiciaDias: 30, toleranciaMermaPct: 0.5, demoraCliente: 'A cargo del cliente si la causa es documentación o falta de camiones', penalidadRitmo: 'USD 0,15/t por cada 500 t/día por debajo del ritmo comprometido' } },
+    { id: 'CTO-2026-021', cliente: 'CLI-02', tipo: 'Contrato marco', vigenciaDesde: '2026-03-01', vigenciaHasta: '2027-02-28', servicios: ['SRV-DTD', 'SRV-DES', 'SRV-LOGI', 'SRV-ALQM'], productos: ['DAP', 'NPK-BB', 'UREA'], moneda: 'USD',
+      tarifas: { DES: 7.1, TRA: 3.4, DEP: 0.1, SRV: 65 }, condiciones: { ritmoComprometido: 5000, franquiciaDias: 20, toleranciaMermaPct: 0.5, demoraCliente: 'A cargo del cliente si la causa es documentación' } },
+    { id: 'OC-2026-0877', cliente: 'CLI-03', tipo: 'Orden de compra', vigenciaDesde: '2026-08-01', vigenciaHasta: '2026-11-30', servicios: ['SRV-DTD', 'SRV-DES'], productos: ['UAN'], moneda: 'USD',
+      tarifas: { DES: 5.9, TRA: 2.8, DEP: 0.12 }, condiciones: { ritmoComprometido: 4500, franquiciaDias: 15, toleranciaMermaPct: 0.3, demoraCliente: 'No aplica' } },
+    { id: 'CTO-2026-033', cliente: 'CLI-04', tipo: 'Contrato marco', vigenciaDesde: '2026-01-01', vigenciaHasta: '2026-12-31', servicios: ['SRV-DTD', 'SRV-DES', 'SRV-CAR'], productos: ['MAIZ', 'SOJA', 'TRIGO'], moneda: 'USD',
+      tarifas: { DES: 3.9, TRA: 2.1, DEP: 0.06, CAR: 4.2 }, condiciones: { ritmoComprometido: 8000, franquiciaDias: 45, toleranciaMermaPct: 1.0, demoraCliente: 'A cargo del cliente si la causa es falta de camiones' } },
+    { id: 'TAR-SPOT-2026', cliente: 'CLI-05', tipo: 'Tarifa spot', vigenciaDesde: '2026-01-01', vigenciaHasta: isoDay(-10), servicios: ['SRV-CAR', 'SRV-DES'], productos: ['SOJA', 'TRIGO'], moneda: 'USD',
+      tarifas: { DES: 4.4, CAR: 4.8, DEP: 0.08 }, condiciones: { ritmoComprometido: 7000, franquiciaDias: 10, toleranciaMermaPct: 1.0, demoraCliente: 'No aplica' } },
+    { id: 'ACU-INT-TYS', cliente: null, tipo: 'Acuerdo interno (tarifa de transferencia)', vigenciaDesde: '2026-01-01', vigenciaHasta: '2026-12-31', servicios: ['SRV-ALQM', 'SRV-LOGI', 'SRV-ALQE', 'SRV-MANT', 'SRV-ADM'], moneda: 'USD', interno: true,
+      tarifas: { SRV: 60, TRA: 45, DEP: 0.05 }, condiciones: { base: 'Costo estándar por hora de recurso; sin margen', ritmoComprometido: null }, sup: true },
+    { id: 'ICO-GRP-2026', cliente: null, tipo: 'Contrato intercompany', vigenciaDesde: '2026-01-01', vigenciaHasta: '2026-12-31', servicios: ['SRV-DTD', 'SRV-DES', 'SRV-LOGI', 'SRV-ALQM', 'SRV-ALQE', 'SRV-MANT', 'SRV-ADM'], moneda: 'USD', grupo: true,
+      tarifas: { DES: 5.5, TRA: 2.6, DEP: 0.07, SRV: 70 }, condiciones: { base: 'Tarifa de transferencia entre empresas del grupo', ritmoComprometido: null }, sup: true },
+  ],
+
+  /* =====================================================================
+     PLANIFICACIÓN — recursos (costos unitarios de referencia, USD)
+     ===================================================================== */
+  muelles: [
+    { id: 'M1', nombre: 'Muelle Norte', entidad: 'TYS', bu: 'TYS-LOG', calado: 10.5, eslora: 225, familias: ['FERT-SOL', 'FERT-EMB', 'CEREAL'], estado: 'Operativo', costoHora: 180 },
+    { id: 'M2', nombre: 'Muelle Sur', entidad: 'TYS', bu: 'TYS-LOG', calado: 9.6, eslora: 190, familias: ['FERT-LIQ', 'FERT-SOL', 'FERT-EMB'], estado: 'Operativo', costoHora: 150 },
+    { id: 'M3', nombre: 'Muelle Timbúes', entidad: 'TT', bu: 'TT-LOG', calado: 11.2, eslora: 240, familias: ['FERT-SOL', 'FERT-EMB', 'CEREAL', 'FERT-LIQ'], estado: 'Operativo', costoHora: 170 },
+  ],
+  /* Equipos de descarga / carga del muelle: solo grúas o sistemas de bombeo (definición 15/09). Los equipos propios del buque se declaran en el lineup (SUPUESTO S14). */
+  equipos: [
+    { id: 'G1', nombre: 'Grúa móvil Liebherr LHM 420', tipo: 'Grúa', entidad: 'TYS', bu: 'TYS-MAQ', capacidadTh: 450, familias: ['FERT-SOL', 'CEREAL', 'FERT-EMB'], estado: 'Operativo', costoHora: 320 },
+    { id: 'G2', nombre: 'Grúa móvil Gottwald HMK 280', tipo: 'Grúa', entidad: 'TYS', bu: 'TYS-MAQ', capacidadTh: 320, familias: ['FERT-SOL', 'CEREAL', 'FERT-EMB'], estado: 'Operativo', costoHora: 260 },
+    { id: 'G3', nombre: 'Grúa móvil Liebherr LHM 550', tipo: 'Grúa', entidad: 'TYS', bu: 'TYS-MAQ', capacidadTh: 550, familias: ['FERT-SOL', 'CEREAL', 'FERT-EMB'], estado: 'En mantenimiento', mantHasta: isoDay(5), costoHora: 380 },
+    { id: 'B1', nombre: 'Sistema de bombeo de líquidos', tipo: 'Bombeo', entidad: 'TYS', bu: 'TYS-MAQ', capacidadTh: 400, familias: ['FERT-LIQ'], estado: 'Operativo', costoHora: 140 },
+    { id: 'G4', nombre: 'Grúa móvil Liebherr LHM 420 (TT)', tipo: 'Grúa', entidad: 'TT', bu: 'TT-LOG', capacidadTh: 450, familias: ['FERT-SOL', 'CEREAL', 'FERT-EMB'], estado: 'Operativo', costoHora: 320 },
+    { id: 'B2', nombre: 'Sistema de bombeo de líquidos (TT)', tipo: 'Bombeo', entidad: 'TT', bu: 'TT-LOG', capacidadTh: 350, familias: ['FERT-LIQ'], estado: 'Operativo', costoHora: 130 },
+  ],
+  tiposEquipo: [
+    { id: 'Grúa', nombre: 'Grúas', singular: 'Grúa', estadoFisico: 'solido', buque: 'Grúas del buque' },
+    { id: 'Bombeo', nombre: 'Sistemas de bombeo', singular: 'Sistema de bombeo', estadoFisico: 'liquido', buque: 'Bombas del buque' },
+  ],
+  depositos: [
+    { id: 'D1', nombre: 'Celda 1', tipo: 'Celda', entidad: 'TYS', bu: 'TYS-DEP', capacidadT: 45000, ocupadoT: 6500, familias: ['FERT-SOL'], fiscal: true, restricciones: 'Solo fertilizantes sólidos; ventilación forzada', costoTDia: 0.05 },
+    { id: 'D2', nombre: 'Celda 2', tipo: 'Celda', entidad: 'TYS', bu: 'TYS-DEP', capacidadT: 25000, ocupadoT: 8200, familias: ['FERT-SOL', 'CEREAL'], fiscal: false, restricciones: 'Sin habilitación fiscal', costoTDia: 0.04 },
+    { id: 'D3', nombre: 'Tanque T-1', tipo: 'Tanque', entidad: 'TYS', bu: 'TYS-DEP', capacidadT: 14000, ocupadoT: 1500, familias: ['FERT-LIQ'], fiscal: true, restricciones: 'Solo líquidos compatibles con acero al carbono', costoTDia: 0.08 },
+    { id: 'D4', nombre: 'Galpón embolsado', tipo: 'Galpón', entidad: 'TYS', bu: 'TYS-DEP', capacidadT: 10000, ocupadoT: 2100, familias: ['FERT-EMB'], fiscal: false, restricciones: 'Estiba máx. 3 big bags', costoTDia: 0.06 },
+    { id: 'D5', nombre: 'Silo 3', tipo: 'Silo', entidad: 'TYS', bu: 'TYS-DEP', capacidadT: 25000, ocupadoT: 12400, familias: ['CEREAL'], fiscal: false, restricciones: 'Solo granos secos (humedad ≤ 14 %)', costoTDia: 0.03 },
+    { id: 'D6', nombre: 'Celda 3 Timbúes', tipo: 'Celda', entidad: 'TT', bu: 'TT-DEP', capacidadT: 18000, ocupadoT: 3000, familias: ['FERT-SOL', 'CEREAL'], fiscal: true, restricciones: '', costoTDia: 0.05 },
+  ],
+  balanzas: [
+    { id: 'BZ1', nombre: 'Balanza 1 (fiscal)', entidad: 'TYS', bu: 'TYS-LOG', fiscal: true, capacidadT: 80, estado: 'Operativo', calibracionHasta: '2027-02-28' },
+    { id: 'BZ2', nombre: 'Balanza 2', entidad: 'TYS', bu: 'TYS-LOG', fiscal: false, capacidadT: 60, estado: 'Operativo', calibracionHasta: '2026-12-15' },
+    { id: 'BZ3', nombre: 'Balanza Timbúes (fiscal)', entidad: 'TT', bu: 'TT-LOG', fiscal: true, capacidadT: 80, estado: 'Operativo', calibracionHasta: '2027-05-31' },
+  ],
+  logistica: [
+    { id: 'L-CAM', nombre: 'Camión interno (tolva 30 t)', entidad: 'TYS', bu: 'TYS-LOG', cantidad: 16, costoHora: 45, capacidadT: 30, cicloH: 0.5 },
+    { id: 'L-PALA', nombre: 'Pala cargadora', entidad: 'TYS', bu: 'TYS-RENT', cantidad: 4, costoHora: 60, capacidadTh: 150 },
+    { id: 'L-AUTOEL', nombre: 'Autoelevador 5 t', entidad: 'TYS', bu: 'TYS-RENT', cantidad: 3, costoHora: 35, rental: true },
+    { id: 'L-MINI', nombre: 'Minicargadora', entidad: 'TYS', bu: 'TYS-RENT', cantidad: 2, costoHora: 40, rental: true },
+    { id: 'L-RETRO', nombre: 'Retroexcavadora', entidad: 'TYS', bu: 'TYS-RENT', cantidad: 1, costoHora: 70, rental: true },
+    { id: 'L-GENER', nombre: 'Grupo electrógeno 100 kVA', entidad: 'TYS', bu: 'TYS-RENT', cantidad: 2, costoHora: 20, rental: true },
+    { id: 'L-TOLVA', nombre: 'Tolva de descarga', entidad: 'TYS', bu: 'TYS-MAQ', cantidad: 3, costoHora: 25, capacidadTh: 200 },
+    { id: 'L-CINTA', nombre: 'Cinta transportadora móvil', entidad: 'TYS', bu: 'TYS-MAQ', cantidad: 2, costoHora: 30, capacidadTh: 250 },
+    { id: 'L-CAM-TT', nombre: 'Camión interno TT (tolva 30 t)', entidad: 'TT', bu: 'TT-LOG', cantidad: 6, costoHora: 45, capacidadT: 30, cicloH: 0.5 },
+    { id: 'L-TOLVA-TT', nombre: 'Tolva de descarga TT', entidad: 'TT', bu: 'TT-LOG', cantidad: 2, costoHora: 25, capacidadTh: 200 },
+    { id: 'L-CAM-3RO', nombre: 'Camión de transportista (tercero, 30 t)', entidad: 'TYS', bu: 'TYS-LOG', cantidad: 30, costoHora: 40, capacidadT: 30, cicloH: 0.5, tercero: true, proveedor: 'PRV-03' },
+    { id: 'L-CAM-3RO-TT', nombre: 'Camión de transportista TT (tercero, 30 t)', entidad: 'TT', bu: 'TT-LOG', cantidad: 15, costoHora: 40, capacidadT: 30, cicloH: 0.5, tercero: true, proveedor: 'PRV-03' },
+  ],
+
+  /* =====================================================================
+     PERSONAL
+     ===================================================================== */
+  funciones: [
+    { id: 'F-SUP', nombre: 'Supervisor de operaciones', dotacion: 4, costoTurno: 180 },
+    { id: 'F-GRU', nombre: 'Operador de grúa', dotacion: 6, costoTurno: 160 },
+    { id: 'F-BAL', nombre: 'Balancero', dotacion: 4, costoTurno: 110 },
+    { id: 'F-DEP', nombre: 'Auxiliar de depósito', dotacion: 8, costoTurno: 100 },
+    { id: 'F-PAL', nombre: 'Operador de pala / cargadora', dotacion: 5, costoTurno: 130 },
+  ],
+  manos: [
+    { id: 'MANO-GRANEL', nombre: 'Mano descarga granel', roles: { Capataz: 1, Estibador: 6, Señalero: 2 }, costoTurno: 2100, proveedor: 'PRV-01', familias: ['FERT-SOL', 'CEREAL'] },
+    { id: 'MANO-LIQ', nombre: 'Mano trasvase de líquidos', roles: { Capataz: 1, 'Operador de manguera': 3 }, costoTurno: 1100, proveedor: 'PRV-02', familias: ['FERT-LIQ'] },
+    { id: 'MANO-EMB', nombre: 'Mano estiba de big bags', roles: { Capataz: 1, Estibador: 8, Señalero: 1 }, costoTurno: 2400, proveedor: 'PRV-01', familias: ['FERT-EMB'] },
+    { id: 'MANO-CARGA', nombre: 'Mano carga de buque', roles: { Capataz: 1, Estibador: 4, Señalero: 2 }, costoTurno: 1700, proveedor: 'PRV-02', familias: ['CEREAL'] },
+  ],
+  turnos: { duracionH: 6, porDia: 4, nombres: ['T1 00–06', 'T2 06–12', 'T3 12–18', 'T4 18–24'] },
+
+  /* =====================================================================
+     OPERACIONES
+     ===================================================================== */
+  causasDemora: [
+    { id: 'CD-01', nombre: 'Lluvia / condiciones climáticas', responsabilidad: 'Fuerza mayor' },
+    { id: 'CD-02', nombre: 'Falta de camiones', responsabilidad: 'Transportista' },
+    { id: 'CD-03', nombre: 'Avería de grúa / equipo', responsabilidad: 'Propia' },
+    { id: 'CD-04', nombre: 'Espera de documentación aduanera', responsabilidad: 'Cliente' },
+    { id: 'CD-05', nombre: 'Falta de personal de mano', responsabilidad: 'Proveedor de personal' },
+    { id: 'CD-06', nombre: 'Cambio de turno / relevo', responsabilidad: 'Propia' },
+    { id: 'CD-07', nombre: 'Bodega no lista / demora del buque', responsabilidad: 'Agencia marítima' },
+  ],
+  responsabilidades: ['Propia', 'Cliente', 'Transportista', 'Proveedor de personal', 'Agencia marítima', 'Fuerza mayor'],
+  motivosModificacion: ['Aumento de ritmo requerido por el cliente', 'Avería / reemplazo de equipo', 'Condiciones climáticas', 'Optimización de costos', 'Recurso planificado no disponible', 'Fin de la necesidad operativa'],
+  motivosDesvioPlan: ['Menor costo total', 'Reserva del equipo para otro operativo', 'Preferencia operativa del supervisor', 'Restricción del cliente', 'Otro'],
+  /* módulos (pantallas) habilitables por rol / sector (revisión 15/09) — Inicio no se puede deshabilitar */
+  modulos: [
+    { id: 'inicio', nombre: 'Inicio', fijo: true }, { id: 'arribos', nombre: 'Logística de arribo' }, { id: 'bandeja', nombre: 'Workflow · mi etapa' }, { id: 'ordenes', nombre: 'Operaciones · órdenes (incluye Nueva orden y expediente)' },
+    { id: 'recursos', nombre: 'Recursos' }, { id: 'deposito', nombre: 'Depósito' }, { id: 'comparativas', nombre: 'Comparativas' }, { id: 'md', nombre: 'Datos maestros' }, { id: 'admin', nombre: 'Administración' },
+    { id: 'casos', nombre: 'Casos guiados (maqueta)' }, { id: 'supuestos', nombre: 'Supuestos (maqueta)' },
+  ],
+  permisosModulos: {
+    LAR: { bandeja: false, deposito: false },
+    MD: { deposito: false },
+  },
+  motivosDevolucion: ['Datos de la orden incompletos o incorrectos', 'Cambio en la solicitud del cliente', 'Recursos planificados no disponibles', 'Ventana operativa modificada', 'Error de carga o de asignación', 'Otro'],
+  motivosAnulacion: ['Cancelación del arribo o del servicio por el cliente', 'Orden duplicada', 'Error de alta', 'Reprogramación: se crea una orden nueva', 'Otro'],
+
+  /* =====================================================================
+     SEGURIDAD — métodos seguros por producto
+     ===================================================================== */
+  metodosSeguros: [
+    { id: 'MS-FERT-SOL', nombre: 'Manipulación de fertilizantes sólidos a granel', procedimiento: 'PRO-SEG-014 rev. 3', vigenciaHasta: isoDay(198), familias: ['FERT-SOL'], productos: [], criterios: 'Procedimiento vigente, capacitación de manos al día, EPP específico' },
+    { id: 'MS-FERT-LIQ', nombre: 'Trasvase de fertilizantes líquidos', procedimiento: 'PRO-SEG-021 rev. 1', vigenciaHasta: isoDay(-15), familias: [], productos: ['UAN'], criterios: 'Procedimiento vigente, prueba hidráulica de mangueras, plan de contención' },
+    { id: 'MS-EMB', nombre: 'Estiba y manipulación de big bags', procedimiento: 'PRO-SEG-009 rev. 2', vigenciaHasta: isoDay(138), familias: ['FERT-EMB'], productos: [], criterios: 'Procedimiento vigente, verificación de eslingas' },
+  ],
+
+  /* =====================================================================
+     WORKFLOW — estados y transiciones
+     ===================================================================== */
+  estados: [
+    { id: 'BORR', nombre: 'Borrador', responsable: 'COM', proximo: 'Completar y crear la orden.' },
+    { id: 'PEND_PLAN', nombre: 'Pendiente de planificación', responsable: 'PLAN', proximo: 'Asignar y confirmar recursos.' },
+    { id: 'PLANIF', nombre: 'Planificada / pendiente de inicio', responsable: 'OPS', proximo: 'Verificar habilitaciones e iniciar.' },
+    { id: 'EJEC', nombre: 'En ejecución', responsable: 'OPS', proximo: 'Registrar y finalizar el operativo.' },
+    { id: 'PEND_CIERRE', nombre: 'Pendiente de cierre', responsable: 'DEP', proximo: 'Revisar y cerrar.' },
+    { id: 'CERRADA', nombre: 'Cerrada', responsable: null, proximo: 'Consultar resultados e historial.' },
+    { id: 'ANULADA', nombre: 'Anulada', responsable: null, proximo: 'Solo consulta: conserva el historial y el motivo de la anulación.', sup: true },
+  ],
+  transiciones: [
+    { de: 'BORR', a: 'PEND_PLAN', accion: 'Crear y enviar a planificación', rol: 'COM', validacion: 'Selección secuencial completa; habilitaciones registradas (pueden estar pendientes).' },
+    { de: 'PEND_PLAN', a: 'PLANIF', accion: 'Confirmar planificación y enviar a operaciones', rol: 'PLAN', validacion: 'Disponibilidad, superposición, capacidad, compatibilidad y reglas del circuito sin errores.' },
+    { de: 'PLANIF', a: 'EJEC', accion: 'Iniciar operativo', rol: 'OPS', validacion: 'Nacionalización y método seguro cumplidos (bloqueo duro).' },
+    { de: 'EJEC', a: 'PEND_CIERRE', accion: 'Finalizar operativo y enviar a cierre', rol: 'OPS', validacion: 'Si el acumulado difiere de lo previsto, se registra la diferencia.' },
+    { de: 'PEND_CIERRE', a: 'CERRADA', accion: 'Cerrar operativo', rol: 'cierre', validacion: 'Rol de cierre según el servicio (Depósito por defecto).' },
+    { de: 'PEND_PLAN', a: 'BORR', accion: 'Devolver a Comercial', rol: 'PLAN', validacion: 'Motivo obligatorio; la recomendación se conserva.', sup: true },
+    { de: 'PLANIF', a: 'PEND_PLAN', accion: 'Devolver al Planificador', rol: 'OPS', validacion: 'Motivo obligatorio; la planificación queda como historial y se liberan las reservas.', sup: true },
+    { de: 'EJEC', a: 'PLANIF', accion: 'Revertir el inicio', rol: 'OPS', validacion: 'Solo sin tickets registrados; motivo obligatorio.', sup: true },
+    { de: 'PEND_CIERRE', a: 'EJEC', accion: 'Devolver a Operaciones', rol: 'cierre', validacion: 'Motivo obligatorio; el operativo vuelve a ejecución con sus recursos activos.', sup: true },
+    { de: '*', a: 'ANULADA', accion: 'Anular orden', rol: 'responsable de la etapa', validacion: 'Cualquier etapa salvo Cerrada; motivo obligatorio; libera reservas y conserva el historial.', sup: true },
+  ],
+
+  parametros: {
+    pesos: { costo: 0.5, duracion: 0.3, cumplimiento: 0.2 },
+    eficienciaEquipo: 0.75,
+    horasTurno: 6,
+    camionesPorMano: null,
+    diasDepositoEstimados: 1,
+    toleranciaCierrePct: 2,
+    toleranciaMermaPct: 0.5, /* por defecto si el instrumento no la define (SUPUESTO S12) */
+    origenEquiposPorDefecto: 'muelle', /* la recomendación evalúa primero los equipos del muelle; los del buque solo si no hay combinación factible (SUPUESTO S14) */
+    factorRuta: 1.3, /* km por ruta = distancia geodésica × factor (SUPUESTO S21) */
+    costoKmTraslado: 2.5, /* USD/km traslado de maquinaria (entrega y devolución) */
+    costoKmCamion: 1.9, /* USD/km por camión (servicios logísticos) */
+  },
+};
+
+/* =====================================================================
+   REGISTROS OPERATIVOS — lineup, cupos y trenes (Logística de arribo)
+   Los equipos propios del buque (grúas o bombas) viven en M-08 Buques (03c-seed-ext.js); el lineup referencia al buque (SUPUESTO S14)
+   ===================================================================== */
+const OPS_SEED = {
+  lineups: [
+    { id: 'LU-2026-028', buque: 'MV Paraná Spirit', bandera: 'Liberia', eslora: 189, calado: 9.4, agencia: 'AG-01', terminal: 'TYS', eta: iso(-7, 6), etb: iso(-6, 14), etc: iso(-3, 14), estado: 'Zarpó',
+      cargas: [{ bl: 'BL-4402', cliente: 'CLI-01', producto: 'UREA', toneladas: 15000, calidad: 'Granulada 46 % N' }] },
+    { id: 'LU-2026-031', buque: 'MV Nordic Sun', bandera: 'Panamá', eslora: 199, calado: 9.8, agencia: 'AG-01', terminal: 'TYS', eta: iso(-1, 6), etb: iso(-1, 14), etc: iso(3, 20), estado: 'En operación',
+      cargas: [{ bl: 'BL-4471', cliente: 'CLI-01', producto: 'UREA', toneladas: 18000, calidad: 'Granulada 46 % N' }, { bl: 'BL-4472', cliente: 'CLI-02', producto: 'DAP', toneladas: 9000, calidad: 'Grado estándar 18-46-0' }] },
+    { id: 'LU-2026-032', buque: 'MV Río Carcarañá', bandera: 'Argentina', eslora: 172, calado: 9.1, agencia: 'AG-01', terminal: 'TYS', eta: iso(2, 2), etb: iso(2, 8), etc: iso(4, 20), estado: 'Confirmado',
+      cargas: [{ bl: 'BL-4488', cliente: 'CLI-02', producto: 'DAP', toneladas: 12000, calidad: 'Grado estándar 18-46-0' }] },
+    { id: 'LU-2026-033', buque: 'MV Baltic Trader', bandera: 'Malta', eslora: 160, calado: 8.7, agencia: 'AG-01', terminal: 'TYS', eta: iso(0, 14), etb: iso(0, 20), etc: iso(2, 8), estado: 'Confirmado',
+      cargas: [{ bl: 'BL-4490', cliente: 'CLI-02', producto: 'NPK-BB', toneladas: 6000, calidad: 'NPK 15-15-15 big bag' }] },
+    { id: 'LU-2026-034', buque: 'MT Delta Queen', bandera: 'Panamá', eslora: 145, calado: 8.9, agencia: 'AG-01', terminal: 'TYS', eta: iso(5, 0), etb: iso(5, 6), etc: iso(7, 6), estado: 'Confirmado',
+      cargas: [{ bl: 'BL-4495', cliente: 'CLI-03', producto: 'UAN', toneladas: 9000, calidad: 'UAN 32 % N' }] },
+    { id: 'LU-2026-036', buque: 'MV Ocean Harvest', bandera: 'Liberia', eslora: 210, calado: 10.1, agencia: 'AG-01', terminal: 'TYS', eta: iso(6, 0), etb: iso(6, 8), etc: iso(9, 8), estado: 'Anunciado',
+      cargas: [{ bl: 'BL-4501', cliente: 'CLI-01', producto: 'UREA', toneladas: 20000, calidad: 'Perlada 46 % N' }] },
+    { id: 'LU-2026-035', buque: 'MV Pampa Star', bandera: 'Marshall', eslora: 229, calado: 10.4, agencia: 'AG-01', terminal: 'TYS', eta: iso(5, 12), etb: iso(5, 18), etc: iso(8, 6), estado: 'Anunciado', tipo: 'Carga',
+      cargas: [{ bl: 'BL-EXP-0912', cliente: 'CLI-05', producto: 'SOJA', toneladas: 30000, calidad: 'Cámara' }] },
+    { id: 'LU-2026-037', buque: 'MV Costa Brava', bandera: 'Panamá', eslora: 190, calado: 9.9, agencia: 'AG-01', terminal: 'TT', eta: iso(3, 2), etb: iso(3, 8), etc: iso(5, 8), estado: 'Confirmado',
+      cargas: [{ bl: 'BL-TT-0231', cliente: 'CLI-01', producto: 'UREA', toneladas: 15000, calidad: 'Granulada 46 % N' }] },
+    { id: 'LU-2026-038', buque: 'MV Southern Wind', bandera: 'Liberia', eslora: 185, calado: 9.5, agencia: 'AG-01', terminal: 'TYS', eta: iso(10, 2), etb: iso(10, 8), etc: iso(12, 20), estado: 'Anunciado',
+      cargas: [{ bl: 'BL-4510', cliente: 'CLI-02', producto: 'DAP', toneladas: 14000, calidad: 'Grado premium 18-46-0' }] },
+  ],
+  cupos: [
+    { id: 'CU-2026-117', fecha: isoDay(-1), franja: '06:00–18:00', terminal: 'TYS', cliente: 'CLI-04', producto: 'MAIZ', calidad: 'Grado 2', camiones: 40, toneladas: 1200, transportista: 'PRV-03', estado: 'Cumplido' },
+    { id: 'CU-2026-118', fecha: isoDay(1), franja: '06:00–18:00', terminal: 'TYS', cliente: 'CLI-04', producto: 'MAIZ', calidad: 'Grado 2', camiones: 38, toneladas: 1150, transportista: 'PRV-03', estado: 'Vigente' },
+    { id: 'CU-2026-119', fecha: isoDay(2), franja: '06:00–14:00', terminal: 'TYS', cliente: 'CLI-05', producto: 'TRIGO', calidad: 'Grado 2 · PH 78', camiones: 25, toneladas: 750, transportista: 'PRV-03', estado: 'Vigente' },
+    { id: 'CU-2026-120', fecha: isoDay(3), franja: '06:00–18:00', terminal: 'TYS', cliente: 'CLI-01', producto: 'UREA', calidad: 'Granulada 46 % N', camiones: 30, toneladas: 900, transportista: 'PRV-03', estado: 'Solicitado' },
+  ],
+  trenes: [
+    { id: 'TR-2026-009', fecha: isoDay(4), operador: 'Nuevo Central Argentino', formacion: 'NCA-2231', vagones: 32, toneladas: 1600, terminal: 'TYS', cliente: 'CLI-05', producto: 'SOJA', calidad: 'Cámara', tipo: 'Arribo para descarga', estado: 'Confirmado' },
+    { id: 'TR-2026-010', fecha: isoDay(7), operador: 'Nuevo Central Argentino', formacion: 'NCA-2240', vagones: 28, toneladas: 1400, terminal: 'TYS', cliente: 'CLI-04', producto: 'MAIZ', calidad: 'Grado 2', tipo: 'Arribo para descarga', estado: 'Anunciado' },
+  ],
+  solicitudes: [
+    /* Rental y Logística ya no usan solicitud como origen: el detalle del servicio se carga en la orden (revisión 15/09) */
+    { id: 'SOL-2026-043', fecha: isoDay(0), tipo: 'Externa', solicitante: { tipo: 'cliente', id: 'CLI-02' }, detalle: 'Alquiler de 2.000 m² en galpón para big bags por 60 días', desde: iso(3, 0), hasta: iso(63, 0), estado: 'Abierta' },
+  ],
+};
+
+/* =====================================================================
+   SUPUESTOS DE TRABAJO (21) — visibles en toda la maqueta
+   ===================================================================== */
+const SUPUESTOS = [
+  { id: 'S1', origen: 'Pendiente 1', tema: 'Qué BU ejecuta cada servicio de TyS y TT', supuesto: 'Matriz configurable Servicio × Componente → BU ejecutora. Valores iniciales: Descarga, Transporte y Carga → Logística; Depósito → Depósitos. Las grúas las provee Maquinarias como recurso interno.', impacto: 'Imputación por BU y líneas de la orden.', donde: 'Administración › Matriz de ejecución · Expediente › Costos y cargos' },
+  { id: 'S2', origen: 'Pendiente 2', tema: 'Qué significa "mejor combinación" y cómo se calcula', supuesto: 'Puntaje ponderado: costo 50 % · duración 30 % · cumplimiento del ritmo contractual 20 % (pesos configurables). Eficiencia de equipo 75 % sobre capacidad nominal; turnos completos de 6 h.', impacto: 'Recomendación automática y comparativas.', donde: 'Expediente › Planificación · Administración › Parámetros' },
+  { id: 'S3', origen: 'Pendiente 3', tema: 'Quién actualiza y valida la nacionalización y el método seguro', supuesto: 'Nacionalización: la registra Comercial / Backoffice con referencia (despacho) y responsable. Método seguro: definido 15/09 — la habilitación no se confirma a mano; proviene de la master data (método seguro asignado al producto o a su familia, con procedimiento y vigencia) y la administra Seguridad. Supuesto: Comercial es quien registra la nacionalización y no hay un circuito de validación adicional.', impacto: 'Bloqueo de inicio y bandeja de Comercial.', donde: 'Expediente › Habilitaciones · Datos maestros › Seguridad' },
+  { id: 'S4', origen: 'Pendiente 4', tema: 'Cómo se obtiene la disponibilidad de recursos', supuesto: 'Calendario de reservas propio del sistema (órdenes planificadas y en ejecución) + estado del recurso en su maestro (operativo / en mantenimiento con fecha / fuera de servicio). En la maqueta, ambos se simulan.', impacto: 'Validaciones del Planificador y pantalla Recursos.', donde: 'Recursos · Expediente › Planificación' },
+  { id: 'S5', origen: 'Pendiente 5', tema: 'Cómo se aprueban y facturan los gastos adicionales', supuesto: 'Quedan "Pendiente de aprobación" en Costos y cargos. Comercial aprueba o rechaza; los aprobados se emiten como evento a facturación (fuera del alcance de la maqueta).', impacto: 'Sección Costos y cargos; cierre.', donde: 'Expediente › Costos y cargos' },
+  { id: 'S6', origen: 'Pendiente 6', tema: 'Cómo cierra un servicio que no utiliza depósito', supuesto: 'El rol de cierre es un atributo del workflow de cada servicio. Descarga costado vapor, Carga y los servicios de solicitud cierran en Operaciones; el resto en Depósito.', impacto: 'Bandeja de cierre y estado Pendiente de cierre.', donde: 'Administración › Workflows' },
+  { id: 'S7', origen: 'Pendiente 7', tema: 'Qué recorrido tendrán los servicios de las otras BU', supuesto: 'Fuera del primer alcance. La maqueta los muestra con origen "Solicitud" y el mismo workflow simplificado (sin recomendación automática) para distinguir entidad y BU prestadora de la destinataria.', impacto: 'Casos 9a y 9b.', donde: 'Órdenes OS-2026-0009 y OS-2026-0010' },
+  { id: 'S8', origen: 'Definición 15/09', tema: 'Nivel del servicio: entidad o BU', supuesto: 'Cada servicio del catálogo tiene un nivel. Asignación inicial: los servicios a terceros de TyS y TT (descarga, transporte y depósito; descarga; descarga costado vapor; carga) impactan a la entidad y no llevan BU prestadora; las BU intervienen como ejecutoras de componentes. Los servicios de Rental, Logística, Depósitos, Mantenimiento, Administración y Corporate son de nivel BU.', impacto: 'Selección secuencial de Comercial (el servicio va después de la entidad y define el resto) e imputación.', donde: 'Nueva orden · Datos maestros › Catálogo de servicios · Expediente › Resumen' },
+  { id: 'S10', origen: 'Definición 15/09', tema: 'Logística de arribo administra lineup, cupos y operativos ferroviarios', supuesto: 'Se modela como área y rol propio (quinto rol del selector), sin etapa en el workflow de la orden: solo administra la logística de arribo y no interviene en las operaciones; consulta las órdenes únicamente para visualizarlas. Solo ese rol da de alta y modifica lineups, cupos y operativos ferroviarios; los cuatro roles del workflow los consultan. Cada cambio queda en un registro con quién, cuándo y qué cambió.', impacto: 'Pantalla Logística de arribo; origen de las órdenes.', donde: 'Logística de arribo · Datos maestros › Usuarios y roles' },
+  { id: 'S11', origen: 'Definición 15/09', tema: 'Comparativa de recursos propios y de terceros: necesario vs aplicado', supuesto: 'Propios: muelle, grúas y equipos, camiones internos, palas y tolvas, personal propio, depósito y balanza. Terceros: manos (proveedores de personal) y camiones de transportista. "Necesario" = planificación aceptada (cantidad × horas o turnos); "aplicado" = ejecución real (horas efectivas de cada recurso). Las dimensiones muelle, mercadería, calidad y destino se toman del expediente (plan y origen).', impacto: 'Sección Comparativas del expediente y pantalla Comparativas.', donde: 'Expediente › Comparativas e historial · Comparativas' },
+  { id: 'S12', origen: 'Definición 15/09', tema: 'Merma o excedente al cierre y tolerancia contractual', supuesto: 'Depósito registra manualmente la merma o el excedente (toneladas) para cerrar el operativo; se propone por la diferencia entre lo previsto y lo pesado. La tolerancia es un parámetro del instrumento contractual (% sobre las toneladas previstas; si el instrumento no lo define, rige el parámetro general 0,5 %). Fuera de tolerancia el cierre queda bloqueado y requiere aprobación de Comercial, que en la maqueta se registra como confirmación manual con motivo.', impacto: 'Cierre en Depósito; comparativas; facturación.', donde: 'Expediente › Depósito (cierre) · Datos maestros › Comercial' },
+  { id: 'S13', origen: 'Definición 15/09', tema: 'Solicitud de habilitación de recursos a la BU dueña', supuesto: 'Cuando en la planificación un recurso no está disponible, el Planificador genera desde el mismo lugar una solicitud a la BU o área dueña del recurso (Maquinarias para grúas y equipos, Logística para muelles, balanzas y camiones, Depósitos para ubicaciones, Rental para palas, Personal para funciones y manos) con la información de la operación: orden, servicio, cliente, producto, ventana, toneladas y motivo. La BU responde habilitando (con detalle) o rechazando; el Planificador revalida. En la maqueta la respuesta se simula desde la pantalla Recursos por cualquier rol; en el sistema real la recibiría el responsable de la BU. Habilitar un recurso en mantenimiento lo pone operativo; habilitar capacidad de logística agrega las unidades pedidas.', impacto: 'Planificación; disponibilidad; bandeja de las BU dueñas.', donde: 'Expediente › Planificación · Recursos › Solicitudes de habilitación' },
+  { id: 'S14', origen: 'Definición 15/09', tema: 'Equipos de descarga / carga: tipo según el producto y origen muelle o buque', supuesto: 'La sección Equipos de descarga / carga solo tiene grúas o sistemas de bombeo. El tipo lo define el estado físico de la familia del producto en la master data (sólido y embolsado → grúas; líquido → bombas). Antes de elegir el equipo, el Planificador indica si se usan los del muelle (terminal) o los del buque. Los equipos del buque los declara Logística de arribo en el lineup (tipo, cantidad y t/h); si se eligen, quedan seleccionados por defecto, no consumen equipos del muelle, no generan superposición, no tienen costo para la terminal y se computan como recurso de tercero en la comparativa. La recomendación evalúa primero los equipos del muelle y solo propone los del buque si no hay combinación factible con los propios.', impacto: 'Planificación, recomendación, comparativa propios/terceros, lineup.', donde: 'Expediente › Planificación · Logística de arribo › Lineup · Datos maestros › Productos' },
+  { id: 'S15', origen: 'Definición 15/09', tema: 'Cambio de fecha de arribo desde la planificación', supuesto: 'Si un equipo del muelle no está disponible porque otro operativo lo tiene reservado, el Planificador puede cambiar la fecha de arribo del servicio desde la misma pantalla: el sistema propone el primer turno libre después de la reserva que genera el conflicto y mantiene la duración de la ventana. El cambio corre ETA, ETB y ETC del lineup (o la fecha del cupo / tren), actualiza la ventana de las órdenes vinculadas que aún no iniciaron y queda en el registro de cambios de Logística de arribo con el Planificador como responsable y la orden como motivo. Solo se admite mientras el arribo esté Anunciado o Confirmado; se asume que la coordinación con la agencia marítima ocurre fuera del sistema.', impacto: 'Ventana operativa; lineup; reservas.', donde: 'Expediente › Planificación › Equipos de descarga / carga · Logística de arribo › Registro de cambios' },
+  { id: 'S16', origen: 'Definición 15/09', tema: 'La master data de la maqueta adopta el modelo v3.1 completo', supuesto: 'La maqueta incorpora los 35 maestros del Excel "Circuito Detalle de Construcción Master Data v3.1" (M-01..M-34 + M-10a) con sus 374 atributos, auditoría y ciclo de vida, convenciones, orden de carga, definiciones y decisiones, reglas, mapeo de fuentes y catálogo de transacciones y eventos, y siembra registros de demostración para cada maestro. La estructura nueva del 15/09 se mapea sobre el modelo: la entidad fiscal es M-01 "Unidad de negocio" (sociedad que factura), y se agregan como maestros propios de la maqueta M-35 Unidades de negocio (BU), M-36 Matriz de ejecución y relaciones, M-37 Workflows y M-38 Usuarios y roles, más atributos ★ Maqueta (equipos propios del buque en M-08, nivel y rol de cierre del servicio en M-14, productos incluidos y tarifas por componente en M-16, cargas del lineup en M-17). El motor usa los atributos del modelo donde ya existían circuitos: M-07.tipo define grúas o bombas; M-08 aporta los equipos del buque; M-26.habilitada_fiscal y su vencimiento filtran balanzas para mercadería no nacionalizada; M-10 aporta la habilitación aduanera del depósito; M-33 parametriza los turnos de 6 h; M-34 aplica días de aviso y acción al vencer sobre productos y recursos; M-20 fija la tolerancia general de merma. Los atributos "definidos, sin uso aún" quedan marcados como insumo del fit-gap. Los valores de los registros son de demostración y deben validarse con cada área.', impacto: 'Pantalla Datos maestros; validaciones del Planificador; habilitaciones; FD y Excel v2.0.', donde: 'Datos maestros (todas las pestañas)' },
+  { id: 'S17', origen: 'Definición 15/09', tema: 'Rol Máster data y permisos por maestro', supuesto: 'Se agrega el rol Máster data (MD), que no interviene en el workflow de la orden. Es el único que puede hacer el ABM de todos los maestros sin restricción y el único que otorga o quita a cada rol el permiso sobre cada maestro, en tres niveles: no lo visualiza (el maestro no aparece en Datos maestros ni en sus enlaces), solo consulta y puede ABM. Los permisos se administran en Datos maestros › Permisos por rol y cada cambio queda en el registro de cambios de la master data. Las altas y modificaciones que hace un rol con permiso ABM nacen "en validación" y no las usa el circuito hasta que Máster data las valida y publica (o las rechaza); las de Máster data nacen vigentes. La baja es lógica (el registro queda "dado de baja", se conserva y deja de ofrecerse en la planificación). Los registros que la maqueta administra desde otras pantallas (lineups, cupos y trenes en Logística de arribo; matriz de ejecución y workflows en Administración; tarifas y calendario derivados) no tienen ABM directo en Datos maestros. Los permisos iniciales son de demostración y deben validarse con cada área.', impacto: 'Datos maestros (visibilidad, ABM, permisos, registro de cambios); validaciones del Planificador (registros dados de baja o en validación no se ofrecen).', donde: 'Datos maestros › Maestros · Permisos por rol · Registro de cambios · Workflow (rol Máster data)' },
+  { id: 'S18', origen: 'Definición 15/09', tema: 'Devolver la orden al paso anterior o anularla', supuesto: 'En cada etapa, el rol responsable puede devolver la orden al paso anterior o anularla, siempre con motivo obligatorio y registro en el historial. Devolver: Pendiente de planificación → Borrador (Planificador); Planificada → Pendiente de planificación (Operaciones; la planificación queda como historial y se liberan las reservas); En ejecución → Planificada (Operaciones, solo si aún no se registraron tickets: se revierte el inicio); Pendiente de cierre → En ejecución (rol de cierre; el operativo vuelve a estar activo con sus recursos). El rol que recibe la orden devuelta la ve en su bandeja con el motivo. Anular: cualquier etapa salvo Cerrada; la orden pasa a Anulada, libera las reservas de recursos y el origen (la carga del lineup vuelve a estar disponible para una orden nueva), conserva todo el historial y, si ya había toneladas descargadas, quedan registradas sin cierre de depósito. Una orden anulada es de solo consulta. Se asume que anular no requiere aprobación adicional.', impacto: 'Workflow, bandejas, reservas, origen de la orden, comparativas.', donde: 'Expediente › acciones de la etapa · Workflow › pipeline (estado Anulada)' },
+  { id: 'S19', origen: 'Definición 15/09', tema: 'Toneladas y fechas del servicio las define Comercial', supuesto: 'Al generar la orden, Comercial indica las toneladas del producto que va a operar (no siempre es el total de la carga del lineup, del cupo o del tren: se proponen por el remanente y se editan) y la fecha y hora de inicio y fin del servicio (se proponen desde el origen —ETB → ETC, franja del cupo, día del tren— y se editan). Esa ventana es la que se usa para validar la disponibilidad de todos los recursos en la planificación y para las reservas. Reglas adoptadas: la orden puede superar las toneladas declaradas en el origen (se advierte, no se bloquea); toneladas y fechas se pueden modificar (ABM) mientras la orden está en Borrador o Pendiente de planificación —con motivo, registro y recomendación regenerada—; desde Planificada hay que devolver la orden al Planificador para cambiarlas (o cambiar la fecha de arribo, S15).', impacto: 'Alta y edición de la orden; validaciones de disponibilidad; reservas; recomendación.', donde: 'Nueva orden › Datos del servicio · Expediente › Resumen › Editar toneladas y fechas' },
+  { id: 'S20', origen: 'Definición 15/09', tema: 'La descarga la realiza Operaciones; módulos habilitables por rol', supuesto: 'Se agrega la BU Operaciones (TyS y TT) como ejecutora del componente Descarga en la matriz de ejecución (antes Logística); la Carga se asigna también a Operaciones, a confirmar. Logística conserva el transporte. Los muelles siguen siendo recursos de Logística y las grúas de Maquinarias hasta que se defina lo contrario. Además, cada módulo (pantalla) del sistema se habilita o deshabilita por rol / sector desde Administración › Usuarios y permisos › Módulos; Inicio no se puede deshabilitar; en la maqueta la edición no está restringida por rol (en el sistema real correspondería a Máster data o a Administración) y cada cambio queda en el registro de cambios.', impacto: 'Líneas de ejecución e imputación de la descarga; menú y navegación por rol.', donde: 'Administración › Matriz de ejecución · Usuarios y permisos › Módulos por rol' },
+  { id: 'S21', origen: 'Definición 15/09', tema: 'Alta de servicios de Rental y Logística', supuesto: 'Para Alquiler de maquinaria (Rental) y Servicios logísticos (Logística) la selección es Entidad → Servicio → BU prestadora → Medio = Interna o Externa → Cliente (Interna: las otras BU de la entidad y, como supuesto, las empresas del grupo; Externa: la nómina de clientes) → (producto solo en Logística) → Instrumento → Detalle del servicio, que reemplaza al origen operativo. Rental: una o más maquinarias del inventario de Rental con cantidad, fecha desde y hasta, km de entrega y km de devolución. Logística: camión (propio o de transportista) y cantidad, origen y destino elegidos entre las plantas / puertos del grupo y los lugares de los clientes, fechas, y km calculados automáticamente (distancia geodésica entre los lugares × factor de ruta 1,3); se estiman los viajes por la capacidad del camión y los km totales ida y vuelta. Los km se costean con parámetros (USD/km de traslado y USD/km por camión). El Planificador recibe lo solicitado ya cargado en la asignación de recursos y valida disponibilidad en la ventana; Operaciones ejecuta y cierra (rol de cierre del servicio). Las solicitudes internas / externas siguen como origen para los demás servicios de las BU.', impacto: 'Alta de la orden, planificación, costos y comparativas de Rental y Logística.', donde: 'Nueva orden › Detalle del servicio · Expediente › Origen' },
+  { id: 'A1', origen: 'Análisis A1', tema: 'Estructura de la orden para servicios combinados', supuesto: 'Orden madre comercial (lo que el cliente contrata y se factura) + líneas de ejecución por componente con su BU ejecutora (lo que imputa cada unidad).', impacto: 'Expediente › Resumen y Costos.', donde: 'Expediente › Resumen' },
+  { id: 'A2', origen: 'Análisis A2', tema: 'Cardinalidad origen operativo ↔ orden', supuesto: 'Un lineup puede generar N órdenes (una por carga / BL / cliente). Una misma carga admite más de una orden (descarga parcial, cambio de servicio): se advierte, se muestran las órdenes ya vinculadas y las toneladas se proponen por el remanente. Las órdenes del mismo lineup comparten muelle sin conflicto de superposición; los equipos no se comparten.', impacto: 'Wizard de Comercial y validaciones.', donde: 'Logística de arribo · LU-2026-031' },
+  { id: 'S9', origen: 'Definición 15/09', tema: 'Instrumento contractual sin cobertura', supuesto: 'Si para el destinatario no hay instrumento vigente, o el servicio no está contratado, o el producto no está incluido, Comercial puede cargar desde la misma orden un instrumento nuevo o una adenda del existente. La adenda hereda tarifas y condiciones del instrumento padre y agrega servicios, productos y vigencia; queda como registro propio en el maestro de Comercial. Se asume que Comercial tiene atribución para hacerlo sin un circuito de aprobación adicional.', impacto: 'Paso Instrumento del alta de orden · maestro de instrumentos.', donde: 'Nueva orden › Instrumento contractual · Datos maestros › Comercial' },
+  { id: 'A3', origen: 'Análisis A3', tema: 'Relación Departamento ↔ BU', supuesto: 'Dimensiones independientes: el departamento organiza usuarios y maestros a nivel entidad; la BU imputa presupuesto, costos y facturación. Relación N:N configurable.', impacto: 'Permisos, bandejas y ámbito de maestros.', donde: 'Administración › Departamentos' },
+  { id: 'A4', origen: 'Análisis A4', tema: 'Entidad efectiva por fecha al convertir una BU en entidad', supuesto: 'La orden guarda la entidad y la BU vigentes al crearse (mismo criterio que las condiciones contractuales congeladas). La conversión rige desde su fecha de vigencia solo para órdenes nuevas.', impacto: 'Historial y consolidación.', donde: 'Administración › Entidades › Convertir BU' },
+  { id: 'A5', origen: 'Análisis A5', tema: 'Ventana operativa y fecha de inicio', supuesto: 'La ventana de la orden se toma del origen (ETB→ETC, fecha del cupo o del tren). La maqueta no bloquea iniciar fuera de la ventana; solo advierte.', impacto: 'Reservas y validaciones de superposición.', donde: 'Expediente › Planificación' },
+];
+
+/* =====================================================================
+   CASOS GUIADOS (13)
+   ===================================================================== */
+const CASOS = [
+  { n: 1, titulo: 'Operación completa sin incidencias', esperado: 'Crear → planificar → ejecutar con tickets → cerrar y comparar.', rol: 'COM', screen: 'nueva',
+    pasos: ['Como Comercial, creá una orden nueva: TyS › Descarga, transporte y depósito (servicio de nivel entidad, sin BU) › Buque › Agroexport › DAP › CTO-2026-021 › lineup MV Southern Wind (BL-4510).', 'Marcá nacionalizada (el método seguro se habilita solo desde la master data); enviá a planificación.', 'Como Planificador, usá la recomendación y confirmá.', 'Como Operaciones, iniciá, simulá turnos hasta completar y finalizá.', 'Como Depósito, revisá comparativas y cerrá.', 'Referencia ya cerrada: OS-2026-0001.'] },
+  { n: 2, titulo: 'Mercadería no nacionalizada', esperado: 'Permite planificar; bloquea el inicio hasta regularizar la condición.', rol: 'OPS', screen: 'exp', orden: 'OS-2026-0002',
+    pasos: ['Como Operaciones, abrí OS-2026-0002 (planificada) e intentá iniciar: el sistema lo impide.', 'Como Comercial, registrá la nacionalización en Habilitaciones (referencia de despacho).', 'Volvé a Operaciones: ahora el inicio está habilitado.'] },
+  { n: 3, titulo: 'Método seguro pendiente', esperado: 'Muestra advertencia en Comercial; bloquea el inicio.', rol: 'COM', screen: 'exp', orden: 'OS-2026-0003',
+    pasos: ['Como Comercial, abrí el borrador OS-2026-0003 (UAN 32): la habilitación por método seguro viene de la master data y el MS-FERT-LIQ del producto está vencido → no habilitado.', 'Enviá igual a planificación: se permite con advertencia.', 'Como Planificador confirmá; como Operaciones verificá que el inicio queda bloqueado.', 'En Datos maestros › Seguridad, renová la vigencia del MS: la orden queda habilitada automáticamente, sin confirmación manual.'] },
+  { n: 4, titulo: 'Recurso no disponible', esperado: 'Impide una asignación incompatible y permite elegir una alternativa.', rol: 'PLAN', screen: 'exp', orden: 'OS-2026-0004',
+    pasos: ['Como Planificador, abrí OS-2026-0004 (big bags, MV Baltic Trader). Como el producto es sólido, la sección Equipos de descarga / carga solo ofrece grúas.', 'Con origen "Del muelle", asigná la grúa G1: está reservada por OS-2026-0006 en la misma ventana → error, y aparece "Cambiar fecha de arribo" con el primer turno libre propuesto. Probá G3: en mantenimiento → error.', 'En "Recursos no disponibles" usá Solicitar habilitación a Maquinarias para G3: la solicitud lleva la información de la operación. Respondela desde Recursos › Solicitudes (simulando a la BU) y revalidá: G3 queda disponible.', 'Alternativas: elegí G2 y el muelle Sur; o cambiá el origen a "Del buque": las 4 grúas del MV Baltic Trader quedan seleccionadas por defecto, sin costo para la terminal.'] },
+  { n: 5, titulo: 'Plan diferente de la recomendación', esperado: 'Guarda ambas propuestas y las compara al cierre.', rol: 'PLAN', screen: 'exp', orden: 'OS-2026-0005',
+    pasos: ['Como Planificador, abrí OS-2026-0005 (MV Ocean Harvest, 20.000 t de urea) y revisá la recomendación y sus supuestos.', 'Armá un plan distinto (por ejemplo, una sola grúa) y confirmá indicando el motivo del desvío.', 'La orden conserva recomendación y plan por separado; al cierre se comparan los tres escenarios.'] },
+  { n: 6, titulo: 'Recurso adicional durante la ejecución', esperado: 'Registra el cambio, su costo y la posible atribución al cliente.', rol: 'OPS', screen: 'exp', orden: 'OS-2026-0006',
+    pasos: ['Como Operaciones, abrí OS-2026-0006 (en ejecución).', 'En Ejecución › Recursos activos, agregá la grúa G2 con motivo "Aumento de ritmo requerido por el cliente" y marcá el gasto como atribuible al cliente. Probá también Modificar la cantidad de camiones internos, Reemplazar el depósito destino o la balanza y Liberar un recurso: todo queda registrado para la comparativa.', 'El cargo aparece en Costos y cargos como pendiente de aprobación.'] },
+  { n: 7, titulo: 'Demora causada por un tercero', esperado: 'Registra duración, responsabilidad y gasto recuperable.', rol: 'OPS', screen: 'exp', orden: 'OS-2026-0006',
+    pasos: ['Como Operaciones, en OS-2026-0006 registrá una demora con causa "Falta de camiones": responsabilidad Transportista, tercero Transportes Litoral, gasto asociado y recuperable.', 'La demora descuenta ritmo neto y suma un cargo recuperable en Costos y cargos.'] },
+  { n: 8, titulo: 'Seguimiento de depósito', esperado: 'Muestra ingresos mientras el operativo sigue activo.', rol: 'DEP', screen: 'deposito',
+    pasos: ['Como Depósito, abrí la pantalla Depósito: OS-2026-0006 aparece en "Ingresos en curso" con toneladas, ritmo y ocupación de Celda 1.', 'Simulá tickets desde Operaciones y volvé: el progreso se actualiza sin traspaso formal.', 'OS-2026-0008 ya está pendiente de cierre: registrá merma o excedente (se propone por la diferencia previsto − pesado), verificá que esté dentro de la tolerancia del contrato y cerrala.'] },
+  { n: 9, titulo: 'Servicio interno o entre empresas', esperado: 'Distingue entidad y BU prestadora de la destinataria.', rol: 'PLAN', screen: 'exp', orden: 'OS-2026-0009',
+    pasos: ['OS-2026-0009: Rental (TyS) presta una pala cargadora a Depósitos (TyS) — relación Interna, imputación a costo estándar.', 'OS-2026-0010: Logística (TyS) presta transporte a Terminal Timbúes — relación Grupo, factura intercompany.', 'Observá en Resumen la BU prestadora, el destinatario y el tratamiento de imputación de cada relación.'] },
+  { n: 10, titulo: 'Instrumento contractual sin cobertura (agregado 15/09)', esperado: 'Muestra por qué ningún instrumento aplica y permite cargar uno nuevo o una adenda desde la misma orden.', rol: 'COM', screen: 'nueva',
+    pasos: ['Como Comercial, creá una orden: TyS › Carga › Buque › Granos del Sur SRL › Soja.', 'El paso Instrumento no ofrece opciones: la tarifa spot TAR-SPOT-2026 está vencida. La pantalla lo explica y ofrece "Adenda" o "Nuevo instrumento".', 'Cargá una adenda (nueva vigencia, tarifas) y seguí con el lineup MV Pampa Star: el instrumento creado queda seleccionado y en el maestro de Comercial.', 'Variante: Fertilizantes del Litoral › Soja: el contrato CTO-2026-014 no incluye el producto → adenda que lo agrega.'] },
+  { n: 11, titulo: 'Logística de arribo registra un nuevo arribo (agregado 15/09)', esperado: 'Solo Logística de arribo administra lineup, cupos y operativos ferroviarios; el resto consulta. Comercial toma el arribo como origen de una orden.', rol: 'LAR', screen: 'arribos',
+    pasos: ['Como Logística de arribo, registrá un nuevo lineup (buque, ETA/ETB/ETC, equipos propios del buque, cargas con cliente, producto, calidad y toneladas) o un cupo de camiones.', 'Cambiá el rol a Comercial: el registro aparece en Logística de arribo en consulta y como origen disponible al crear la orden.', 'El registro de cambios muestra quién lo cargó y cuándo.'] },
+  { n: 12, titulo: 'Equipos según el producto: muelle o buque, y cambio de fecha de arribo (agregado 15/09)', esperado: 'Muestra solo bombas para líquidos y solo grúas para sólidos; permite elegir equipos del muelle o del buque; ante un equipo ocupado, cambia la fecha de arribo.', rol: 'PLAN', screen: 'exp', orden: 'OS-2026-0003',
+    pasos: ['Como Comercial, enviá a planificación el borrador OS-2026-0003 (UAN 32, líquido) si aún no lo hiciste. Como Planificador, en Equipos de descarga / carga solo aparecen sistemas de bombeo.', 'Cambiá el origen a "Del buque": las bombas del MT Delta Queen (2 × 300 t/h) quedan seleccionadas por defecto; volvé a "Del muelle" y elegí el sistema B1.', 'Como Planificador en OS-2026-0004 (sólido), marcá G1: está ocupada por OS-2026-0006 → botón "Cambiar fecha de arribo". Aceptá la fecha propuesta: la ventana de la orden y el ETA/ETB/ETC del lineup se corren y el cambio queda registrado en Logística de arribo.'] },
+  { n: 13, titulo: 'Master data completa según el modelo v3.1 (agregado 15/09)', esperado: 'Cada maestro del Excel v3.1 está en la maqueta con su ficha, sus atributos y registros; el circuito usa esos atributos.', rol: 'PLAN', screen: 'md',
+    pasos: ['Abrí Datos maestros: la lista izquierda agrupa los 39 maestros por dominio (35 del modelo + 4 de la estructura nueva, marcados ★). Elegí M-34 Métodos seguros: la ficha (clave, dependencias, quién administra y autoriza, fuente de carga), los registros con tipo, documento, versión, aplica a, responsable, vencimiento, días de aviso y acción al vencer, y las pestañas Atributos, Reglas, Fuentes y Transacciones.', 'En M-34, MS-BALANZA vence en pocos días: en Inicio aparece la alerta y las balanzas quedan "con observaciones" al planificar. Renová la revisión desde el botón y volvé a validar.', 'Recorré M-07 Productos (el tipo sólido / líquido define grúas o bombas), M-08 Buques (equipos propios), M-10 → M-10a (depósito fiscal y sus celdas), M-26 Balanzas (habilitación fiscal con vencimiento) y M-16 Contratos (ritmo por turno, merma reconocida, espacio asignado).', 'En la pestaña Atributos de cualquier maestro, la columna "En la maqueta" distingue los atributos que ya se usan de los que están definidos pero sin circuito (insumo del fit-gap). Las pestañas superiores muestran auditoría y ciclo de vida, convenciones, orden de carga, definiciones y decisiones, reglas, fuentes de carga, el cruce v2.2 → modelo → maqueta y el catálogo de transacciones y eventos.'] },
+  { n: 14, titulo: 'Máster data: ABM de maestros y permisos por rol (agregado 15/09)', esperado: 'El rol Máster data hace el ABM de cualquier maestro y define para cada rol si no lo visualiza, solo consulta o puede ABM; las altas de otros roles pasan por su validación.', rol: 'MD', screen: 'md', mdM: 'M-29',
+    pasos: ['Como Máster data, abrí Datos maestros › M-29 Causas de demora: en Registros aparecen "Nuevo registro", Editar y Dar de baja. Creá una causa nueva (el formulario se arma con los atributos del maestro): nace vigente y queda en el Registro de cambios con quién, cuándo y qué cambió.', 'En la pestaña Permisos por rol, poné M-29 en "Puede ABM" para el Planificador y M-18 Monedas en "No lo visualiza" para el Planificador. Cambiá el rol a Planificador: M-18 desaparece de la lista y de los enlaces, M-29 ofrece Nuevo registro / Editar / Dar de baja y el resto queda en solo consulta (M-03 y M-04, contables, ya venían ocultos para ese rol).', 'Como Operaciones (tiene ABM sobre M-29, M-12 y M-30), en M-29 cargá otra causa: nace "en validación" y no la usa el circuito (no aparece al registrar una demora). Como Máster data, en Workflow › Registros en validación validá y publicá (o rechazá) la alta.', 'Dá de baja un recurso (por ejemplo, la balanza BZ2 en M-26): la baja es lógica, el registro se conserva y el Planificador deja de verlo como opción.'] },
+  { n: 15, titulo: 'Devolver al paso anterior o anular la orden (agregado 15/09)', esperado: 'Cada etapa puede devolver la orden al paso anterior con motivo o anularla; la orden devuelta aparece en la bandeja del rol anterior con el motivo y la anulada libera recursos y origen conservando el historial.', rol: 'OPS', screen: 'exp', orden: 'OS-2026-0007', sec: 'resumen',
+    pasos: ['Como Operaciones, abrí OS-2026-0007 (planificada): junto a "Iniciar operativo" están "Devolver a Pendiente de planificación" y "Anular orden". Devolvela indicando el motivo: la planificación queda como historial, se liberan las reservas y el Planificador la ve en su bandeja como "Devuelta por Operaciones".', 'Como Planificador, en OS-2026-0011 (Terminal Timbúes, pendiente de planificación) devolvela a Comercial: aparece en Borrador con el motivo; Comercial puede editarla y reenviarla.', 'Como Operaciones, en OS-2026-0006 (en ejecución con tickets) el sistema no permite revertir el inicio: solo finalizar o anular. Como Planificador, anulá OS-2026-0005 (pendiente de planificación): pasa a Anulada, sus reservas se liberan, la carga del lineup vuelve a estar "sin orden" y el expediente muestra el motivo y el historial completo.', 'Como Depósito, en una orden pendiente de cierre podés devolverla a Operaciones si falta registrar algo: el operativo vuelve a estar en ejecución con sus recursos activos.'] },
+  { n: 16, titulo: 'Toneladas y fechas del servicio definidas por Comercial (agregado 15/09)', esperado: 'Comercial indica cuántas toneladas del producto opera (no necesariamente todo el lineup) y la fecha y hora de inicio y fin del servicio; esa ventana valida la disponibilidad de los recursos.', rol: 'COM', screen: 'nueva',
+    pasos: ['Como Comercial, creá una orden: TyS › Descarga, transporte y depósito › Buque › Agroexport › DAP › CTO-2026-021 › lineup MV Southern Wind (BL-4510, 14.000 t).', 'En "Datos del servicio" cambiá las toneladas a 8.000 (se propone el remanente de la carga) y las fechas de inicio y fin del servicio (se proponen desde el ETB → ETC del lineup). Enviá a planificación.', 'Como Planificador, la recomendación y las validaciones de disponibilidad usan esa ventana: si coincide con OS-2026-0005 (MV Ocean Harvest, 21/09 → 24/09), G1 aparece reservada; si la movés fuera, queda disponible.', 'Como Comercial, en el expediente › Resumen usá "Editar toneladas y fechas" mientras la orden está en Borrador o Pendiente de planificación: queda el motivo en el historial y la recomendación se regenera. Desde Planificada ya no se edita: hay que devolverla al Planificador.'] },
+  { n: 17, titulo: 'Módulos habilitados por rol / sector y descarga a cargo de Operaciones (agregado 15/09)', esperado: 'Cada pantalla se habilita o deshabilita por rol; el menú y la navegación lo respetan. La descarga la ejecuta la BU Operaciones.', rol: 'MD', screen: 'admin', admTab: 'USR',
+    pasos: ['En Administración › Usuarios y permisos › Módulos por rol / sector, destildá "Comparativas" para el Planificador y "Recursos" para Depósito: al cambiar el rol, esas pantallas desaparecen del menú y un enlace directo vuelve a Inicio con aviso. Inicio no se puede deshabilitar. Cada cambio queda en el registro de cambios de la master data.', 'Logística de arribo y Máster data vienen sin Workflow / Depósito según su función; ahora esa regla también se administra acá.', 'En Administración › Matriz de ejecución, el componente Descarga (y Carga) lo ejecuta la BU Operaciones; Transporte sigue en Logística. Abrí cualquier orden de descarga: en Resumen › Líneas de ejecución la descarga se imputa a Operaciones.'] },
+  { n: 18, titulo: 'Rental y Logística: alta de servicios internos o externos (agregado 15/09)', esperado: 'Entidad → Servicio → BU prestadora → Medio Interna / Externa → Cliente (otras BU o nómina de clientes) → detalle del servicio: maquinarias, fechas y km (Rental) o camión, origen / destino, fechas y km automáticos (Logística).', rol: 'COM', screen: 'nueva',
+    pasos: ['Como Comercial, creá una orden: TyS › Alquiler de maquinaria › BU Rental › Medio "Interna": en Cliente aparecen las otras BU (elegí Depósitos). Instrumento: acuerdo interno. En Detalle del servicio marcá una o más maquinarias con su cantidad (por ejemplo 2 palas cargadoras y 1 autoelevador), la fecha desde y hasta, y los km de entrega y de devolución; se estima el costo. Enviá a planificación.', 'Repetí con Medio "Externa": en Cliente aparece la nómina de clientes y el instrumento pasa a ser el del cliente.', 'Creá otra: TyS › Servicios logísticos › BU Logística › "Externa" › Agroexport › Urea › instrumento del cliente. En Detalle del servicio elegí el camión (propio o de transportista) y la cantidad, el origen (Planta San Nicolás) y el destino (Depósito Pergamino del cliente): los km del tramo se calculan solos, con los viajes estimados por las toneladas y los km totales ida y vuelta; fijá las fechas y enviá.', 'Como Planificador, en ambas órdenes lo solicitado ya viene cargado en la asignación de recursos: validá disponibilidad en la ventana y confirmá. El expediente › Origen muestra el detalle del servicio; Costos incluye los km. Referencias ya cargadas: OS-2026-0009 (Rental → Depósitos, interna) y OS-2026-0010 (Logística → Terminal Timbúes, del grupo).'] },
+];

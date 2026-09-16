@@ -1,0 +1,28 @@
+const { chromium } = require('playwright'); const path = require('path');
+const FILE = 'file://' + path.resolve(__dirname, '../dist/TyS - Maqueta ERP v2.0 - Orden de servicio.html');
+(async () => {
+  const browser = await chromium.launch(); const page = await browser.newPage({ viewport: { width: 1380, height: 900 } });
+  await page.goto(FILE); await page.waitForSelector('#main .page-h');
+  const setRol = async (rol) => { await page.selectOption('#ctx-rol', rol); await page.waitForTimeout(50); };
+  await setRol('OPS'); await page.evaluate(() => openOrden('OS-2026-0007', 'resumen')); await page.waitForTimeout(60);
+  await page.screenshot({ path: 'test/shot-v26-acciones.png' });
+  await page.click('[data-action="devolver"]'); await page.waitForTimeout(60); await page.screenshot({ path: 'test/shot-v26-devolver-modal.png' });
+  await page.click('[data-action="modal-ok"]'); await page.waitForTimeout(80);
+  await setRol('PLAN'); await page.evaluate(() => go('bandeja')); await page.waitForTimeout(60); await page.screenshot({ path: 'test/shot-v26-bandeja-devuelta.png' });
+  await page.evaluate(() => openOrden('OS-2026-0007', 'resumen')); await page.waitForTimeout(60); await page.screenshot({ path: 'test/shot-v26-exp-devuelta.png' });
+  await page.click('[data-action="anular"]'); await page.waitForTimeout(60); await page.screenshot({ path: 'test/shot-v26-anular-modal.png' });
+  await page.click('[data-action="modal-ok"]'); await page.waitForTimeout(80);
+  await page.evaluate(() => openOrden('OS-2026-0007', 'resumen')); await page.waitForTimeout(60); await page.screenshot({ path: 'test/shot-v26-exp-anulada.png' });
+  await setRol('MD'); await page.evaluate(() => { S.ctx.screen = 'md'; S.ctx.mdTab = 'MAESTROS'; S.ctx.mdM = 'M-29'; S.ctx.mdSub = 'REG'; render(); }); await page.waitForTimeout(60); await page.screenshot({ path: 'test/shot-v26-md-abm.png' });
+  await page.click('[data-action="md-nuevo"][data-m="M-29"]'); await page.waitForTimeout(60); await page.screenshot({ path: 'test/shot-v26-md-form.png' });
+  await page.keyboard.press('Escape');
+  await page.evaluate(() => { S.ctx.mdM = 'M-26'; render(); }); await page.waitForTimeout(40); await page.click('[data-action="md-editar"][data-m="M-26"][data-id="BZ2"]'); await page.waitForTimeout(60); await page.screenshot({ path: 'test/shot-v26-md-form-bz.png' });
+  await page.keyboard.press('Escape');
+  await page.click('[data-action="mdtab"][data-tab="PERM"]'); await page.waitForTimeout(60); await page.screenshot({ path: 'test/shot-v26-md-permisos.png' });
+  await setRol('OPS'); await page.evaluate(() => { S.ctx.mdTab = 'MAESTROS'; S.ctx.mdM = 'M-29'; render(); }); await page.click('[data-action="md-nuevo"][data-m="M-29"]'); await page.fill('#md-id', 'CD-98'); await page.fill('#md-nombre', 'Espera de muestreo'); await page.click('[data-action="modal-ok"]'); await page.waitForTimeout(80);
+  await setRol('MD'); await page.evaluate(() => go('bandeja')); await page.waitForTimeout(60); await page.screenshot({ path: 'test/shot-v26-md-bandeja.png' });
+  await page.evaluate(() => go('inicio')); await page.waitForTimeout(60); await page.screenshot({ path: 'test/shot-v26-md-inicio.png' });
+  await page.setViewportSize({ width: 400, height: 800 }); await page.evaluate(() => { S.ctx.screen = 'md'; S.ctx.mdTab = 'PERM'; render(); }); await page.waitForTimeout(60); await page.screenshot({ path: 'test/shot-v26-movil-perm.png' });
+  const sw = await page.evaluate(() => document.documentElement.scrollWidth); console.log('scrollWidth móvil', sw);
+  await browser.close();
+})();

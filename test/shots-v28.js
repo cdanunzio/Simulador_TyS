@@ -1,0 +1,20 @@
+const { chromium } = require('playwright'); const path = require('path');
+const FILE = 'file://' + path.resolve(__dirname, '../dist/TyS - Maqueta ERP v2.0 - Orden de servicio.html');
+(async () => {
+  const browser = await chromium.launch(); const page = await browser.newPage({ viewport: { width: 1380, height: 900 } });
+  await page.goto(FILE); await page.waitForSelector('#main .page-h');
+  const setRol = async (rol) => { await page.selectOption('#ctx-rol', rol); await page.waitForTimeout(50); };
+  const wsel = async (k, v) => { await page.selectOption('#w-' + k, v); await page.waitForTimeout(60); };
+  await setRol('COM'); await page.evaluate(() => go('nueva')); await page.waitForTimeout(50);
+  await wsel('entidad', 'TYS'); await wsel('servicio', 'SRV-ALQM'); await wsel('medio', 'INT'); await wsel('dest', 'bu:TYS-DEP'); await page.waitForTimeout(60);
+  await page.check('input[data-det="maq:L-PALA"]'); await page.waitForTimeout(60); await page.fill('input[data-det="maqn:L-PALA"]', '2'); await page.dispatchEvent('input[data-det="maqn:L-PALA"]', 'change'); await page.waitForTimeout(60);
+  await page.check('input[data-det="maq:L-AUTOEL"]'); await page.waitForTimeout(60); await page.fill('input[data-det="kmEntrega"]', '12'); await page.dispatchEvent('input[data-det="kmEntrega"]', 'change'); await page.waitForTimeout(60);
+  await page.evaluate(() => window.scrollTo(0, 300)); await page.screenshot({ path: 'test/shot-v28-rental.png' });
+  await page.evaluate(() => go('nueva')); await page.waitForTimeout(50);
+  await wsel('entidad', 'TYS'); await wsel('servicio', 'SRV-LOGI'); await wsel('medio', 'EXT'); await wsel('dest', 'cliente:CLI-02'); await wsel('producto', 'UREA'); await page.waitForTimeout(60);
+  await page.fill('input[data-w="toneladas"]', '900'); await page.dispatchEvent('input[data-w="toneladas"]', 'change'); await page.waitForTimeout(60);
+  await page.evaluate(() => window.scrollTo(0, 300)); await page.screenshot({ path: 'test/shot-v28-logistica-alta.png' });
+  await page.evaluate(() => openOrden('OS-2026-0010', 'origen')); await page.waitForTimeout(60); await page.screenshot({ path: 'test/shot-v28-origen-log.png' });
+  await setRol('PLAN'); await page.evaluate(() => openOrden('OS-2026-0009', 'planificacion')); await page.waitForTimeout(60); await page.screenshot({ path: 'test/shot-v28-plan-rental.png' });
+  await browser.close();
+})();

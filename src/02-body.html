@@ -1,0 +1,21 @@
+<div class="app" id="app">
+  <header class="top">
+    <div class="brand"><span class="brand-mark" aria-hidden="true"></span><b>TyS · Maqueta ERP</b><span class="ver">v2.0 · orden de servicio</span></div>
+    <div class="ctx">
+      <label><span>Entidad</span><select id="ctx-entidad"></select></label>
+      <label><span>Unidad de negocio</span><select id="ctx-bu"></select></label>
+      <label><span>Rol activo</span><select id="ctx-rol" class="rol"></select></label>
+    </div>
+    <div class="top-actions">
+      <button class="btn sm" data-action="go" data-screen="casos">Casos guiados</button>
+      <button class="btn sm" data-action="go" data-screen="supuestos">Supuestos</button>
+      <button class="btn sm ghost" data-action="reset" title="Vuelve al escenario inicial de la maqueta">Reiniciar demo</button>
+    </div>
+  </header>
+  <div class="body">
+    <nav class="nav" id="nav" aria-label="Pantallas"></nav>
+    <main class="main" id="main"></main>
+  </div>
+</div>
+<div id="modal-root"></div>
+<div class="toasts" id="toasts" aria-live="polite"></div>

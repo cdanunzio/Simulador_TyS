@@ -1,0 +1,14 @@
+{
+  "name": "tys-maqueta-erp",
+  "version": "2.8.0",
+  "private": true,
+  "description": "TyS · Maqueta ERP v2 — orden de servicio multiempresa (Comercial → Planificador → Operaciones → Depósito). Archivo único HTML+CSS+JS sin dependencias.",
+  "scripts": {
+    "build": "bash build.sh",
+    "start": "npx --yes serve public",
+    "test": "node test/walk.js",
+    "test:setup": "npm i --no-save playwright@1.49.1 && npx playwright install --with-deps chromium"
+  },
+  "engines": { "node": ">=18" },
+  "license": "UNLICENSED"
+}
