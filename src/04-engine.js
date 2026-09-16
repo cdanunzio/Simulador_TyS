@@ -2,7 +2,7 @@
    MOTOR — estado, helpers, workflow, validaciones, recomendación,
    ejecución, costos y comparativas
    ===================================================================== */
-const VERSION = 'v2.9.0';
+const VERSION = 'v2.9.1';
 const LS_KEY = 'tys-maqueta-erp-v2';
 let S = null;
 

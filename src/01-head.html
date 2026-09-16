@@ -219,6 +219,21 @@ table.t.mat th{white-space:normal;min-width:88px}
 .hist .who{color:var(--ink-2)}
 .hist .what b{font-weight:600}
 
+/* ---------- logística de arribo: tarjetas de escala ---------- */
+.lu{border:1px solid var(--line-2);border-radius:var(--r);padding:10px 12px 12px;background:var(--surface)}
+.lu.on{border-color:var(--accent-line);box-shadow:inset 3px 0 0 var(--accent)}
+.lu-h{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"t acts" "meta acts";gap:2px 12px;align-items:center}
+.lu-t{grid-area:t;display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}
+.lu-t b{font-size:15px}
+.lu-t .mono{color:var(--ink-3)}
+.lu-meta{grid-area:meta}
+.lu-acts{grid-area:acts;display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+.lu-kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:6px 14px;margin:10px 0}
+.lu-kv>div{display:flex;flex-direction:column;gap:1px;min-width:0}
+.lu-kv .l{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3);font-weight:600;white-space:nowrap}
+.lu-kv .v{font-size:12.5px;font-variant-numeric:tabular-nums}
+.lu table.t td{padding:5px 8px}
+
 /* ---------- wizard ---------- */
 .steps{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:12px}
 .steps span{display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:12px;font-size:11.5px;background:var(--surface-2);color:var(--ink-3);border:1px solid transparent}
@@ -347,6 +362,9 @@ table.t.mat th{white-space:normal;min-width:88px}
   .kv dt:first-child{margin-top:0}
   .form-grid,.md-form{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px 10px}
   .hist .ev{grid-template-columns:1fr;gap:2px}
+  .lu-h{grid-template-columns:1fr;grid-template-areas:"t" "meta" "acts"}
+  .lu-acts{justify-content:flex-start}
+  .lu-kv{grid-template-columns:1fr 1fr}
   .exp-h{position:static;padding:12px}
   .exp-h .row1{gap:8px}
   .exp-h .row1 h1{font-size:16px;width:100%}

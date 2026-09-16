@@ -1,6 +1,6 @@
 # TyS · Maqueta ERP v2 — Orden de servicio (código fuente)
 
-Maqueta navegable del circuito de la orden de servicio de TyS (Comercial → Planificador → Operaciones → Depósito), con Logística de arribo, Máster data, permisos por maestro y por módulo, y el modelo de master data v3.1 completo. Archivo único HTML + CSS + JS sin dependencias (solo la tipografía IBM Plex desde Google Fonts, con fallback). Versión actual: **v2.9.0** (`const VERSION` en `src/04-engine.js`).
+Maqueta navegable del circuito de la orden de servicio de TyS (Comercial → Planificador → Operaciones → Depósito), con Logística de arribo, Máster data, permisos por maestro y por módulo, y el modelo de master data v3.1 completo. Archivo único HTML + CSS + JS sin dependencias (solo la tipografía IBM Plex desde Google Fonts, con fallback). Versión actual: **v2.9.1** (`const VERSION` en `src/04-engine.js`).
 
 ## Cómo se arma
 
