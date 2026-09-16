@@ -2,7 +2,7 @@
    MOTOR — estado, helpers, workflow, validaciones, recomendación,
    ejecución, costos y comparativas
    ===================================================================== */
-const VERSION = 'v2.8.1';
+const VERSION = 'v2.9.0';
 const LS_KEY = 'tys-maqueta-erp-v2';
 let S = null;
 
@@ -1063,7 +1063,7 @@ function buildSeedOrders() {
    ===================================================================== */
 const NIVELES_PERMISO = [{ id: 'oculto', nombre: 'No lo visualiza', cls: '' }, { id: 'consulta', nombre: 'Solo consulta', cls: 'info' }, { id: 'abm', nombre: 'Puede ABM', cls: 'acc' }];
 function nivelPermiso(id) { return byId(NIVELES_PERMISO, id) || NIVELES_PERMISO[1]; }
-function permisoMD(m, rol) { rol = rol || S.ctx.rol; if (rol === 'MD') return 'abm'; return (md().permisosMD?.[m] || {})[rol] || 'consulta'; }
+function permisoMD(m, rol) { rol = rol || S.ctx.rol; if (rol === 'MD') return 'abm'; if (MD_ABM[m]?.modelo) return 'consulta'; /* las listas del modelo las administra solo Máster data (S22) */ return (md().permisosMD?.[m] || {})[rol] || 'consulta'; }
 function setPermisoMD(m, rol, nivel) {
   if (rol === 'MD') return { ok: false, motivo: 'Máster data siempre puede ABM' };
   if (!NIVELES_PERMISO.some(n => n.id === nivel)) return { ok: false, motivo: 'nivel inválido' };
@@ -1102,7 +1102,11 @@ const MD_ABM = {
   'M-36': { pantalla: 'admin', admTab: 'MAT', txt: 'La matriz de ejecución y las relaciones se editan en Administración.' },
   'M-37': { pantalla: 'admin', admTab: 'WF', txt: 'Los workflows (rol de cierre por servicio) se editan en Administración.' },
   'M-38': { derivado: 'Los roles de la maqueta son fijos; los permisos por maestro se administran en la pestaña Permisos por rol.' },
+  /* listas del modelo (S22): ABM reservado a Máster data */
+  'CV': { coll: 'convenciones', modelo: true }, 'RG': { coll: 'reglasModelo', modelo: true }, 'DF': { coll: 'definiciones', modelo: true }, 'DC': { coll: 'decisiones', modelo: true },
 };
+const MODELO_NOMBRES = { CV: 'Convenciones del modelo', RG: 'Reglas por maestro', DF: 'Definiciones previas', DC: 'Decisiones por maestro' };
+function nombreMaestro(m) { return mdFichas().find(f => f.codigo === m)?.nombre || MODELO_NOMBRES[m] || m; }
 function mdColecciones(m) { const a = MD_ABM[m]; if (!a) return []; if (a.coll) return [{ v: a.v || m, coll: a.coll }]; return a.tipos || []; }
 function mdCollDe(m, id) { for (const t of mdColecciones(m)) { const r = byId(md()[t.coll], id); if (r) return { coll: t.coll, tipo: t.v, rec: r }; } return null; }
 /* estado del registro según la auditoría común (hoja 3) */
@@ -1119,7 +1123,7 @@ function registrosEnValidacion() {
 const MD_REF = { planta: 'plantas', puerto: 'plantas', centro_costo: 'centrosCosto', cc: 'centrosCosto', proveedor: 'proveedores', transportista: 'proveedores', familia: 'familias', producto: 'productos', cliente: 'clientes', entidad: 'entidades', unidad_negocio: 'entidades', bu: 'bus', deposito: 'depositosPadre', area: 'departamentos', responsable: 'departamentos', puesto: 'funciones', agencia: 'agencias', cuenta_objeto: 'cuentasObjeto', tipo_servicio: 'servicios', contrato: 'instrumentos', muelle: 'muelles', moneda: 'monedas', moneda_funcional: 'monedas', buqueId: 'buques', producto_a: 'productos', producto_b: 'productos' };
 const MD_MULTIREF = { familias: 'familias', productos: 'productos', metodo_seguro: 'metodosSeguros', productos_aptos: 'productos', aptitud_por_producto: 'productos', servicios: 'servicios', bus: 'bus', busPrestadoras: 'bus', ambito: 'entidades', medios: 'medios', componentes: 'componentes', productos_admitidos: 'familias' };
 const MD_ENUM_KEYS = new Set(['estado', 'tipo', 'propiedad', 'criticidad', 'presentacion', 'regimen_segregacion', 'regimen_regulatorio', 'unidad_base', 'clase_dia', 'categoria', 'imputable_a', 'accion_al_vencer', 'accion_al_exceder', 'rol', 'condicion_fiscal', 'condicion_pago', 'nivel', 'cierre', 'tipoM12', 'tipoM25', 'tipoM10a', 'estadoM10a', 'estadoM25', 'estadoM26', 'tipoM16', 'rubro', 'rubroM06', 'unidad_tarifa', 'convenio', 'tipo_movimiento', 'confirmacion_planta', 'tipo_operacion', 'habilitacion', 'alcance', 'metodo_recepcion', 'destinatario', 'estadoFisico', 'unidad', 'unidad_medida', 'aplica_a', 'responsabilidad', 'origen']);
-const MD_SKIP = new Set(['id', '_aud', '_tipo', 'sup', 'calculado', 'esFlota', 'esMaquinaria', 'cierreSup', 'pendiente', 'buque', 'tercero', 'lineup', 'mantHasta', 'creadoDesde', 'creadoTs', 'creadoPor', 'snapshot', 'convertida', 'origenBU', 'padre', 'tarifas', 'condiciones', 'roles', 'equipos_propios', 'licencia', 'credencial_puerto', 'art_seguro', 'ocupadoT', 'uso', 'nota', 'interno', 'grupo', 'tarifa_mano', 'espacio_asignado', 'busM35']);
+const MD_SKIP = new Set(['id', 'codigo', 'n', '_aud', '_tipo', 'sup', 'calculado', 'esFlota', 'esMaquinaria', 'cierreSup', 'pendiente', 'buque', 'tercero', 'lineup', 'mantHasta', 'creadoDesde', 'creadoTs', 'creadoPor', 'snapshot', 'convertida', 'origenBU', 'padre', 'tarifas', 'condiciones', 'roles', 'equipos_propios', 'licencia', 'credencial_puerto', 'art_seguro', 'ocupadoT', 'uso', 'nota', 'interno', 'grupo', 'tarifa_mano', 'espacio_asignado', 'busM35']);
 const MD_ALIAS = { capacidadT: 'capacidad_tn', capacidadTh: 'capacidad_tn_h', costoHora: 'costo_hora_referencia', costoTurno: 'costo_turno_referencia', calado: 'calado_admisible_m', vigenciaHasta: 'fecha_vencimiento', vigenciaDesde: 'fecha_vigencia_desde', requiereMS: 'requiere_metodo_seguro', fiscal: 'habilitada_fiscal', calibracionHasta: 'calibracion_vencimiento', dotacion: 'dotacion_total', cantidad: 'cantidad_disponible', restricciones: 'restricciones', nombre: 'nombre', sigla: 'sigla', localidad: 'localidad', procedimiento: 'documento', busPrestadoras: 'unidades_negocio', ambito: 'unidades_negocio_ambito', usaDeposito: 'usa_deposito', requiereProducto: 'requiere_producto', soloCarga: 'solo_carga', familias: 'familias_compatibles' };
 function mdLabel(k) { const a = MD_ALIAS[k] || k; return a.replace(/M\d+a?$/, '').replace(/([a-z])([A-Z])/g, '$1_$2').toLowerCase(); }
 function mdCampos(collName) {
@@ -1138,7 +1142,7 @@ function mdCampos(collName) {
     if (/^\d{4}-\d{2}-\d{2}$/.test(String(v0))) { campos.push({ k, a: mdLabel(k), t: 'date' }); continue; }
     const distintos = [...new Set(coll.map(r => r[k]).filter(v => typeof v === 'string' && v !== ''))];
     if (MD_ENUM_KEYS.has(k) && distintos.length >= 1 && distintos.length <= 12) { campos.push({ k, a: mdLabel(k), t: 'select', opts: distintos, req: k === 'estado' }); continue; }
-    campos.push({ k, a: mdLabel(k), t: 'text', req: k === 'nombre' });
+    campos.push({ k, a: mdLabel(k), t: coll.some(r => typeof r[k] === 'string' && r[k].length > 90) ? 'textarea' : 'text', req: k === 'nombre' });
   }
   /* etiquetas repetidas (atributo de la maqueta y del modelo con el mismo nombre): se distingue la segunda con la clave */
   const vistos = new Set(); for (const c of campos) { if (vistos.has(c.a)) c.a = c.a + ' · ' + c.k; vistos.add(c.a); }
@@ -1177,6 +1181,7 @@ function guardarMD(m, collName, data, opts = {}) {
   }
   if (!data.id) return { ok: false, motivo: 'el código es obligatorio' };
   if (byId(coll, data.id)) return { ok: false, motivo: 'ya existe un registro con el código ' + data.id };
+  if (['convenciones', 'reglasModelo', 'decisiones'].includes(collName)) data.codigo = data.id; if (collName === 'definiciones') data.n = data.id;
   const r = Object.assign({}, data, { _aud: { estado_registro: publica ? 'vigente' : 'en validación', creado_por: usuario, creado_el: ts, version: 1, origen: 'manual', validado_por: publica ? usuario : null, validado_el: publica ? ts : null, autorizado_por: null } });
   coll.push(r);
   mdLog('Alta', m, r.id, (r.nombre ? r.nombre : '') + (publica ? ' · vigente' : ' · en validación (pendiente de Máster data)'), { rol });
@@ -1207,19 +1212,35 @@ function fvTxt(v) { if (v === null || v === undefined || v === '') return '—';
    ===================================================================== */
 const MODULO_DE_PANTALLA = { exp: 'ordenes', nueva: 'ordenes', programacion: 'arribos' };
 function moduloDe(screen) { return MODULO_DE_PANTALLA[screen] || screen; }
-function moduloHabilitado(screen, rol) {
-  rol = rol || S.ctx.rol; const m = moduloDe(screen); const def = byId(md().modulos, m); if (!def) return true; if (def.fijo) return true;
-  const v = (md().permisosModulos?.[rol] || {})[m]; return v === undefined ? true : !!v;
+/* tres dimensiones: rol (todos los módulos), entidad y BU (solo el menú de Operación — S22). El menú muestra la intersección con el contexto activo. */
+function moduloHabilitadoRol(m, rol) { const def = byId(md().modulos, m); if (!def || def.fijo) return true; const v = (md().permisosModulos?.[rol] || {})[m]; return v === undefined ? true : !!v; }
+function moduloHabilitadoEntidad(m, ent) { const def = byId(md().modulos, m); if (!def || def.fijo || def.grupo !== 'operacion' || !ent || ent === 'ALL') return true; const v = (md().permisosModulosEntidad?.[ent] || {})[m]; return v === undefined ? true : !!v; }
+function moduloHabilitadoBU(m, b) { const def = byId(md().modulos, m); if (!def || def.fijo || def.grupo !== 'operacion' || !b || b === 'ALL') return true; const v = (md().permisosModulosBU?.[b] || {})[m]; return v === undefined ? true : !!v; }
+function moduloHabilitado(screen, rol, ent, b) {
+  rol = rol || S.ctx.rol; ent = ent === undefined ? S.ctx.entidad : ent; b = b === undefined ? S.ctx.bu : b;
+  const m = moduloDe(screen); const def = byId(md().modulos, m); if (!def) return true; if (def.fijo) return true;
+  return moduloHabilitadoRol(m, rol) && moduloHabilitadoEntidad(m, ent) && moduloHabilitadoBU(m, b);
 }
-function setModulo(rol, m, on) {
+function motivoModuloDeshabilitado(screen, rol, ent, b) {
+  rol = rol || S.ctx.rol; ent = ent === undefined ? S.ctx.entidad : ent; b = b === undefined ? S.ctx.bu : b; const m = moduloDe(screen); const out = [];
+  if (!moduloHabilitadoRol(m, rol)) out.push('el rol ' + rolName(rol)); if (!moduloHabilitadoEntidad(m, ent)) out.push('la entidad ' + entName(ent)); if (!moduloHabilitadoBU(m, b)) out.push('la BU ' + buName(b));
+  return out.join(' y ');
+}
+function setModuloDim(dim, key, m, on) {
   const def = byId(md().modulos, m); if (!def) return { ok: false, motivo: 'módulo inexistente' }; if (def.fijo) return { ok: false, motivo: def.nombre + ' no se puede deshabilitar' };
-  md().permisosModulos = md().permisosModulos || {}; md().permisosModulos[rol] = md().permisosModulos[rol] || {};
-  const prev = moduloHabilitado(m, rol); if (prev === !!on) return { ok: true, sinCambio: true };
-  md().permisosModulos[rol][m] = !!on;
-  mdLog('Módulo', 'M-38', rolName(rol), def.nombre + ': ' + (on ? 'habilitado' : 'deshabilitado'));
+  if (dim !== 'rol' && def.grupo !== 'operacion') return { ok: false, motivo: def.nombre + ' solo se administra por rol' };
+  const coll = dim === 'rol' ? 'permisosModulos' : dim === 'entidad' ? 'permisosModulosEntidad' : 'permisosModulosBU';
+  const getter = dim === 'rol' ? moduloHabilitadoRol : dim === 'entidad' ? moduloHabilitadoEntidad : moduloHabilitadoBU;
+  md()[coll] = md()[coll] || {}; md()[coll][key] = md()[coll][key] || {};
+  const prev = getter(m, key); if (prev === !!on) return { ok: true, sinCambio: true };
+  md()[coll][key][m] = !!on;
+  const quien = dim === 'rol' ? rolName(key) : dim === 'entidad' ? entName(key) : buName(key);
+  mdLog('Módulo', dim === 'rol' ? 'M-38' : dim === 'entidad' ? 'M-01' : 'M-35', quien, def.nombre + ': ' + (on ? 'habilitado' : 'deshabilitado') + ' (' + dim + ')');
   return { ok: true };
 }
-function modulosDe(rol) { return md().modulos.filter(m => moduloHabilitado(m.id, rol)); }
+function setModulo(rol, m, on) { return setModuloDim('rol', rol, m, on); }
+function modulosDe(rol, ent, b) { return md().modulos.filter(m => moduloHabilitado(m.id, rol, ent === undefined ? 'ALL' : ent, b === undefined ? 'ALL' : b)); }
+function modulosDeshabilitadosTxt(dim, key) { const list = md().modulos.filter(m => m.grupo === 'operacion' && !m.fijo && !(dim === 'entidad' ? moduloHabilitadoEntidad(m.id, key) : moduloHabilitadoBU(m.id, key))); return list.length ? list.map(m => m.nombre.split(' (')[0]).join(' · ') : 'todos'; }
 /* Comercial define toneladas y ventana del servicio; editables hasta Pendiente de planificación (S19) */
 function puedeEditarDatosServicio(o, rol) { rol = rol || S.ctx.rol; return rol === 'COM' && ['BORR', 'PEND_PLAN'].includes(o.estado); }
 function editarDatosServicio(o, d, motivo, opts = {}) {

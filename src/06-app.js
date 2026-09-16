@@ -16,6 +16,8 @@ function renderNav() {
     /* pie del cajón móvil: acciones de la barra superior que en pantallas chicas no entran arriba */
     '<div class="nav-foot"><button class="btn sm ghost" data-action="reset">Reiniciar demo</button><span class="xs muted" style="padding:6px 4px">' + esc(ctxTxt()) + ' · ' + VERSION + '</span></div>';
 }
+/* si la pantalla actual deja de estar habilitada para el rol / entidad / BU activos, vuelve a Inicio con aviso (S20 · S22) */
+function ajustarPantallaAlContexto() { if (!moduloHabilitado(S.ctx.screen)) { toast('El módulo ' + (byId(md().modulos, moduloDe(S.ctx.screen))?.nombre || S.ctx.screen).split(' (')[0] + ' no está habilitado para ' + motivoModuloDeshabilitado(S.ctx.screen), 'warn'); S.ctx.screen = 'inicio'; } }
 /* menú móvil: cajón lateral */
 function navOpen(on) { const open = on === undefined ? !document.body.classList.contains('nav-open') : !!on; document.body.classList.toggle('nav-open', open); const tg = document.querySelector('.navtg'); if (tg) { tg.setAttribute('aria-expanded', String(open)); tg.setAttribute('aria-label', open ? 'Cerrar el menú' : 'Abrir el menú'); } }
 function renderCtx() {
@@ -56,7 +58,7 @@ function go(screen, extra = {}) {
   if (screen === 'nueva' && !extra.keepW) { W = null; }
   render({ sec: extra.sec });
 }
-function openOrden(id, sec) { if (!moduloHabilitado('exp')) { toast('El módulo Operaciones · órdenes no está habilitado para ' + rolName(S.ctx.rol), 'warn'); go('inicio'); return; } S.ctx.orderId = id; S.ctx.sec = sec || 'resumen'; S.ctx.screen = 'exp'; render({ sec: sec }); }
+function openOrden(id, sec) { if (!moduloHabilitado('exp')) { toast('El módulo Operaciones · órdenes no está habilitado para ' + motivoModuloDeshabilitado('exp'), 'warn'); go('inicio'); return; } S.ctx.orderId = id; S.ctx.sec = sec || 'resumen'; S.ctx.screen = 'exp'; render({ sec: sec }); }
 
 /* ---------- toasts y modales ---------- */
 function toast(msg, type = '') {
@@ -303,7 +305,7 @@ function formAnular(o) {
 /* ---------- ABM genérico de la master data (SUPUESTO S17) ---------- */
 function formMD(m, collName, rec) {
   if (permisoMD(m) !== 'abm') { toast(rolName(S.ctx.rol) + ' no tiene permiso de ABM sobre ' + m, 'warn'); return; }
-  const campos = mdCampos(collName); const edit = !!rec; const f = mdFichas().find(x => x.codigo === m); const tipo = mdColecciones(m).find(t => t.coll === collName);
+  const campos = mdCampos(collName); const edit = !!rec; const f = { nombre: nombreMaestro(m) }; const tipo = mdColecciones(m).find(t => t.coll === collName);
   const optsRef = (ref, nullable) => [...(nullable || !edit ? [{ v: '', t: '— sin asignar —' }] : []), ...(md()[ref] || []).filter(x => !deBaja(x)).map(x => ({ v: x.id, t: x.id + (x.nombre ? ' · ' + x.nombre : '') }))];
   const ctrl = (c) => {
     const v = edit ? rec[c.k] : undefined; const id = 'md-' + c.k;
@@ -315,10 +317,11 @@ function formMD(m, collName, rec) {
     if (c.t === 'ref') return sel(id, optsRef(c.ref, c.nullable), v ?? '');
     if (c.t === 'multiref') return '<select id="' + id + '" multiple>' + (md()[c.ref] || []).map(x => '<option value="' + esc(x.id) + '"' + ((v || []).includes(x.id) ? ' selected' : '') + '>' + esc(x.id + (x.nombre ? ' · ' + x.nombre : '')) + '</option>').join('') + '</select>';
     if (c.t === 'list') return '<input id="' + id + '" value="' + esc((v || []).join(', ')) + '" placeholder="valores separados por coma">';
+    if (c.t === 'textarea') return '<textarea id="' + id + '" rows="3">' + esc(v ?? '') + '</textarea>';
     return '<input id="' + id + '" value="' + esc(v ?? '') + '">';
   };
   const body = alertBox('info', '<div><b>' + esc(m + ' ' + (f?.nombre || '')) + (tipo && mdColecciones(m).length > 1 ? ' · ' + esc(tipo.v) : '') + '</b> — ' + (edit ? 'modificación del registro <b class="mono">' + esc(rec.id) + '</b> (v' + ((rec._aud?.version) || 1) + ' → v' + (((rec._aud?.version) || 1) + 1) + ')' : 'alta de un registro nuevo') + '. El formulario se arma con los atributos que la maqueta usa para este maestro; las referencias a otros maestros se eligen del maestro correspondiente. ' + (S.ctx.rol === 'MD' ? 'Como Máster data, el registro queda <b>vigente</b> al guardar.' : 'Como ' + esc(rolName(S.ctx.rol)) + ', el registro queda <b>en validación</b> hasta que Máster data lo publique; mientras tanto el circuito no lo usa.') + ' ' + sup('S17') + '</div>') +
-    '<div class="md-form">' + campos.map(c => field(esc(c.a) + (c.req ? ' *' : ''), ctrl(c), c.t === 'bool' ? 'chk' : '')).join('') + '</div>' +
+    '<div class="md-form">' + campos.map(c => field(esc(c.a) + (c.req ? ' *' : ''), ctrl(c), c.t === 'bool' ? 'chk' : c.t === 'textarea' ? 'span3' : '')).join('') + '</div>' +
     '<p class="help" style="margin-top:8px">Auditoría (hoja 3): se registran quién, cuándo, versión y origen "manual"; el cambio queda en el registro de cambios de la master data.</p>';
   modal({ title: (edit ? 'Editar ' : 'Nuevo registro · ') + esc(m + ' ' + (f?.nombre || '')), body, ok: edit ? 'Guardar cambios' : 'Crear registro', onOk: () => {
     const { data, errores } = mdLeer(campos, mv, { edit }); if (errores.length) { toast(errores[0], 'crit'); return false; }
@@ -377,7 +380,7 @@ function onClick(e) {
   if (a === 'modal-ok') { const r = _modalOk ? _modalOk() : true; if (r !== false) { closeModal(); render({ keep: true }); } return; }
   const o = d.id ? orden(d.id) : null;
   switch (a) {
-    case 'go': { const extra = {}; if (d.mdtab) extra.mdTab = d.mdtab; if (d.admtab) extra.admTab = d.admtab; if (!moduloHabilitado(d.screen)) { toast('El módulo ' + (byId(md().modulos, moduloDe(d.screen))?.nombre || d.screen) + ' no está habilitado para ' + rolName(S.ctx.rol), 'warn'); go('inicio'); break; } if (d.screen === 'nueva' && S.ctx.rol !== 'COM') { go('ordenes'); break; } go(d.screen, extra); break; }
+    case 'go': { const extra = {}; if (d.mdtab) extra.mdTab = d.mdtab; if (d.admtab) extra.admTab = d.admtab; if (!moduloHabilitado(d.screen)) { toast('El módulo ' + (byId(md().modulos, moduloDe(d.screen))?.nombre || d.screen).split(' (')[0] + ' no está habilitado para ' + motivoModuloDeshabilitado(d.screen), 'warn'); go('inicio'); break; } if (d.screen === 'nueva' && S.ctx.rol !== 'COM') { go('ordenes'); break; } go(d.screen, extra); break; }
     case 'open': openOrden(d.id, d.sec); break;
     case 'sec': { S.ctx.sec = d.sec; document.querySelectorAll('.exp-nav button').forEach(b => b.classList.toggle('on', b.dataset.sec === d.sec)); const s = document.getElementById('s-' + d.sec); if (s) s.scrollIntoView({ block: 'start', behavior: 'smooth' }); save(); break; }
     case 'reset': modal({ title: 'Reiniciar la demo', body: '<p>Se vuelve al escenario inicial: 11 órdenes, datos maestros y recursos originales. Se pierden los cambios realizados en esta sesión.</p>', ok: 'Reiniciar', okCls: 'danger', onOk: () => { resetState(); Object.keys(PF).forEach(k => delete PF[k]); W = null; toast('Escenario inicial restaurado', 'ok'); } }); break;
@@ -426,7 +429,7 @@ function onClick(e) {
     case 'w-inst-adenda': if (W && requiereRol('COM')) formInstrumento('adenda', d.id); break;
     case 'rectab': S.ctx.recTab = d.tab; render({ keep: true }); break;
     case 'mdtab': S.ctx.mdTab = d.tab; render({ keep: true }); break;
-    case 'mdgo': S.ctx.screen = 'md'; S.ctx.mdTab = 'MAESTROS'; S.ctx.mdM = d.m; render({ keep: S.ctx.screen === 'md' }); break;
+    case 'mdgo': { const tabDe = { CV: 'CONV', RG: 'REGLAS', DF: 'DEF', DC: 'DEF' }; S.ctx.screen = 'md'; if (tabDe[d.m]) { S.ctx.mdTab = tabDe[d.m]; } else { S.ctx.mdTab = 'MAESTROS'; S.ctx.mdM = d.m; } render({ keep: S.ctx.screen === 'md' }); break; }
     case 'mdsub': S.ctx.mdSub = d.sub; render({ keep: true }); break;
     case 'admtab': S.ctx.admTab = d.tab; render({ keep: true }); break;
     case 'cmp': S.ctx.cmpId = d.id; render({ keep: true }); break;
@@ -438,10 +441,12 @@ function onClick(e) {
 }
 function onChange(e) {
   const el = e.target; const d = el.dataset;
-  if (el.id === 'ctx-entidad' || el.id === 'ctx-entidad-m') { S.ctx.entidad = el.value; if (S.ctx.bu !== 'ALL' && bu(S.ctx.bu)?.entidad !== el.value && el.value !== 'ALL') S.ctx.bu = 'ALL'; if (S.ctx.screen === 'nueva') W = null; render(); return; }
-  if (el.id === 'ctx-bu' || el.id === 'ctx-bu-m') { S.ctx.bu = el.value; render(); return; }
-  if (el.id === 'ctx-rol') { S.ctx.rol = el.value; if (!moduloHabilitado(S.ctx.screen)) S.ctx.screen = 'inicio'; if (S.ctx.screen === 'nueva' && el.value !== 'COM') S.ctx.screen = 'ordenes'; render({ keep: true }); return; }
+  if (el.id === 'ctx-entidad' || el.id === 'ctx-entidad-m') { S.ctx.entidad = el.value; if (S.ctx.bu !== 'ALL' && bu(S.ctx.bu)?.entidad !== el.value && el.value !== 'ALL') S.ctx.bu = 'ALL'; if (S.ctx.screen === 'nueva') W = null; ajustarPantallaAlContexto(); render(); return; }
+  if (el.id === 'ctx-bu' || el.id === 'ctx-bu-m') { S.ctx.bu = el.value; ajustarPantallaAlContexto(); render(); return; }
+  if (el.id === 'ctx-rol') { S.ctx.rol = el.value; ajustarPantallaAlContexto(); if (S.ctx.screen === 'nueva' && el.value !== 'COM') S.ctx.screen = 'ordenes'; render({ keep: true }); return; }
   if (d.mod !== undefined) { const [rol, m] = d.mod.split(':'); const r = setModulo(rol, m, el.checked); toast(r.ok ? (byId(md().modulos, m)?.nombre || m) + ' ' + (el.checked ? 'habilitado' : 'deshabilitado') + ' para ' + rolName(rol) : r.motivo, r.ok ? 'ok' : 'warn'); render({ keep: true }); return; }
+  if (d.moddim !== undefined) { const [dim, key, m] = d.moddim.split(':'); const r = setModuloDim(dim, key, m, el.checked); const quien = dim === 'rol' ? rolName(key) : dim === 'entidad' ? entName(key) : buName(key); toast(r.ok ? (byId(md().modulos, m)?.nombre || m).split(' (')[0] + ' ' + (el.checked ? 'habilitado' : 'deshabilitado') + ' para ' + quien : r.motivo, r.ok ? 'ok' : 'warn'); if (!moduloHabilitado(S.ctx.screen)) S.ctx.screen = 'inicio'; render({ keep: true }); return; }
+  if (d.sim !== undefined) { S.ctx.sim = S.ctx.sim || { rol: S.ctx.rol, ent: S.ctx.entidad, bu: S.ctx.bu }; S.ctx.sim[d.sim] = el.value; if (d.sim === 'ent' && S.ctx.sim.bu !== 'ALL' && bu(S.ctx.sim.bu)?.entidad !== el.value && el.value !== 'ALL') S.ctx.sim.bu = 'ALL'; render({ keep: true }); return; }
   if (d.mdsel !== undefined) { S.ctx.mdM = el.value; S.ctx.mdSub = S.ctx.mdSub || 'REG'; render(); return; }
   if (d.perm !== undefined) { if (S.ctx.rol !== 'MD') { toast('Solo Máster data modifica los permisos', 'warn'); render({ keep: true }); return; } const [m, rol] = d.perm.split(':'); const r = setPermisoMD(m, rol, el.value); toast(r.ok ? m + ' · ' + rolName(rol) + ': ' + nivelPermiso(el.value).nombre : r.motivo, r.ok ? 'ok' : 'crit'); render({ keep: true }); return; }
   if (d.bind === 'ordFilter') { S.ctx.ordFilter = el.value; render({ keep: true }); return; }

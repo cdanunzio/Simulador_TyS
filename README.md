@@ -1,13 +1,13 @@
 # TyS · Maqueta ERP v2 — Orden de servicio (código fuente)
 
-Maqueta navegable del circuito de la orden de servicio de TyS (Comercial → Planificador → Operaciones → Depósito), con Logística de arribo, Máster data, permisos por maestro y por módulo, y el modelo de master data v3.1 completo. Archivo único HTML + CSS + JS sin dependencias (solo la tipografía IBM Plex desde Google Fonts, con fallback). Versión actual: **v2.8.1** (`const VERSION` en `src/04-engine.js`).
+Maqueta navegable del circuito de la orden de servicio de TyS (Comercial → Planificador → Operaciones → Depósito), con Logística de arribo, Máster data, permisos por maestro y por módulo, y el modelo de master data v3.1 completo. Archivo único HTML + CSS + JS sin dependencias (solo la tipografía IBM Plex desde Google Fonts, con fallback). Versión actual: **v2.9.0** (`const VERSION` en `src/04-engine.js`).
 
 ## Cómo se arma
 
 ```bash
 npm run build          # = bash build.sh → dist/artifact.html, dist/TyS - Maqueta ERP v2.0 - Orden de servicio.html y public/index.html
 npm run test:setup     # una vez: instala Playwright + Chromium para las pruebas
-npm test               # = node test/walk.js → recorrido automatizado de los 18 casos (≈230 comprobaciones)
+npm test               # = node test/walk.js → recorrido automatizado de los 19 casos (≈250 comprobaciones)
 npm start              # sirve public/ en http://localhost:3000 para probar el build
 ```
 
@@ -21,10 +21,10 @@ No hay dependencias de producción: `package.json` solo define los scripts. `pub
 |---|---|---|
 | `01-head.html` | `<title>`, tipografías y todo el CSS (temas claro / oscuro con variables `--accent`, `--ok`, `--warn`, `--crit`…; responsive con tres cortes: escritorio > 1180 px, tablet ≤ 1180 px, móvil ≤ 860 px con menú en cajón lateral). | Estilos, colores, layout responsive. |
 | `02-body.html` | Shell: barra superior (entidad / BU / rol), menú lateral `#nav`, `#main`, `#toasts`, `#modal-root`. | Casi nunca. |
-| `03-data.js` | `MD_SEED` (datos maestros base: entidades, BU, departamentos, roles, servicios, clientes, productos, instrumentos, recursos, estados, transiciones, matriz de ejecución, módulos y permisos por módulo, parámetros, motivos), `OPS_SEED` (lineups, cupos, trenes, solicitudes), `SUPUESTOS` (S1–S21, A1–A5) y `CASOS` (1–18). | Cambiar datos de demostración, agregar un supuesto o un caso guiado, ajustar la matriz de ejecución o los módulos por rol. |
+| `03-data.js` | `MD_SEED` (datos maestros base: entidades, BU, departamentos, roles, servicios, clientes, productos, instrumentos, recursos, estados, transiciones, matriz de ejecución, módulos y permisos por módulo (rol, entidad y BU), parámetros, motivos), `OPS_SEED` (lineups, cupos, trenes, solicitudes), `SUPUESTOS` (S1–S22, A1–A5) y `CASOS` (1–19). | Cambiar datos de demostración, agregar un supuesto o un caso guiado, ajustar la matriz de ejecución o los módulos por rol. |
 | `03b-model.js` | Modelo de master data v3.1 extraído del Excel con `tools/extract_model.py` (`MODEL_FICHAS`, `MODEL_ATRIBUTOS`, reglas, TX/EV…). **No editar a mano**: regenerar con `python3 tools/extract_model.py "tools/<Excel v3.1>.xlsx" src/03b-model.js`. | Cuando cambie el Excel del modelo. |
 | `03c-seed-ext.js` | `MD_EXT` (maestros M-35..M-38 y atributos ★ Maqueta) y `extendSeed()`: completa los registros con los atributos del modelo, siembra los maestros que no existían y arma `permisosMD` (matriz maestro × rol). | Agregar registros a un maestro, cambiar permisos iniciales por maestro. |
-| `04-engine.js` | Motor: estado y persistencia (`localStorage`, clave `tys-maqueta-erp-v2`; un cambio de `VERSION` reinicia el estado), lookups, habilitaciones (nacionalización, método seguro M-34), workflow (`accionPrincipal`, `transition`, `devolver`, `anular`), bandejas, creación de órdenes, reservas y validaciones (`chequearRecurso`, `validarPlan`), recomendación (`recomendar`), ejecución (tickets, demoras, ABM de recursos), costos y comparativas, Logística de arribo, cambio de fecha de arribo, escenario inicial (`buildSeedOrders`), permisos y ABM genérico de master data (`permisoMD`, `mdCampos`, `guardarMD`, `validarMD`, `bajaMD`, `mdLog`), módulos por rol (`moduloHabilitado`, `setModulo`) y edición de toneladas / fechas (`editarDatosServicio`). | Reglas de negocio. |
+| `04-engine.js` | Motor: estado y persistencia (`localStorage`, clave `tys-maqueta-erp-v2`; un cambio de `VERSION` reinicia el estado), lookups, habilitaciones (nacionalización, método seguro M-34), workflow (`accionPrincipal`, `transition`, `devolver`, `anular`), bandejas, creación de órdenes, reservas y validaciones (`chequearRecurso`, `validarPlan`), recomendación (`recomendar`), ejecución (tickets, demoras, ABM de recursos), costos y comparativas, Logística de arribo, cambio de fecha de arribo, escenario inicial (`buildSeedOrders`), permisos y ABM genérico de master data (`permisoMD`, `mdCampos`, `guardarMD`, `validarMD`, `bajaMD`, `mdLog`), módulos por rol / entidad / BU (`moduloHabilitado`, `setModuloDim`) y edición de toneladas / fechas (`editarDatosServicio`). | Reglas de negocio. |
 | `05-views-a.js` | Helpers de UI (`table`, `kv`, `btn`, `field`, `chip`…), Inicio, Logística de arribo, Workflow · mi etapa, Operaciones · órdenes, Expediente (9 secciones), registros en validación y registro de cambios. | Pantallas del circuito. |
 | `05-views-b.js` | Planificador (`plannerForm`, `equiposBlock`, `noDisponiblesCard`), wizard de Nueva orden (`W`, `wInit`, `wSpec`, `viewNueva`, detalle de Rental / Logística `wDetalleCard`), Recursos, Depósito, Comparativas, Administración, Casos guiados, Supuestos. | Alta de orden, planificación, administración. |
 | `05-views-c.js` | Datos maestros: `mdMap()` (atributo del modelo → cómo se ve cada registro, por maestro), navegador por dominio, pestañas del modelo, permisos por rol, barra de ABM. | Cómo se muestra cada maestro; nuevas columnas. |
@@ -76,5 +76,5 @@ Notas de despliegue:
 
 1. Editar en `src/` (datos en `03-data.js` / `03c-seed-ext.js`, reglas en `04-engine.js`, pantallas en `05-*.js`, acciones en `06-app.js`).
 2. `npm run build` → abrir `public/index.html` (o `npm start`) en el navegador; si el estado guardado molesta: botón **Reiniciar demo** o subir `VERSION`.
-3. `npm test` para verificar que los 18 casos siguen pasando.
+3. `npm test` para verificar que los 19 casos siguen pasando.
 4. `git commit` y `git push`: el CI de GitHub vuelve a correr las pruebas y Vercel redeploya producción.

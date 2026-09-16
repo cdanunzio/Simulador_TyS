@@ -348,9 +348,9 @@ const hoursBetween = (a, b) => (new Date(b) - new Date(a)) / 36e5;
   await setRol('COM'); await open(o16.id); check((await page.$('[data-action="datos-servicio"]')) === null && (await page.evaluate(id => editarDatosServicio(orden(id), { toneladas: 100 }).ok, o16.id)) === false, 'C16: planificada → toneladas y fechas ya no se editan (hay que devolver)');
 
   /* Caso 17: módulos habilitados por rol / sector (S20) */
-  await page.evaluate(() => { S.ctx.screen = 'admin'; S.ctx.admTab = 'USR'; render(); }); await page.waitForTimeout(50);
-  check((await page.$$('input[data-mod]')).length === 11 * 6 && await page.$eval('input[data-mod="COM:inicio"]', e => e.disabled && e.checked), 'C17: matriz módulos (11) × roles (6) con Inicio fijo');
-  await page.uncheck('input[data-mod="PLAN:comparativas"]'); await page.waitForTimeout(60);
+  await page.evaluate(() => { S.ctx.screen = 'admin'; S.ctx.admTab = 'MOD'; render(); }); await page.waitForTimeout(50);
+  check((await page.$$('input[data-moddim^="rol:"]')).length === 11 * 6 && await page.$eval('input[data-moddim="rol:COM:inicio"]', e => e.disabled && e.checked), 'C17: matriz módulos (11) × roles (6) con Inicio fijo');
+  await page.uncheck('input[data-moddim="rol:PLAN:comparativas"]'); await page.waitForTimeout(60);
   check((await page.evaluate(() => moduloHabilitado('comparativas', 'PLAN'))) === false && (await page.evaluate(() => S.mdLog[0].accion)) === 'Módulo', 'C17: Comparativas deshabilitada para el Planificador y registrada');
   await setRol('PLAN'); check((await page.$('#nav [data-screen="comparativas"]')) === null && (await page.$('#nav [data-screen="recursos"]')) !== null, 'C17: el menú del Planificador ya no muestra Comparativas');
   await page.evaluate(() => go('comparativas')); await page.waitForTimeout(40); await page.click('#nav [data-screen="inicio"]'); await page.waitForTimeout(30);
@@ -361,7 +361,7 @@ const hoursBetween = (a, b) => (new Date(b) - new Date(a)) / 36e5;
   await page.evaluate(() => { S.ctx.screen = 'comparativas'; }); await setRol('PLAN'); check((await page.evaluate(() => S.ctx.screen)) === 'inicio', 'C17: al cambiar a un rol sin el módulo, la pantalla actual vuelve a Inicio');
   await page.evaluate(() => setModulo('PLAN', 'comparativas', true));
   check((await page.evaluate(() => md().matrizEjecucion.TYS.DES + ':' + md().matrizEjecucion.TYS.TRA)) === 'TYS-OPS:TYS-LOG' && (await page.evaluate(() => !!bu('TYS-OPS'))), 'C17: matriz de ejecución: Descarga → Operaciones, Transporte → Logística');
-  await page.evaluate(() => go('casos')); await page.click('[data-action="caso"][data-n="17"]'); await page.waitForTimeout(60); check((await page.evaluate(() => S.ctx.screen + ':' + S.ctx.admTab + ':' + S.ctx.rol)) === 'admin:USR:MD', 'C17: el caso 17 abre Administración › Usuarios, permisos y módulos');
+  await page.evaluate(() => go('casos')); await page.click('[data-action="caso"][data-n="17"]'); await page.waitForTimeout(60); check((await page.evaluate(() => S.ctx.screen + ':' + S.ctx.admTab + ':' + S.ctx.rol)) === 'admin:MOD:MD', 'C17: el caso 17 abre Administración › Menú por rol, entidad y BU');
 
   /* Caso 18: Rental y Logística — medio interna / externa, cliente según el medio, detalle del servicio (S21) */
   const o9 = await page.evaluate(() => orden('OS-2026-0009')); check(o9.medio === 'INT' && o9.detalle && o9.detalle.tipo === 'rental' && o9.detalle.maquinarias['L-PALA'] === 1 && !o9.origen, 'C18: OS-0009 (Rental → Depósitos) nace como servicio interno con detalle de maquinaria');
@@ -404,11 +404,40 @@ const hoursBetween = (a, b) => (new Date(b) - new Date(a)) / 36e5;
   check((await page.evaluate(id => costoPlan(orden(id), { recursos: orden(id).plan.recursos }).items.find(i => i.rid === 'KM')?.monto, oL.id)) === kmSNPerg * 60 * 1.9, 'C18: costo de km en el plan (km totales × USD/km por camión)');
   await page.screenshot({ path: 'test/shot-v28-logistica.png', fullPage: false });
 
+  /* Caso 19: menú de Operación por entidad y por BU · ABM del modelo por Máster data (S22) */
+  await setRol('MD'); await page.evaluate(() => { S.ctx.entidad = 'TYS'; S.ctx.bu = 'ALL'; S.ctx.screen = 'admin'; S.ctx.admTab = 'MOD'; render(); }); await page.waitForTimeout(50);
+  const nEnt = await page.evaluate(() => md().entidades.length), nBU = await page.evaluate(() => md().bus.length);
+  check((await page.$$('input[data-moddim^="entidad:"]')).length === 7 * nEnt && (await page.$$('input[data-moddim^="bu:"]')).length === 7 * nBU && (await page.$('#adm-sim-rol')) !== null, 'C19: matrices del menú de Operación por entidad (' + nEnt + ') y por BU (' + nBU + ') y simulador por rol');
+  check(!(await page.evaluate(() => moduloHabilitadoBU('arribos', 'TYS-RENT'))) && !(await page.evaluate(() => moduloHabilitadoEntidad('deposito', 'AMA'))) && (await page.evaluate(() => moduloHabilitado('arribos', 'COM', 'TYS', 'ALL'))), 'C19: valores iniciales (Rental sin Logística de arribo; Amarre sin Depósito; con "Todas las BU" no se aplica)');
+  await page.uncheck('input[data-moddim="entidad:TT:recursos"]'); await page.waitForTimeout(60);
+  check(!(await page.evaluate(() => moduloHabilitadoEntidad('recursos', 'TT'))) && (await page.evaluate(() => S.mdLog[0].accion + ':' + S.mdLog[0].maestro)) === 'Módulo:M-01', 'C19: Recursos deshabilitado para Terminal Timbúes y registrado');
+  await page.selectOption('#adm-sim-ent', 'TT'); await page.waitForTimeout(60); check((await text('#main')).includes('Recursos · la entidad TT'), 'C19: el simulador explica por qué Recursos queda oculto para TT');
+  await page.selectOption('#ctx-entidad', 'TT'); await page.waitForTimeout(80); check((await page.$('#nav [data-screen="recursos"]')) === null && (await page.$('#nav [data-screen="ordenes"]')) !== null, 'C19: con Entidad = TT el menú no muestra Recursos');
+  await page.evaluate(() => go('recursos')); await page.waitForTimeout(40); await page.evaluate(() => { S.ctx.screen = 'recursos'; }); await page.selectOption('#ctx-entidad', 'TT'); await page.waitForTimeout(60); check((await page.evaluate(() => S.ctx.screen)) === 'inicio', 'C19: al cambiar el contexto a una entidad sin el módulo, la pantalla vuelve a Inicio');
+  await page.selectOption('#ctx-entidad', 'TYS'); await page.waitForTimeout(60); await page.selectOption('#ctx-bu', 'TYS-RENT'); await page.waitForTimeout(80);
+  check((await page.$('#nav [data-screen="arribos"]')) === null && (await page.$('#nav [data-screen="deposito"]')) === null && (await page.$('#nav [data-screen="recursos"]')) !== null, 'C19: con BU = Rental el menú no muestra Logística de arribo ni Depósito');
+  await page.selectOption('#ctx-bu', 'ALL'); await page.waitForTimeout(60); check((await page.$('#nav [data-screen="arribos"]')) !== null, 'C19: con Todas las BU vuelve a mostrarse');
+  await page.evaluate(() => setModuloDim('entidad', 'TT', 'recursos', true));
+  check((await page.evaluate(() => setModuloDim('entidad', 'TYS', 'md', false).ok)) === false, 'C19: los módulos de Configuración solo se administran por rol');
+  /* ABM del modelo por Máster data */
+  await page.evaluate(() => { S.ctx.screen = 'md'; S.ctx.mdTab = 'CONV'; render(); }); await page.waitForTimeout(50);
+  check((await page.$('[data-action="md-nuevo"][data-m="CV"]')) !== null && (await page.$$('[data-action="md-editar"][data-m="CV"]')).length === 9, 'C19: Máster data ve Nuevo / Editar / Dar de baja en Convenciones');
+  await page.click('[data-action="md-nuevo"][data-m="CV"]'); await page.waitForTimeout(60); await page.fill('#md-id', 'CV-10'); await page.fill('#md-nombre', 'Coordenadas en lugares'); await page.fill('#md-exige', 'Toda planta o lugar de cliente lleva latitud y longitud para el cálculo de km'); await page.click('[data-action="modal-ok"]'); await page.waitForTimeout(80);
+  const cv10 = await page.evaluate(() => byId(md().convenciones, 'CV-10')); check(cv10 && cv10.codigo === 'CV-10' && cv10._aud.estado_registro === 'vigente' && (await text('#main')).includes('Coordenadas en lugares'), 'C19: convención CV-10 creada vigente y visible');
+  await page.evaluate(() => { S.ctx.mdTab = 'REGLAS'; render(); }); await page.waitForTimeout(50); const nRG = await page.evaluate(() => md().reglasModelo.length);
+  await page.click('[data-action="md-nuevo"][data-m="RG"]'); await page.waitForTimeout(60); await page.fill('#md-id', 'VA-M29-2'); await page.fill('#md-maestro', 'M-29'); await page.selectOption('#md-tipo', 'Validación'); await page.fill('#md-nombre', 'Causa vigente'); await page.fill('#md-controla', 'Solo se registran demoras con causas vigentes'); await page.click('[data-action="modal-ok"]'); await page.waitForTimeout(80);
+  check((await page.evaluate(() => md().reglasModelo.length)) === nRG + 1 && (await page.evaluate(() => mdReglas('M-29').some(r => r.id === 'VA-M29-2'))), 'C19: regla nueva para M-29 visible también en la pestaña Reglas del maestro');
+  const rg0 = await page.evaluate(() => md().reglasModelo[0].id);
+  await page.click('[data-action="md-baja"][data-m="RG"][data-id="' + rg0 + '"]'); await page.fill('#m-mot', 'Reemplazada'); await page.click('[data-action="modal-ok"]'); await page.waitForTimeout(80);
+  check((await page.evaluate(id => deBaja(byId(md().reglasModelo, id)), rg0)) && (await page.evaluate(() => S.mdLog[0].accion)) === 'Baja', 'C19: baja lógica de una regla registrada');
+  await setRol('PLAN'); await page.evaluate(() => { S.ctx.mdTab = 'CONV'; render(); }); await page.waitForTimeout(50); check((await page.$('[data-action="md-nuevo"]')) === null && (await text('#main')).includes('Solo consulta'), 'C19: otro rol consulta las convenciones sin ABM');
+  await page.evaluate(() => go('casos')); await page.click('[data-action="caso"][data-n="19"]'); await page.waitForTimeout(60); check((await page.evaluate(() => S.ctx.screen + ':' + S.ctx.admTab + ':' + S.ctx.rol)) === 'admin:MOD:MD', 'C19: el caso 19 abre Administración › Menú por rol, entidad y BU');
+
   /* otras pantallas renderizan */
   for (const sc of ['arribos', 'bandeja', 'ordenes', 'recursos', 'comparativas', 'md', 'admin', 'casos', 'supuestos']) { await page.evaluate(s => go(s), sc); await page.waitForTimeout(30); check((await page.$('#main .page-h h1')) !== null, 'pantalla ' + sc + ' renderiza'); }
   for (const t of ['muelles', 'equipos', 'depositos', 'balanzas', 'logistica', 'funciones', 'manos']) { await page.evaluate(t => { S.ctx.screen = 'recursos'; S.ctx.recTab = t; render(); }, t); }
   for (const t of ['GEN', 'COM', 'PLAN', 'PERS', 'OPS', 'DEP', 'SEG', 'PERM', 'LOG', 'AREA', 'AUD', 'CONV', 'ORDEN', 'DEF', 'REGLAS', 'FUENTES', 'CRUCE', 'TXEV']) { await page.evaluate(t => { S.ctx.screen = 'md'; S.ctx.mdTab = t; render(); }, t); check((await page.$('#main .page-h h1')) !== null, 'md tab ' + t + ' renderiza'); }
-  for (const t of ['ENT', 'DEP', 'USR', 'WF', 'REL', 'MAT', 'PAR']) { await page.evaluate(t => { S.ctx.screen = 'admin'; S.ctx.admTab = t; render(); }, t); }
+  for (const t of ['ENT', 'DEP', 'USR', 'MOD', 'WF', 'REL', 'MAT', 'PAR']) { await page.evaluate(t => { S.ctx.screen = 'admin'; S.ctx.admTab = t; render(); }, t); }
   /* convertir BU */
   await page.evaluate(() => { S.ctx.screen = 'admin'; S.ctx.admTab = 'ENT'; render(); }); await page.selectOption('#adm-bu', 'TYS-RENT'); await page.fill('#adm-nombre', 'Rental SA'); await page.click('[data-action="convertir-bu"]'); await page.waitForTimeout(60);
   check(await page.evaluate(() => !!ent('E-RENT') && bu('TYS-RENT').convertida), 'A4: BU convertida en entidad con vigencia');

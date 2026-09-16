@@ -372,6 +372,12 @@ const MD_EXT = {
   /* auditoría común (hoja 3): todos los registros de la carga base nacen "vigente · migración · v1" */
   M.auditoriaBase = { estado_registro: 'vigente', creado_por: 'Migración inicial', creado_el: isoDay(-30), validado_por: 'Máster data', autorizado_por: 'Dueño del dominio', version: 1, origen: 'migración' };
 
+  /* listas del modelo administrables por Máster data (S22): convenciones, reglas, definiciones y decisiones pasan del Excel a la master data de la maqueta */
+  M.convenciones = MODEL_CONVENCIONES.map(x => Object.assign({ id: x.codigo }, x));
+  const vistosRG = {}; M.reglasModelo = MODEL_REGLAS.map((x, i) => { let id = x.codigo || ('RG-' + (i + 1)); if (vistosRG[id]) id = id + '-' + (++vistosRG[id]); else vistosRG[id] = 1; return Object.assign({ id }, x); });
+  M.definiciones = MODEL_DEFINICIONES.map(x => Object.assign({ id: x.n.replace(/\s+/g, '-') }, x));
+  M.decisiones = MODEL_DECISIONES.map(x => Object.assign({ id: x.codigo }, x));
+
   /* M-38 permisos por maestro y rol (SUPUESTO S17): niveles oculto · consulta · abm. Máster data siempre abm; el resto consulta salvo lo indicado.
      Valores de demostración: cada área administra los maestros de su ámbito y no visualiza los contables o comerciales que no le corresponden. */
   const ABM_POR_ROL = { COM: ['M-06', 'M-15', 'M-16', 'M-22', 'M-23'], PLAN: ['M-20', 'M-24'], OPS: ['M-12', 'M-29', 'M-30'], DEP: ['M-10', 'M-10a', 'M-23', 'M-24'], LAR: ['M-08', 'M-17', 'M-21', 'M-31', 'M-32'] };
