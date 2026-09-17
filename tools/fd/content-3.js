@@ -55,7 +55,7 @@ module.exports = function (d, M, L) {
     ['Expediente', 'Nueve secciones (5.2); acción principal de la etapa, devolver y anular; "Solo consulta" para Logística de arribo y Máster data.'],
     ['Planificador', 'Recomendación, formulario de recursos con disponibilidad y observaciones, equipos del muelle / buque, recursos no disponibles con solicitud a la BU dueña y cambio de fecha de arribo, resumen de costos.'],
     ['Recursos', 'Línea de tiempo de reservas por recurso y ventana.'],
-    ['Depósito', 'Ingresos en curso, progreso, merma / excedente y cierre.'],
+    ['Depósito', 'Ingresos en curso, progreso y cierre; la merma o el excedente salen de la balanza, sin carga manual.'],
     ['Comparativas', 'Tablas recomendado / plan / real y propios / terceros por muelle, mercadería, calidad y destino.'],
     ['Datos maestros', 'Navegador por dominio y área; ficha, atributos, registros, reglas, fuentes y transacciones de cada maestro; barra de ABM según permiso; permisos por rol; registro de cambios.'],
     ['Administración', 'Pestañas: entidades y BU, departamentos, usuarios, matriz de ejecución y relaciones, parámetros, workflows, Menú por rol, entidad y BU (con simulador).'],

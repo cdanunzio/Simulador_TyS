@@ -2606,7 +2606,7 @@
    "id": "S12",
    "origen": "Definición 15/09",
    "tema": "Merma o excedente al cierre y tolerancia contractual",
-   "supuesto": "Depósito registra manualmente la merma o el excedente (toneladas) para cerrar el operativo; se propone por la diferencia entre lo previsto y lo pesado. La tolerancia es un parámetro del instrumento contractual (% sobre las toneladas previstas; si el instrumento no lo define, rige el parámetro general 0,5 %). Fuera de tolerancia el cierre queda bloqueado y requiere aprobación de Comercial, que en la maqueta se registra como confirmación manual con motivo.",
+   "supuesto": "La merma o el excedente ya no se cargan a mano (revisión 16/09, S27): se calculan con lo que declara la balanza al final del operativo, por la diferencia entre lo previsto y lo pesado. La tolerancia es un parámetro del instrumento contractual (% sobre las toneladas previstas; si el instrumento no lo define, rige el parámetro general 0,5 %). Fuera de tolerancia el cierre queda bloqueado y requiere aprobación de Comercial, que en la maqueta se registra como confirmación manual con motivo.",
    "impacto": "Cierre en Depósito; comparativas; facturación.",
    "donde": "Expediente › Depósito (cierre) · Datos maestros › Comercial"
   },
