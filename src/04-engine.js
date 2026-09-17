@@ -2,7 +2,7 @@
    MOTOR — estado, helpers, workflow, validaciones, recomendación,
    ejecución, costos y comparativas
    ===================================================================== */
-const VERSION = 'v2.12';
+const VERSION = 'v2.14';
 const LS_KEY = 'tys-maqueta-erp-v2';
 let S = null;
 
@@ -59,7 +59,8 @@ function esMedioSinOrigen(mid) { const m = medio(mid); return !!m && (m.origen =
 function sinOrigenOperativo(o) { return esMedioSinOrigen(o?.medio); }
 function compName(id) { return byId(md().componentes, id)?.nombre || id; }
 function rolName(id) { return byId(md().roles, id)?.nombre || id; }
-function userOf(rol) { return byId(md().roles, rol)?.usuario || '—'; }
+/* la maqueta no usa nombres de personas: el responsable de cada registro es el rol (revisión 17/09) */
+function userOf(rol) { return rolName(rol); }
 function estadoName(id) { return byId(md().estados, id)?.nombre || id; }
 function entName(id) { return ent(id)?.sigla || id; }
 function buName(id) { return bu(id)?.nombre || id || '—'; }
@@ -119,6 +120,22 @@ function presentacionProducto(prodId) {
   return { presentacion: label, bruto: pr.presentacion || '—', estado: est, familia: fam ? fam.nombre : '—', um: pr.um || 't', densidad: pr.densidad };
 }
 function presentacionTxt(prodId) { const p2 = presentacionProducto(prodId); return p2 ? p2.presentacion : '—'; }
+/* alta y baja de unidades de maquinaria en la asignación (revisión 17/09): la cantidad sale de las unidades elegidas */
+function toggleUnidadMaq(R, maq, uid, on) {
+  R.maqUnidades = R.maqUnidades || {}; R.logistica = R.logistica || {};
+  if (!uid) { if (!on) { delete R.logistica[maq]; if (R.maqPct) delete R.maqPct[maq]; } return R; }
+  const lst = new Set(R.maqUnidades[maq] || []);
+  if (on) lst.add(uid); else lst.delete(uid);
+  R.maqUnidades[maq] = [...lst];
+  if (R.maqUnidades[maq].length) { R.logistica[maq] = R.maqUnidades[maq].length; R.maqPct = R.maqPct || {}; if (R.maqPct[maq] == null) R.maqPct[maq] = 100; }
+  else { delete R.maqUnidades[maq]; delete R.logistica[maq]; if (R.maqPct) delete R.maqPct[maq]; }
+  return R;
+}
+/* presentación de la mercadería del operativo: la elige Comercial al crear la orden y la propone el producto (revisión 17/09) */
+const PRESENTACION_OPCIONES = ['Granel sólido', 'Líquido a granel (tanque)', 'Embolsado (big bag 1 t)', 'Embolsado (bolsa 50 kg)', 'Contenedor'];
+function presentacionesDe(prodId) { const base = presentacionTxt(prodId); const l = [...PRESENTACION_OPCIONES]; if (base && base !== '—' && !l.includes(base)) l.unshift(base); return l; }
+function presentacionSugerida(prodId) { const base = presentacionTxt(prodId); if (!base || base === '—') return ''; const m = PRESENTACION_OPCIONES.find(x => x.toLowerCase().startsWith(base.toLowerCase().slice(0, 8))); return m || base; }
+function presentacionOrden(o) { return (o && o.presentacion) || (o && o.producto ? presentacionTxt(o.producto) : '—'); }
 
 /* clase del recurso de M-12: la flota (logística) se administra y se planifica separada de la maquinaria (revisión 16/09) */
 function claseRecurso(id) { const r = recurso(id); if (!r) return null; if (recursoTipo(id) !== 'logistica') return recursoTipo(id); return r.clase || (r.capacidadT ? 'logistica' : 'maquinaria'); }
@@ -329,7 +346,12 @@ function bandeja(rol) {
 }
 function arribosSinOrden() {
   const E = S.ctx.entidad; const hoy = isoDay(0); const out = [];
-  for (const l of S.ops.lineups) if ((E === 'ALL' || l.terminal === E) && l.estado !== 'Zarpó') l.cargas.forEach((c, i) => { if (!ordenesDeOrigen('lineup', l.id, i).length) out.push({ tipo: 'lineup', id: l.id, label: l.buque + ' · ' + c.bl, det: cli(c.cliente)?.nombre + ' · ' + prod(c.producto)?.nombre + ' · ' + fmtT(c.toneladas) + ' t', ts: l.etb }); });
+  for (const l of S.ops.lineups) if ((E === 'ALL' || l.terminal === E) && l.estado !== 'Zarpó') l.cargas.forEach((c, i) => {
+    if (!c.bl || !(c.toneladas > 0)) return; /* bodega vacía: se completa con el tiempo */
+    if (c.operador && !esOperadorPropio(c.operador)) return; /* la carga la opera otro */
+    if (ordenesDeOrigen('lineup', l.id, i).length) return;
+    out.push({ tipo: 'lineup', id: l.id, label: l.buque + ' · bodega ' + (c.bodega || i + 1) + ' · ' + c.bl, det: cli(c.cliente)?.nombre + ' · ' + prod(c.producto)?.nombre + ' · ' + fmtT(c.toneladas) + ' t' + (c.operador ? '' : ' · sin operador'), ts: l.etb });
+  });
   for (const cu of S.ops.cupos) if ((E === 'ALL' || cu.terminal === E) && cu.estado !== 'Cumplido' && !ordenesDeOrigen('cupo', cu.id).length) out.push({ tipo: 'cupo', id: cu.id, label: cu.id + ' · cupo de camiones', det: cli(cu.cliente)?.nombre + ' · ' + prod(cu.producto)?.nombre + ' · ' + cu.camiones + ' camiones', ts: cu.fecha + 'T06:00:00' });
   for (const tr of S.ops.trenes) if ((E === 'ALL' || tr.terminal === E) && !ordenesDeOrigen('tren', tr.id).length) out.push({ tipo: 'tren', id: tr.id, label: tr.id + ' · ' + tr.formacion, det: cli(tr.cliente)?.nombre + ' · ' + prod(tr.producto)?.nombre + ' · ' + fmtT(tr.toneladas) + ' t', ts: tr.fecha + 'T08:00:00' });
   return out.sort((a, b) => a.ts.localeCompare(b.ts));
@@ -356,7 +378,7 @@ function crearOrdenBase(spec) {
   const o = {
     id: spec.id || nextId(), creado: spec.creadoTs || nowIso(), entidad: spec.entidad, bu: spec.bu, medio: spec.medio, servicio: spec.servicio,
     destinatario: spec.destinatario, relacion, producto: spec.producto || null, instrumento: spec.instrumento || null, origen: spec.origen || null,
-    toneladas: spec.toneladas || 0, ventana: spec.ventana, lineas, calidad: spec.calidad || calidadDeOrigen(spec.origen),
+    toneladas: spec.toneladas || 0, ventana: spec.ventana, lineas, calidad: spec.calidad || calidadDeOrigen(spec.origen), presentacion: spec.presentacion || presentacionSugerida(spec.producto),
     contrato: ins ? { id: ins.id, tipo: ins.tipo, padre: ins.padre || null, moneda: ins.moneda, tarifas: Object.fromEntries((s?.componentes || []).filter(c => ins.tarifas[c] != null).map(c => [c, ins.tarifas[c]])), condiciones: clone(ins.condiciones || {}), vigenciaHasta: ins.vigenciaHasta, snapshot: spec.creadoTs || nowIso() } : null,
     aplicaNacionalizacion: !esMedioSinOrigen(spec.medio) && (s?.componentes || []).some(c => c === 'DES' || c === 'DEP') && spec.destinatario?.tipo === 'cliente',
     habilitaciones: Object.assign({ nacionalizada: false, nacRef: '', nacTs: null, nacPor: '', msConfirmado: false, msTs: null, msPor: '', msRef: '' }, spec.habilitaciones || {}),
@@ -923,6 +945,46 @@ function arriboLog(tipo, id, accion, detalle) {
   S.arriboLog = S.arriboLog || [];
   S.arriboLog.unshift({ ts: nowIso(), rol: S.ctx.rol, usuario: userOf(S.ctx.rol), tipo, id, accion, detalle: detalle || '' });
 }
+/* ---------- puertos, escalas, bodegas y nominación del lineup (revisión 17/09) ---------- */
+function puertoMD(id) { return byId(md().puertos || [], id); }
+function puertoNombre(id) { const p = puertoMD(id); return p ? p.nombre : (id || '—'); }
+function puertoDeTerminal(ent) { return (md().puertos || []).find(p => p.terminal === ent)?.id || (ent === 'TT' ? 'PU-TT' : 'PU-SN'); }
+function puertosPropios() { return (md().puertos || []).filter(p => p.propio); }
+function operadorMD(id) { return byId(md().operadores || [], id); }
+function operadorNombre(id) { return id ? (operadorMD(id)?.nombre || id) : 'Sin operador'; }
+function esOperadorPropio(id) { const o = operadorMD(id); return !!(o && (o.propio || o.grupo)); }
+/* secuencia de puertos del buque: un buque puede atracar en más de un puerto, cada uno con su ETA / ETB / ETC */
+function escalasDe(lu) { return (lu.escalas && lu.escalas.length) ? lu.escalas : [{ n: 1, puerto: puertoDeTerminal(lu.terminal), eta: lu.eta, etb: lu.etb, etc: lu.etc, estado: lu.estado, propia: true }]; }
+function escalaPropia(lu) { const es = escalasDe(lu); return es.find(e => e.propia) || es[0]; }
+function puertosDeLineup(lu) { return escalasDe(lu).map(e => e.puerto); }
+function cargasConBL(lu) { return (lu.cargas || []).filter(c => c.bl && c.toneladas > 0); }
+function bodegasVacias(lu) { return (lu.cargas || []).filter(c => !(c.bl && c.toneladas > 0)).length; }
+/* cantidades del buque vs nominadas: la nominación y su puerto salen de la orden de servicio */
+function resumenLineup(lu) {
+  const cs = lu.cargas || [];
+  const ordenes = ordenesDeOrigen('lineup', lu.id).filter(o => o.estado !== 'ANULADA');
+  const conBL = cargasConBL(lu);
+  const porPuerto = {};
+  for (const o of ordenes) { const pu = puertoDeOrdenNominada(o, lu); porPuerto[pu] = porPuerto[pu] || { t: 0, ordenes: [] }; porPuerto[pu].t += o.toneladas || 0; porPuerto[pu].ordenes.push(o); }
+  return { total: sum(cs, c => c.toneladas || 0), bodegas: cs.length, vacias: bodegasVacias(lu), conBL: conBL.length,
+    nominado: sum(ordenes, o => o.toneladas || 0), ordenes, porPuerto,
+    propias: sum(cs.filter(c => esOperadorPropio(c.operador)), c => c.toneladas || 0),
+    terceros: sum(cs.filter(c => c.operador && !esOperadorPropio(c.operador)), c => c.toneladas || 0),
+    sinOperador: sum(cs.filter(c => (c.toneladas || 0) > 0 && !c.operador), c => c.toneladas || 0) };
+}
+/* el puerto de la nominación lo define la orden: se toma el de la entidad que presta el servicio */
+function puertoDeOrdenNominada(o, lu) { const c = (lu.cargas || [])[o.origen?.cargaIdx]; return (c && c.puertoDescarga) || puertoDeTerminal(o.entidad || lu.terminal); }
+/* evolución de las fechas declaradas: el dato de origen y todos los cambios en el orden en que se produjeron */
+function fechasLogDe(lu) { return lu.fechasLog || []; }
+function registrarCambioFecha(lu, campo, de, a, motivo, pu) {
+  lu.fechasLog = lu.fechasLog || [];
+  lu.fechasLog.push({ ts: nowIso(), rol: S.ctx.rol, puerto: pu || escalaPropia(lu).puerto, campo, de, a, motivo: motivo || '' });
+}
+function fechaOriginal(lu, campo) {
+  const k = campo.toLowerCase(); const prim = (lu.fechasLog || []).find(f => f.campo === campo);
+  return prim ? prim.de : (lu[k + '_original'] || lu[k]);
+}
+
 function nuevoLineup(d) {
   S.seqLU = S.seqLU || 39; const id = 'LU-2026-' + String(S.seqLU++).padStart(3, '0');
   /* M-08: el lineup referencia al buque; si no existe se da de alta (alta provisoria hasta homologar el IMO, ABM-5) */
@@ -936,12 +998,37 @@ function nuevoLineup(d) {
     eta_original: d.eta, eta_: null, sitio_atraque: '', operativo_vinculado: '', orden_puerto: S.ops.lineups.filter(l => l.terminal === d.terminal).length + 1,
     buque_texto_fuente: (bq.nombre || '').toUpperCase(), cliente_texto_fuente: (cli(d.cargas[0]?.cliente)?.nombre || '').toUpperCase(), producto_texto_fuente: (prod(d.cargas[0]?.producto)?.nombre || '').toUpperCase(),
     fuente: 'manual', fecha_version: isoDay(0), homologado: !!d.imo, nominado_a_tys: false, observaciones: '' };
-  S.ops.lineups.push(lu); arriboLog('Lineup', id, 'Alta', lu.buque + ' · ' + lu.cargas.map(c => c.bl + ' ' + fmtT(c.toneladas) + ' t').join(', ') + ' · ETB ' + fmtDT(lu.etb) + ' · ' + equiposBuqueTxt(lu)); return lu;
+  /* una línea de carga por bodega del buque: pueden quedar vacías y completarse con el tiempo */
+  const nBod = bq.cantidad_bodegas || d.cargas.length || 5;
+  lu.cargas.forEach((c, i) => { c.bodega = i + 1; if (!c.puertoDescarga) c.puertoDescarga = puertoDeTerminal(d.terminal); if (c.operador === undefined) c.operador = d.terminal === 'TT' ? 'TT' : 'TYS'; });
+  while (lu.cargas.length < nBod) lu.cargas.push({ bodega: lu.cargas.length + 1, bl: '', cliente: null, producto: null, calidad: '', toneladas: 0, puertoDescarga: null, operador: null });
+  /* secuencia de puertos: la escala propia y las que siga el buque después */
+  lu.escalas = (d.escalas && d.escalas.length ? d.escalas : [{ puerto: puertoDeTerminal(d.terminal), eta: d.eta, etb: d.etb, etc: d.etc }]).map((e, i) => ({ n: i + 1, puerto: e.puerto, eta: e.eta, etb: e.etb, etc: e.etc, estado: e.estado || 'Anunciado', propia: !!puertoMD(e.puerto)?.propio && (e.propia !== false) }));
+  if (!lu.escalas.some(e => e.propia)) lu.escalas[0].propia = true;
+  const prop = escalaPropia(lu); lu.eta = prop.eta; lu.etb = prop.etb; lu.etc = prop.etc;
+  lu.eta_original = lu.eta; lu.etb_original = lu.etb; lu.etc_original = lu.etc; lu.fechasLog = [];
+  lu.toneladas_nominadas_total_buque = sum(lu.cargas, c => c.toneladas || 0);
+  S.ops.lineups.push(lu);
+  const conBL = cargasConBL(lu);
+  arriboLog('Lineup', id, 'Alta', lu.buque + ' · ' + lu.escalas.map(e => puertoNombre(e.puerto)).join(' → ') + ' · ' + lu.cargas.length + ' bodegas (' + conBL.length + ' con BL' + (bodegasVacias(lu) ? ', ' + bodegasVacias(lu) + ' vacías' : '') + ')' + (conBL.length ? ' · ' + fmtT(sum(conBL, c => c.toneladas)) + ' t' : '') + ' · ETB ' + fmtDT(lu.etb) + ' · ' + equiposBuqueTxt(lu)); return lu;
 }
 function equiposBuqueTxt(lu) { const bq = buqueDeLineup(lu); const eb = bq ? bq.equipos_propios : lu?.equiposBuque; return eb ? tipoEquipoInfo(eb.tipo).buque.toLowerCase() + ': ' + eb.cantidad + ' × ' + eb.capacidadTh + ' t/h' : 'sin equipos propios'; }
 function editarLineup(lu, d, opts = {}) {
   const cambios = [];
-  for (const k of ['eta', 'etb', 'etc', 'estado', 'calado', 'eslora']) if (d[k] !== undefined && d[k] !== '' && String(d[k]) !== String(lu[k])) { cambios.push(k.toUpperCase() + ': ' + (k.startsWith('et') ? fmtDT(lu[k]) + ' → ' + fmtDT(d[k]) : lu[k] + ' → ' + d[k])); lu[k] = (k === 'calado' || k === 'eslora') ? +d[k] : d[k]; }
+  for (const k of ['eta', 'etb', 'etc', 'estado', 'calado', 'eslora']) if (d[k] !== undefined && d[k] !== '' && String(d[k]) !== String(lu[k])) {
+    cambios.push(k.toUpperCase() + ': ' + (k.startsWith('et') ? fmtDT(lu[k]) + ' → ' + fmtDT(d[k]) : lu[k] + ' → ' + d[k]));
+    if (k.startsWith('et')) registrarCambioFecha(lu, k.toUpperCase(), lu[k], d[k], opts.motivo || opts.detalle || '');
+    lu[k] = (k === 'calado' || k === 'eslora') ? +d[k] : d[k];
+  }
+  /* escalas siguientes del buque (rotación de puertos) */
+  if (d.escalas) {
+    const antes = escalasDe(lu).map(e => puertoNombre(e.puerto) + ' ' + fmtDT(e.etb)).join(' → ');
+    lu.escalas = d.escalas.map((e, i) => ({ n: i + 1, puerto: e.puerto, eta: e.eta, etb: e.etb, etc: e.etc, estado: e.estado || 'Anunciado', propia: !!e.propia }));
+    if (!lu.escalas.some(e => e.propia)) lu.escalas[0].propia = true;
+    const p2 = escalaPropia(lu); lu.eta = p2.eta; lu.etb = p2.etb; lu.etc = p2.etc;
+    const desp = lu.escalas.map(e => puertoNombre(e.puerto) + ' ' + fmtDT(e.etb)).join(' → ');
+    if (antes !== desp) cambios.push('Secuencia de puertos: ' + antes + ' → ' + desp);
+  } else if (lu.escalas && lu.escalas.length) { const p2 = escalaPropia(lu); p2.eta = lu.eta; p2.etb = lu.etb; p2.etc = lu.etc; if (d.estado) p2.estado = d.estado; }
   const bq = buqueDeLineup(lu);
   if (d.equiposBuque !== undefined && JSON.stringify(d.equiposBuque) !== JSON.stringify((bq ? bq.equipos_propios : lu.equiposBuque) || null)) { const antes = equiposBuqueTxt(lu); if (bq) bq.equipos_propios = d.equiposBuque || null; else lu.equiposBuque = d.equiposBuque || null; cambios.push('Equipos del buque (M-08 ' + (bq?.id || '') + '): ' + antes + ' → ' + equiposBuqueTxt(lu)); }
   if (d.estado && d.estado !== lu.estadoM17) { const map = { Anunciado: 'proyectado', Confirmado: 'confirmado', 'En rada': 'en rada', 'En operación': 'operando', Zarpó: 'finalizado', Cancelado: 'cancelado' }; lu.estadoM17 = map[d.estado] || d.estado; }
@@ -1385,6 +1472,9 @@ function recalcularNominacion(luId, opts = {}) {
     lu.toneladas_para_tys = tn;
     lu.nominado_a_tys = os.length > 0;
     lu.operativo_vinculado = os.map(o => o.id).join(' · ');
+    /* el puerto de descarga y el operador de la carga nominada salen de la orden de servicio (revisión 17/09) */
+    for (const o2 of os) { const c = (lu.cargas || [])[o2.origen?.cargaIdx]; if (!c) continue; c.puertoDescarga = puertoDeTerminal(o2.entidad || lu.terminal); c.operador = o2.entidad || lu.terminal; }
+    lu.toneladas_nominadas_total_buque = sum(lu.cargas || [], c => c.toneladas || 0);
     if (!opts.silencioso && (antes.n !== lu.nominado_a_tys || antes.t !== tn || antes.ov !== lu.operativo_vinculado)) {
       arriboLog('Lineup', lu.id, 'Nominación actualizada', (lu.nominado_a_tys ? 'nominado a TyS · ' + fmtT(tn) + ' t para TyS de ' + fmtT(lu.toneladas_nominadas_total_buque || tn) + ' t del buque · operativo ' + (lu.operativo_vinculado || '—') : 'sin órdenes: la escala deja de estar nominada a TyS') + ' (M-17: se alimenta de la creación del operativo)');
     }

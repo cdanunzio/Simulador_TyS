@@ -1,5 +1,5 @@
 const { chromium } = require('playwright'); const path = require('path');
-const FILE = 'file://' + path.resolve(__dirname, '../dist/TyS - Maqueta ERP v2.0 - Orden de servicio.html');
+const FILE = 'file://' + path.resolve(__dirname, '../dist/Maqueta ERP v2.14 - Orden de servicio.html');
 (async () => {
   const browser = await chromium.launch(); const page = await browser.newPage({ viewport: { width: 1380, height: 900 } });
   const errors = []; page.on('pageerror', e => errors.push('pageerror: ' + e.message)); page.on('console', m => { if (m.type() === 'error' && !m.text().includes('ERR_TUNNEL')) errors.push(m.text()); });

@@ -25,7 +25,7 @@ function renderCtx() {
   const fill = (id, opts, val) => { for (const el of [document.getElementById(id), document.getElementById(id + '-m')]) if (el) el.innerHTML = opts.map(o => '<option value="' + esc(o.v) + '"' + (o.v === val ? ' selected' : '') + '>' + esc(o.t) + '</option>').join(''); };
   fill('ctx-entidad', [{ v: 'ALL', t: 'Grupo (consolidado)' }, ...md().entidades.map(e => ({ v: e.id, t: e.nombre }))], c.entidad);
   fill('ctx-bu', [{ v: 'ALL', t: 'Todas las BU' }, ...md().bus.filter(b => c.entidad === 'ALL' || b.entidad === c.entidad).map(b => ({ v: b.id, t: b.nombre + (c.entidad === 'ALL' ? ' (' + entName(b.entidad) + ')' : '') }))], c.bu);
-  fill('ctx-rol', md().roles.map(r => ({ v: r.id, t: r.nombre + ' · ' + r.usuario })), c.rol);
+  fill('ctx-rol', md().roles.map(r => ({ v: r.id, t: r.nombre })), c.rol);
 }
 function render(opts = {}) {
   const y = window.scrollY;
@@ -67,10 +67,11 @@ function toast(msg, type = '') {
   const box = document.getElementById('toasts'); box.appendChild(t); while (box.children.length > 4) box.firstChild.remove(); setTimeout(() => t.remove(), 4200);
 }
 let _modalOk = null;
+let _modalNoFocus = false;
 function modal({ title, body, ok = 'Aceptar', cancel = 'Cancelar', onOk, okCls = 'pri' }) {
   _modalOk = onOk;
   document.getElementById('modal-root').innerHTML = '<div class="overlay" data-action="modal-cancel"><div class="modal" role="dialog" aria-modal="true" data-stop="1"><div class="mh"><h2>' + title + '</h2><button class="x" data-action="modal-cancel" aria-label="Cerrar">×</button></div><div class="mb">' + body + '</div><div class="mf">' + (cancel ? '<button class="btn" data-action="modal-cancel">' + cancel + '</button>' : '') + '<button class="btn ' + okCls + '" data-action="modal-ok">' + ok + '</button></div></div></div>';
-  const f = document.querySelector('#modal-root input,#modal-root select,#modal-root textarea'); if (f) f.focus();
+  const f = document.querySelector('#modal-root input,#modal-root select,#modal-root textarea'); if (f && !_modalNoFocus) f.focus(); _modalNoFocus = false;
 }
 function closeModal() { document.getElementById('modal-root').innerHTML = ''; _modalOk = null; }
 function mv(id) { const el = document.getElementById(id); if (!el) return null; return el.type === 'checkbox' ? el.checked : el.value; }
@@ -124,7 +125,7 @@ function formRecurso(o) {
     '<div class="form-grid">' + field('Cantidad', '<input type="number" id="m-cant" value="1" min="1">') + field('Motivo', sel('m-motivo', md().motivosModificacion.map(x => ({ v: x, t: x })), md().motivosModificacion[0])) + '</div>' +
     '<label class="field chk"><input type="checkbox" id="m-atrib"><span>El gasto es <b>atribuible al cliente</b> (queda pendiente de aprobación por Comercial) ' + sup('S5') + '</span></label>' +
     field('Respaldo (referencia, mail, acta)', '<input id="m-resp" placeholder="p. ej. mail del cliente 14/09 solicitando mayor ritmo">') +
-    '<p class="help">Se registra recurso, momento (reloj simulado ' + fmtDT(o.ejecucion.reloj) + '), responsable (' + esc(userOf(S.ctx.rol)) + ', ' + esc(rolName(S.ctx.rol)) + ') y motivo; el listado muestra solo los recursos que ' + esc(rolName(S.ctx.rol)) + ' puede asignar (su ámbito y los compartidos); la disponibilidad se verifica para el próximo turno (' + md().parametros.horasTurno + ' h). Los cambios se comparan con la planificación inicial al cierre.</p>';
+    '<p class="help">Se registra recurso, momento (reloj simulado ' + fmtDT(o.ejecucion.reloj) + '), responsable (' + esc(rolName(S.ctx.rol)) + ') y motivo; el listado muestra solo los recursos que ' + esc(rolName(S.ctx.rol)) + ' puede asignar (su ámbito y los compartidos); la disponibilidad se verifica para el próximo turno (' + md().parametros.horasTurno + ' h). Los cambios se comparan con la planificación inicial al cierre.</p>';
   modal({ title: 'Agregar recurso al operativo', body, ok: 'Agregar', onOk: () => {
     const rid = mv('m-rid'); const n = +mv('m-cant') || 1; const ch = chequearRecurso(rid, n, { ...o, toneladas: Math.max(0, (o.toneladas || 0) - (o.ejecucion.acumulado || 0)), ventana: { inicio: o.ejecucion.reloj, fin: addHours(o.ejecucion.reloj, md().parametros.horasTurno) } });
     if (ch.errores.length) { toast(ch.errores[0], 'crit'); return false; }
@@ -181,7 +182,7 @@ function formTicket(o) {
   modal({ title: 'Registrar ticket de balanza', body: '<div class="form-grid">' + field('Camión (patente)', '<input id="m-cam" value="' + plate() + '">') + field('Bruto (t)', '<input type="number" id="m-bruto" value="44.5" step="0.01">') + field('Tara (t)', '<input type="number" id="m-tara" value="14.6" step="0.01">') + '</div><p class="help">Balanza ' + esc(recNombre(o.plan?.recursos?.balanza)) + ' · fecha y hora del reloj simulado ' + fmtDT(o.ejecucion.reloj) + '</p>', ok: 'Registrar', onOk: () => { const b = +mv('m-bruto'), t = +mv('m-tara'); if (!(b > t)) { toast('El bruto debe superar la tara', 'crit'); return false; } ticketManual(o, { camion: mv('m-cam'), bruto: b, tara: t }); toast('Ticket registrado · neto ' + fmtN(b - t, 2) + ' t', 'ok'); } });
 }
 function formNacionalizacion(o) {
-  modal({ title: 'Registrar nacionalización', body: '<div class="form-grid">' + field('Referencia del despacho de importación', '<input id="m-ref" placeholder="Despacho 26001IC04…">') + field('Despachante de aduana (M-22)', sel('m-desp', [{ v: '', t: '— sin indicar —' }, ...md().despachantes.map(x => ({ v: x.id, t: x.nombre + ' · ' + x.matricula }))], '')) + '</div><p class="help">' + sup('S3') + ' Registra Comercial / Backoffice (' + esc(userOf('COM')) + '); queda fecha, responsable, referencia y despachante en el expediente.</p>', ok: 'Registrar', onOk: () => { const ref = mv('m-ref'); if (!ref) { toast('Indicá la referencia', 'crit'); return false; } Object.assign(o.habilitaciones, { nacionalizada: true, nacRef: ref, nacTs: nowIso(), nacPor: userOf('COM'), nacDespachante: mv('m-desp') || null }); logEv(o, 'Nacionalización registrada', 'Referencia ' + ref + (mv('m-desp') ? ' · despachante ' + (byId(md().despachantes, mv('m-desp'))?.nombre || '') : '')); toast('Nacionalización registrada' + (o.estado === 'PLANIF' && condiciones(o).ok ? ' · la orden ya puede iniciarse' : ''), 'ok'); } });
+  modal({ title: 'Registrar nacionalización', body: '<div class="form-grid">' + field('Referencia del despacho de importación', '<input id="m-ref" placeholder="Despacho 26001IC04…">') + field('Despachante de aduana (M-22)', sel('m-desp', [{ v: '', t: '— sin indicar —' }, ...md().despachantes.map(x => ({ v: x.id, t: x.nombre + ' · ' + x.matricula }))], '')) + '</div><p class="help">' + sup('S3') + ' Registra Comercial / Backoffice; queda fecha, responsable, referencia y despachante en el expediente.</p>', ok: 'Registrar', onOk: () => { const ref = mv('m-ref'); if (!ref) { toast('Indicá la referencia', 'crit'); return false; } Object.assign(o.habilitaciones, { nacionalizada: true, nacRef: ref, nacTs: nowIso(), nacPor: userOf('COM'), nacDespachante: mv('m-desp') || null }); logEv(o, 'Nacionalización registrada', 'Referencia ' + ref + (mv('m-desp') ? ' · despachante ' + (byId(md().despachantes, mv('m-desp'))?.nombre || '') : '')); toast('Nacionalización registrada' + (o.estado === 'PLANIF' && condiciones(o).ok ? ' · la orden ya puede iniciarse' : ''), 'ok'); } });
 }
 
 /* ---------- instrumento contractual nuevo o adenda (SUPUESTO S9) ---------- */
@@ -220,30 +221,150 @@ function formInstrumento(mode, padreId) {
 }
 
 /* ---------- Logística de arribo: alta y edición (SUPUESTO S10) ---------- */
-function formLineup(lu) {
-  const E = S.ctx.entidad === 'ALL' ? 'TYS' : S.ctx.entidad; const edit = !!lu;
-  const cargaRow = (c, i) => '<div class="form-grid" style="grid-template-columns:1fr 1.4fr 1.2fr 1fr .7fr;gap:6px;align-items:end"><label class="field"><span>BL</span><input class="m-bl" value="' + esc(c?.bl || 'BL-') + '"></label><label class="field"><span>Cliente</span>' + sel('m-cli-' + i, md().clientes.map(x => ({ v: x.id, t: x.nombre })), c?.cliente || 'CLI-01', 'class="m-cli"') + '</label><label class="field"><span>Producto</span>' + sel('m-prod-' + i, md().productos.map(x => ({ v: x.id, t: x.nombre })), c?.producto || 'UREA', 'class="m-prod"') + '</label><label class="field"><span>Calidad</span><input class="m-cal" value="' + esc(c?.calidad || '') + '" placeholder="p. ej. Granulada 46 % N"></label><label class="field"><span>t</span><input type="number" class="m-t" value="' + (c?.toneladas || 10000) + '"></label></div>';
-  const body = edit ? alertBox('info', '<div>Edición de <b>' + esc(lu.id) + ' · ' + esc(lu.buque) + '</b>. Un cambio de ETB/ETC actualiza la ventana de las órdenes vinculadas que aún no iniciaron.</div>') : '';
-  const bq = edit ? buqueDeLineup(lu) : null;
-  const datos = '<div class="form-grid">' + (edit ? field('Buque (M-08)', '<input value="' + esc(lu.buque) + (bq ? ' · ' + bq.id + ' · IMO ' + (bq.numero_imo || 's/d') : '') + '" disabled>') : field('Buque (M-08)', sel('m-bq', [{ v: 'NEW', t: '— nuevo buque (alta provisoria hasta homologar el IMO) —' }, ...md().buques.map(b => ({ v: b.id, t: b.nombre + ' · IMO ' + (b.numero_imo || 's/d') + ' · ' + b.eslora_m + ' m' }))], 'NEW')) + field('Nombre del buque nuevo', '<input id="m-buque" placeholder="MV …">') + field('Nº IMO (7 dígitos, opcional)', '<input id="m-imo" placeholder="9xxxxxx">') + field('Bandera', '<input id="m-band" value="Panamá">') + field('Terminal', sel('m-term', md().entidades.filter(e => e.id !== 'AMA').map(e => ({ v: e.id, t: e.nombre })), E)) + field('Tipo de escala', sel('m-tipo', [{ v: '', t: 'Descarga' }, { v: 'Carga', t: 'Carga' }], ''))) +
-    field('Eslora (m)', '<input type="number" id="m-eslora" value="' + (lu?.eslora || 190) + '">') + field('Calado (m)', '<input type="number" step="0.1" id="m-calado" value="' + (lu?.calado || 9.5) + '">') + (edit ? '' : field('Bodegas', '<input type="number" id="m-bodegas" value="5">')) +
-    field('ETA', '<input type="datetime-local" id="m-eta" value="' + toLocalInput(lu?.eta || iso(7, 6)) + '">') + field('ETB (atraque)', '<input type="datetime-local" id="m-etb" value="' + toLocalInput(lu?.etb || iso(7, 14)) + '">') + field('ETC (zarpada)', '<input type="datetime-local" id="m-etc" value="' + toLocalInput(lu?.etc || iso(10, 14)) + '">') +
-    (edit ? field('Estado', sel('m-est', ['Anunciado', 'Confirmado', 'En rada', 'En operación', 'Zarpó', 'Cancelado'].map(v => ({ v, t: v })), lu.estado)) : '') + '</div>' +
-    '<h3 style="margin:8px 0 4px">Equipos propios del buque (M-08) ' + sup('S14') + '</h3><div class="form-grid">' + field('Tipo', sel('m-eqb-tipo', [{ v: '', t: 'Sin equipos propios (gearless)' }, ...md().tiposEquipo.map(t => ({ v: t.id, t: t.buque }))], bq?.equipos_propios?.tipo || '')) + field('Cantidad', '<input type="number" id="m-eqb-n" min="1" value="' + (bq?.equipos_propios?.cantidad || 4) + '">') + field('Capacidad por unidad (t/h)', '<input type="number" id="m-eqb-cap" min="1" value="' + (bq?.equipos_propios?.capacidadTh || 250) + '">') + '</div><p class="help">Dato propio del buque: queda en el maestro M-08 y lo heredan todas sus escalas. El Planificador elige si la descarga / carga se hace con equipos del muelle o con los del buque.' + (!edit ? ' Si elegís un buque existente, sus equipos se actualizan con lo que indiques acá.' : '') + '</p>' +
-    (edit ? '' : '<h3 style="margin:8px 0 4px">Cargas</h3><div id="m-cargas" class="stack" style="gap:6px">' + cargaRow(null, 0) + '</div><p class="help">La maqueta admite hasta dos cargas por escala: completá la segunda si corresponde.</p><div id="m-carga2">' + cargaRow({ bl: '', toneladas: 0 }, 1) + '</div>');
-  modal({ title: edit ? 'Editar lineup ' + esc(lu.id) : 'Nuevo lineup', body: body + datos, ok: edit ? 'Guardar cambios' : 'Registrar lineup', onOk: () => {
-    const eta = fromLocalInput(mv('m-eta')), etb = fromLocalInput(mv('m-etb')), etc = fromLocalInput(mv('m-etc'));
-    if (!eta || !etb || !etc || etc <= etb) { toast('Revisá ETA, ETB y ETC (la zarpada debe ser posterior al atraque)', 'crit'); return false; }
-    const equiposBuque = mv('m-eqb-tipo') ? { tipo: mv('m-eqb-tipo'), cantidad: Math.max(1, +mv('m-eqb-n') || 1), capacidadTh: Math.max(1, +mv('m-eqb-cap') || 1) } : null;
-    if (edit) { const cambios = editarLineup(lu, { eta, etb, etc, estado: mv('m-est'), calado: mv('m-calado'), eslora: mv('m-eslora'), equiposBuque }); toast(cambios.length ? lu.id + ' actualizado: ' + cambios.join(' · ') : 'Sin cambios', cambios.length ? 'ok' : 'warn'); return; }
-    const bqSel = mv('m-bq'); if (bqSel === 'NEW' && !mv('m-buque')) { toast('Indicá el nombre del buque nuevo o elegí uno del maestro', 'crit'); return false; }
-    if (mv('m-imo') && !/^\d{7}$/.test(mv('m-imo'))) { toast('El número IMO tiene 7 dígitos', 'crit'); return false; }
-    const cargas = [...document.querySelectorAll('#modal-root .m-bl')].map((el, i) => { const row = el.closest('.form-grid'); return { bl: el.value, cliente: row.querySelector('.m-cli').value, producto: row.querySelector('.m-prod').value, calidad: row.querySelector('.m-cal').value, toneladas: +row.querySelector('.m-t').value || 0 }; }).filter(c => c.bl && c.bl !== 'BL-' && c.toneladas > 0);
-    if (!cargas.length) { toast('Cargá al menos una carga con BL y toneladas', 'crit'); return false; }
-    const lu2 = nuevoLineup({ buqueId: bqSel !== 'NEW' ? bqSel : null, buque: mv('m-buque'), imo: mv('m-imo'), bodegas: mv('m-bodegas'), bandera: mv('m-band'), terminal: mv('m-term'), tipo: mv('m-tipo') || undefined, eslora: mv('m-eslora'), calado: mv('m-calado'), eta, etb, etc, equiposBuque, cargas });
-    toast(lu2.id + ' · ' + lu2.buque + ' registrado', 'ok');
-  } });
+/* =====================================================================
+   Alta y edición del lineup (revisión 17/09)
+   - el buque sale de M-08 y completa solos sus datos y la cantidad de bodegas
+   - una línea de carga por bodega: pueden quedar vacías y se puede guardar sin BL
+   - secuencia de puertos con ETA / ETB / ETC propios de cada escala
+   - cada carga indica su puerto de descarga y quién la opera
+   ===================================================================== */
+let LUF = null;
+function lufNuevo(E) {
+  return { edit: null, buqueId: '', nombre: '', imo: '', bandera: 'Panamá', eslora: 190, calado: 9.5, bodegas: 5, terminal: E, agencia: 'AG-01', tipo: '', estado: 'Anunciado', motivo: '',
+    eqTipo: '', eqN: 4, eqCap: 250,
+    escalas: [{ puerto: puertoDeTerminal(E), eta: iso(7, 6), etb: iso(7, 14), etc: iso(10, 14), estado: 'Anunciado', propia: true }],
+    cargas: Array.from({ length: 5 }, (_, i) => ({ bodega: i + 1, bl: '', cliente: '', producto: '', calidad: '', toneladas: 0, puertoDescarga: puertoDeTerminal(E), operador: E === 'TT' ? 'TT' : 'TYS' })) };
 }
+function lufDeLineup(lu) {
+  const bq = buqueDeLineup(lu); const eb = bq?.equipos_propios || null;
+  return { edit: lu.id, buqueId: lu.buqueId || '', nombre: lu.buque, imo: bq?.numero_imo || '', bandera: lu.bandera, eslora: lu.eslora, calado: lu.calado,
+    bodegas: (lu.cargas || []).length, terminal: lu.terminal, agencia: lu.agencia, tipo: lu.tipo || '', estado: lu.estado, motivo: '',
+    eqTipo: eb?.tipo || '', eqN: eb?.cantidad || 4, eqCap: eb?.capacidadTh || 250,
+    escalas: clone(escalasDe(lu)), cargas: clone(lu.cargas || []) };
+}
+function formLineup(lu) {
+  const E = S.ctx.entidad === 'ALL' ? 'TYS' : S.ctx.entidad;
+  LUF = lu ? lufDeLineup(lu) : lufNuevo(E);
+  pintarFormLineup();
+}
+/* vuelca lo tipeado al borrador antes de volver a dibujar el formulario */
+function leerFormLineup() {
+  if (!LUF) return;
+  const g = id => { const el = document.getElementById(id); return el ? el.value : null; };
+  const set = (k, v, num) => { if (v !== null && v !== undefined) LUF[k] = num ? (+v || 0) : v; };
+  set('nombre', g('lf-nombre')); set('imo', g('lf-imo')); set('bandera', g('lf-bandera'));
+  set('eslora', g('lf-eslora'), true); set('calado', g('lf-calado'), true);
+  set('terminal', g('lf-terminal')); set('agencia', g('lf-agencia')); set('tipo', g('lf-tipo')); set('estado', g('lf-estado')); set('motivo', g('lf-motivo'));
+  set('eqTipo', g('lf-eq-tipo')); set('eqN', g('lf-eq-n'), true); set('eqCap', g('lf-eq-cap'), true);
+  LUF.escalas = [...document.querySelectorAll('#modal-root .lf-esc')].map((row, i) => ({
+    puerto: row.querySelector('.lf-esc-pu').value,
+    eta: fromLocalInput(row.querySelector('.lf-esc-eta').value) || LUF.escalas[i]?.eta,
+    etb: fromLocalInput(row.querySelector('.lf-esc-etb').value) || LUF.escalas[i]?.etb,
+    etc: fromLocalInput(row.querySelector('.lf-esc-etc').value) || LUF.escalas[i]?.etc,
+    estado: LUF.escalas[i]?.estado || 'Anunciado', propia: !!puertoMD(row.querySelector('.lf-esc-pu').value)?.propio,
+  }));
+  if (LUF.escalas.length && !LUF.escalas.some(e => e.propia)) LUF.escalas[0].propia = true;
+  LUF.cargas = [...document.querySelectorAll('#modal-root .lf-bod')].map((row, i) => ({
+    bodega: i + 1, bl: row.querySelector('.lf-bl').value.trim(), cliente: row.querySelector('.lf-cli').value || null,
+    producto: row.querySelector('.lf-prod').value || null, calidad: row.querySelector('.lf-cal').value.trim(),
+    toneladas: +row.querySelector('.lf-t').value || 0, puertoDescarga: row.querySelector('.lf-pu').value || null,
+    operador: row.querySelector('.lf-op').value || null,
+  }));
+}
+/* aplica el buque elegido: completa sus datos y ajusta la cantidad de bodegas */
+function lufAplicarBuque(bqId) {
+  LUF.buqueId = bqId;
+  if (!bqId) { LUF.nombre = ''; LUF.imo = ''; return; }
+  const b = buque(bqId); if (!b) return;
+  LUF.nombre = b.nombre; LUF.imo = b.numero_imo || ''; LUF.bandera = b.bandera || LUF.bandera;
+  LUF.eslora = b.eslora_m || LUF.eslora; LUF.calado = b.calado_m || LUF.calado; LUF.agencia = b.agencia_habitual || LUF.agencia;
+  LUF.eqTipo = b.equipos_propios?.tipo || ''; LUF.eqN = b.equipos_propios?.cantidad || LUF.eqN; LUF.eqCap = b.equipos_propios?.capacidadTh || LUF.eqCap;
+  lufBodegas(b.cantidad_bodegas || LUF.bodegas);
+}
+/* la cantidad de líneas de carga es la cantidad de bodegas del buque */
+function lufBodegas(n) {
+  n = Math.max(1, Math.min(20, +n || 1)); LUF.bodegas = n;
+  const pu = LUF.escalas.find(e => e.propia)?.puerto || puertoDeTerminal(LUF.terminal);
+  while (LUF.cargas.length < n) LUF.cargas.push({ bodega: LUF.cargas.length + 1, bl: '', cliente: '', producto: '', calidad: '', toneladas: 0, puertoDescarga: pu, operador: LUF.terminal === 'TT' ? 'TT' : 'TYS' });
+  while (LUF.cargas.length > n) { const ult = LUF.cargas[LUF.cargas.length - 1]; if (ult.bl || ult.toneladas) break; LUF.cargas.pop(); }
+  LUF.cargas.forEach((c, i) => c.bodega = i + 1);
+}
+function pintarFormLineup() {
+  _modalNoFocus = true;
+  const L = LUF; const edit = !!L.edit; const bqSel = L.buqueId;
+  const puOpts = (md().puertos || []).map(p => ({ v: p.id, t: p.nombre + (p.propio ? ' · nuestra terminal' : p.operador ? ' · ' + operadorNombre(p.operador) : '') }));
+  const opOpts = [{ v: '', t: 'Sin operador (oportunidad comercial)' }, ...(md().operadores || []).map(x => ({ v: x.id, t: x.nombre }))];
+  const buqueBlock = '<div class="form-grid">' +
+    field('Buque (M-08)', sel('lf-buque', [{ v: '', t: '— nuevo buque (alta provisoria hasta homologar el IMO) —' }, ...md().buques.map(b => ({ v: b.id, t: b.nombre + ' · IMO ' + (b.numero_imo || 's/d') + ' · ' + (b.cantidad_bodegas || '?') + ' bodegas' }))], bqSel, 'data-lf="buque"' + (edit ? ' disabled' : ''))) +
+    field('Nombre', '<input id="lf-nombre" value="' + esc(L.nombre) + '" placeholder="MV …"' + (bqSel ? ' disabled' : '') + '>') +
+    field('Nº IMO', '<input id="lf-imo" value="' + esc(L.imo) + '" placeholder="9xxxxxx"' + (bqSel ? ' disabled' : '') + '>') +
+    field('Bandera', '<input id="lf-bandera" value="' + esc(L.bandera) + '">') +
+    field('Eslora (m)', '<input type="number" id="lf-eslora" value="' + L.eslora + '">') +
+    field('Calado (m)', '<input type="number" step="0.1" id="lf-calado" value="' + L.calado + '">') +
+    field('Bodegas', '<input type="number" id="lf-bodegas" min="1" max="20" value="' + L.bodegas + '" data-lf="bodegas">') +
+    field('Terminal propia', sel('lf-terminal', md().entidades.filter(e => e.id !== 'AMA').map(e => ({ v: e.id, t: e.nombre })), L.terminal, 'data-lf="terminal"' + (edit ? ' disabled' : ''))) +
+    field('Agencia marítima (M-21)', sel('lf-agencia', md().agencias.map(a => ({ v: a.id, t: a.nombre })), L.agencia)) +
+    field('Tipo de escala', sel('lf-tipo', [{ v: '', t: 'Descarga' }, { v: 'Carga', t: 'Carga' }], L.tipo)) +
+    (edit ? field('Estado', sel('lf-estado', ['Anunciado', 'Confirmado', 'En rada', 'En operación', 'Zarpó', 'Cancelado'].map(v => ({ v, t: v })), L.estado)) : '') +
+    '</div>' + (bqSel ? '<p class="help">Datos traídos del maestro de buques: la cantidad de bodegas define cuántas líneas de carga tiene el lineup.</p>' : '<p class="help">Buque nuevo: queda en M-08 como alta provisoria hasta homologar el IMO.</p>');
+  const escRows = L.escalas.map((e, i) => '<div class="lf-esc' + (i === 0 ? ' first' : '') + ' form-grid" style="grid-template-columns:1.3fr 1fr 1fr 1fr auto;gap:6px;align-items:end">' +
+    field('Puerto', sel('lf-esc-pu-' + i, puOpts, e.puerto, 'class="lf-esc-pu"')) +
+    field('ETA', '<input type="datetime-local" class="lf-esc-eta" value="' + toLocalInput(e.eta) + '">') +
+    field('ETB', '<input type="datetime-local" class="lf-esc-etb" value="' + toLocalInput(e.etb) + '">') +
+    field('ETC', '<input type="datetime-local" class="lf-esc-etc" value="' + toLocalInput(e.etc) + '">') +
+    '<div>' + (L.escalas.length > 1 ? btn('✕', 'lf-esc-del', { i }, 'sm', 'title="Quitar esta escala"') : '') + '</div></div>').join('');
+  const escBlock = '<h3 style="margin:10px 0 4px">Secuencia de puertos</h3>' +
+    '<div class="stack" style="gap:6px">' + escRows + '</div>' +
+    '<div class="btn-row" style="margin-top:6px">' + btn('Agregar puerto', 'lf-esc-add', {}, 'sm') + '<span class="help">Un buque puede atracar en más de un puerto: cada escala lleva su propia ETA, ETB y ETC. La escala de nuestra terminal es la que manda la ventana de las órdenes.</span></div>';
+  const bodRows = L.cargas.map((c, i) => '<div class="lf-bod' + (i === 0 ? ' first' : '') + ' form-grid" style="grid-template-columns:38px 1fr 1.2fr 1.2fr 1fr .8fr 1.1fr 1.1fr;gap:6px;align-items:end">' +
+    '<div class="up" style="padding-bottom:8px">' + (i + 1) + '</div>' +
+    field('BL', '<input class="lf-bl" value="' + esc(c.bl || '') + '" placeholder="BL-…">') +
+    field('Cliente', sel('lf-cli-' + i, [{ v: '', t: '—' }, ...md().clientes.map(x => ({ v: x.id, t: x.nombre }))], c.cliente || '', 'class="lf-cli"')) +
+    field('Producto', sel('lf-prod-' + i, [{ v: '', t: '—' }, ...md().productos.map(x => ({ v: x.id, t: x.nombre }))], c.producto || '', 'class="lf-prod"')) +
+    field('Calidad', '<input class="lf-cal" value="' + esc(c.calidad || '') + '">') +
+    field('t', '<input type="number" class="lf-t" min="0" step="100" value="' + (c.toneladas || 0) + '">') +
+    field('Puerto de descarga', sel('lf-pu-' + i, [{ v: '', t: 'A definir' }, ...puOpts], c.puertoDescarga || '', 'class="lf-pu"')) +
+    field('Operador', sel('lf-op-' + i, opOpts, c.operador || '', 'class="lf-op"')) +
+    '</div>').join('');
+  const bodBlock = '<h3 style="margin:12px 0 4px">Bodegas y cargas <span class="tag">' + L.cargas.length + ' bodegas</span></h3>' +
+    '<p class="help" style="margin-bottom:6px">Una línea por bodega. Se puede guardar el lineup <b>sin ningún BL</b> y completarlo con el tiempo; las bodegas sin carga quedan vacías. Indicá el <b>puerto de descarga</b> de cada carga y <b>quién la opera</b>: una carga sin operador es una oportunidad comercial.</p>' +
+    '<div class="stack" style="gap:6px">' + bodRows + '</div>' +
+    '<div class="btn-row" style="margin-top:6px">' + btn('Agregar bodega', 'lf-bod-add', {}, 'sm') + '</div>';
+  const eqBlock = '<h3 style="margin:12px 0 4px">Equipos propios del buque (M-08)</h3><div class="form-grid">' +
+    field('Tipo', sel('lf-eq-tipo', [{ v: '', t: 'Sin equipos propios (gearless)' }, ...md().tiposEquipo.map(t => ({ v: t.id, t: t.buque }))], L.eqTipo)) +
+    field('Cantidad', '<input type="number" id="lf-eq-n" min="1" value="' + L.eqN + '">') +
+    field('Capacidad por unidad (t/h)', '<input type="number" id="lf-eq-cap" min="1" value="' + L.eqCap + '">') + '</div>' +
+    '<p class="help">Queda en el maestro del buque y lo heredan todas sus escalas.</p>' +
+    (edit ? '<div class="form-grid" style="margin-top:8px">' + field('Motivo del cambio de fechas', '<input id="lf-motivo" value="' + esc(L.motivo || '') + '" placeholder="p. ej. demora en la bajada del río">') + '</div><p class="help">Si cambiás ETA, ETB o ETC, el motivo queda en la evolución de fechas de la escala.</p>' : '');
+  const aviso = edit ? alertBox('info', '<div>Edición de <b>' + esc(L.edit) + ' · ' + esc(L.nombre) + '</b>. Un cambio de ETB o ETC actualiza la ventana de las órdenes vinculadas que todavía no iniciaron y queda registrado en la evolución de fechas.</div>') : '';
+  modal({ title: edit ? 'Editar lineup ' + esc(L.edit) : 'Nuevo lineup', ok: edit ? 'Guardar cambios' : 'Registrar lineup',
+    body: aviso + buqueBlock + escBlock + bodBlock + eqBlock,
+    onOk: () => {
+      leerFormLineup(); const L2 = LUF;
+      if (!L2.buqueId && !L2.nombre) { toast('Elegí un buque del maestro o escribí el nombre del buque nuevo', 'crit'); return false; }
+      if (!L2.buqueId && L2.imo && !/^\d{7}$/.test(L2.imo)) { toast('El número IMO tiene 7 dígitos', 'crit'); return false; }
+      const mala = L2.escalas.find(e => !e.puerto || !e.eta || !e.etb || !e.etc || e.etc <= e.etb);
+      if (mala) { toast('Revisá las fechas de ' + puertoNombre(mala.puerto) + ': la zarpada debe ser posterior al atraque', 'crit'); return false; }
+      const malaC = L2.cargas.find(c => c.toneladas > 0 && (!c.cliente || !c.producto));
+      if (malaC) { toast('Bodega ' + malaC.bodega + ': con toneladas hay que indicar cliente y producto', 'crit'); return false; }
+      const equiposBuque = L2.eqTipo ? { tipo: L2.eqTipo, cantidad: Math.max(1, L2.eqN), capacidadTh: Math.max(1, L2.eqCap) } : null;
+      const prop = L2.escalas.find(e => e.propia) || L2.escalas[0];
+      if (edit) {
+        const lu2 = byId(S.ops.lineups, L2.edit);
+        lu2.cargas = L2.cargas.map((c, i) => Object.assign({}, lu2.cargas[i] || {}, c));
+        lu2.bandera = L2.bandera; lu2.agencia = L2.agencia; lu2.tipo = L2.tipo || undefined;
+        lu2.toneladas_nominadas_total_buque = sum(lu2.cargas, c => c.toneladas || 0);
+        const cambios = editarLineup(lu2, { eta: prop.eta, etb: prop.etb, etc: prop.etc, estado: L2.estado, calado: L2.calado, eslora: L2.eslora, equiposBuque, escalas: L2.escalas }, { motivo: L2.motivo });
+        recalcularNominacion(lu2.id, { silencioso: true });
+        toast(cambios.length ? lu2.id + ' actualizado: ' + cambios.slice(0, 3).join(' · ') : lu2.id + ' · cargas actualizadas', 'ok'); return;
+      }
+      const lu2 = nuevoLineup({ buqueId: L2.buqueId || null, buque: L2.nombre, imo: L2.imo, bodegas: L2.bodegas, bandera: L2.bandera, terminal: L2.terminal, agencia: L2.agencia,
+        tipo: L2.tipo || undefined, eslora: L2.eslora, calado: L2.calado, eta: prop.eta, etb: prop.etb, etc: prop.etc, equiposBuque, escalas: L2.escalas, cargas: L2.cargas });
+      const cb = cargasConBL(lu2).length;
+      toast(lu2.id + ' · ' + lu2.buque + ' registrado · ' + lu2.cargas.length + ' bodegas' + (cb ? ' (' + cb + ' con BL)' : ' sin BL: se completan con el tiempo'), 'ok');
+    } });
+}
+
 /* ---------- calidad de la mercadería registrada por Operaciones (revisión 16/09, S28) ---------- */
 function formCalidad(o) {
   const cals = calidadesDe(o.producto); const g = origenInfo(o);
@@ -487,7 +608,7 @@ function onClick(e) {
       modal({ title: 'Guardar ajuste de recursos', body: alertBox('info', 'El plan aceptado se conserva como plan inicial; el ajuste queda registrado con motivo y responsable y se compara al cierre.') + field('Motivo del ajuste', sel('m-motivo', md().motivosModificacion.map(x => ({ v: x, t: x })), 'Recurso planificado no disponible')) + field('Detalle (opcional)', '<input id="m-det">'), ok: 'Guardar ajuste', onOk: () => { ajustarPlan(o, R, mv('m-motivo') + (mv('m-det') ? ' — ' + mv('m-det') : '')); S.ctx.ajusteId = null; delete PF[o.id + ':aj']; toast('Recursos ajustados · plan v' + o.plan.version, 'ok'); } }); } break;
     case 'sr-crear': if (o && requiereRol('PLAN')) { const ch = chequearRecurso(d.rid, +d.n || 1, o); if (solicitudPendiente(o, d.rid)) { toast('Ya hay una solicitud pendiente para ' + recNombre(d.rid), 'warn'); break; } const sr = crearSolicitudRecurso(o, d.rid, +d.n || 1, ch.errores.map(e => e.replace(recNombre(d.rid) + ': ', ''))); toast(sr.id + ' enviada a ' + sr.destinatario.nombre + ' con la información de la operación', 'ok'); render({ keep: true }); } break;
     case 'sr-responder': { const sr = (S.solicitudesRecurso || []).find(x => x.id === d.id); if (!sr) break; const dec = d.dec;
-      modal({ title: (dec === 'Habilitado' ? 'Habilitar ' : 'Rechazar ') + esc(recNombre(sr.rid)) + ' · ' + esc(sr.id), body: alertBox('info', '<div><b>Operación:</b> ' + esc(sr.operacion.servicio) + ' · ' + esc(sr.operacion.destinatario) + ' · ' + esc(sr.operacion.producto) + ' · ' + fmtT(sr.operacion.toneladas) + ' t · ' + ventanaTxt(sr.operacion.ventana) + '<br><b>Motivo:</b> ' + sr.motivos.map(esc).join(' · ') + '<br><b>Responde:</b> ' + esc(sr.destinatario?.nombre || '') + ' (simulado por ' + esc(userOf(S.ctx.rol)) + ') ' + sup('S13') + '</div>') + field('Detalle de la respuesta', '<input id="m-det" placeholder="' + (dec === 'Habilitado' ? 'p. ej. mantenimiento adelantado; equipo operativo desde el turno T2' : 'p. ej. sin disponibilidad en la ventana; proponer alternativa') + '">'), ok: dec === 'Habilitado' ? 'Habilitar recurso' : 'Rechazar', okCls: dec === 'Habilitado' ? 'pri' : 'danger', onOk: () => { const cambios = responderSolicitud(sr, dec, mv('m-det')); toast(sr.id + ' ' + dec.toLowerCase() + (cambios.length ? ' · ' + cambios.join(' · ') : ''), dec === 'Habilitado' ? 'ok' : 'warn'); } }); break; }
+      modal({ title: (dec === 'Habilitado' ? 'Habilitar ' : 'Rechazar ') + esc(recNombre(sr.rid)) + ' · ' + esc(sr.id), body: alertBox('info', '<div><b>Operación:</b> ' + esc(sr.operacion.servicio) + ' · ' + esc(sr.operacion.destinatario) + ' · ' + esc(sr.operacion.producto) + ' · ' + fmtT(sr.operacion.toneladas) + ' t · ' + ventanaTxt(sr.operacion.ventana) + '<br><b>Motivo:</b> ' + sr.motivos.map(esc).join(' · ') + '<br><b>Responde:</b> ' + esc(sr.destinatario?.nombre || '') + ' (simulado por ' + esc(rolName(S.ctx.rol)) + ') ' + sup('S13') + '</div>') + field('Detalle de la respuesta', '<input id="m-det" placeholder="' + (dec === 'Habilitado' ? 'p. ej. mantenimiento adelantado; equipo operativo desde el turno T2' : 'p. ej. sin disponibilidad en la ventana; proponer alternativa') + '">'), ok: dec === 'Habilitado' ? 'Habilitar recurso' : 'Rechazar', okCls: dec === 'Habilitado' ? 'pri' : 'danger', onOk: () => { const cambios = responderSolicitud(sr, dec, mv('m-det')); toast(sr.id + ' ' + dec.toLowerCase() + (cambios.length ? ' · ' + cambios.join(' · ') : ''), dec === 'Habilitado' ? 'ok' : 'warn'); } }); break; }
     case 'pf-usar-rec': if (o?.recomendacion && !o.recomendacion.sinOpciones) { PF[o.id] = clone(o.recomendacion.recursos); render({ keep: true }); } break;
     case 'pf-regen': if (o) { o.recomendacion = recomendar(o); PF[o.id] = o.recomendacion && !o.recomendacion.sinOpciones ? clone(o.recomendacion.recursos) : pfInit(o); logEv(o, 'Recomendación regenerada', o.recomendacion?.sinOpciones ? 'sin combinación factible' : resumenRecursos(o.recomendacion.recursos), { rol: 'PLAN' }); toast('Recomendación regenerada', 'ok'); render({ keep: true }); } break;
     case 'simular': if (o && requiereRol('OPS')) { const n = simular(o, +d.h); toast(n ? n + ' tickets simulados · acumulado ' + fmtT(o.ejecucion.acumulado) + ' t' : (o.ejecucion.acumulado >= o.toneladas ? 'La descarga ya está completa' : 'Sin equipos activos: no hay ritmo de descarga'), n ? 'ok' : 'warn'); render({ keep: true }); } break;
@@ -503,6 +624,17 @@ function onClick(e) {
     case 'w-enviar': wGuardar(true); break;
     case 'w-cancelar': W = null; go('bandeja'); break;
     case 'arribo-fecha': if (o && requiereRol('PLAN')) formArribo(o, d.rid); break;
+    case 'pf-maq-add': { const o2 = orden(S.ctx.orderId); if (!o2) break; const v = mv('pf-maq-sel'); if (!v) { toast('Elegí una unidad de la lista', 'warn'); break; }
+      const R2 = pfInit(o2, S.ctx.ajusteId === o2.id ? 'ajuste' : undefined); const [maq, uid] = v.split(':');
+      toggleUnidadMaq(R2, maq, uid, true); const u = unidadMaq(uid);
+      toast(recNombre(maq) + ' · ' + (u ? u.interno : uid) + ' agregada', 'ok'); render({ keep: true }); break; }
+    case 'pf-maq-del': { const o2 = orden(S.ctx.orderId); if (!o2) break; const [maq, uid] = (d.u || '').split(':');
+      const R2 = pfInit(o2, S.ctx.ajusteId === o2.id ? 'ajuste' : undefined); toggleUnidadMaq(R2, maq, uid, false);
+      toast(recNombre(maq) + ' quitada de la asignación', 'ok'); render({ keep: true }); break; }
+    case 'lf-esc-add': { leerFormLineup(); const u = LUF.escalas[LUF.escalas.length - 1]; LUF.escalas.push({ puerto: (md().puertos || []).find(p => !p.propio)?.id || 'PU-ROS', eta: addHours(u.etc, 24), etb: addHours(u.etc, 32), etc: addHours(u.etc, 72), estado: 'Anunciado', propia: false }); setTimeout(pintarFormLineup, 0); break; }
+    case 'lf-esc-del': { leerFormLineup(); LUF.escalas.splice(+d.i, 1); if (!LUF.escalas.some(e => e.propia) && LUF.escalas.length) LUF.escalas[0].propia = true; setTimeout(pintarFormLineup, 0); break; }
+    case 'lf-bod-add': { leerFormLineup(); lufBodegas(LUF.cargas.length + 1); setTimeout(pintarFormLineup, 0); break; }
+    case 'lu-filtro': if (d.est !== undefined) S.ctx.luEst = d.est; if (d.puerto !== undefined) S.ctx.luPuerto = d.puerto; render({ keep: true }); break;
     case 'lu-nuevo': if (requiereRol('LAR')) formLineup(null); break;
     case 'lu-editar': if (requiereRol('LAR')) formLineup(byId(S.ops.lineups, d.id)); break;
     case 'cu-nuevo': if (requiereRol('LAR')) formCupo(); break;
@@ -531,6 +663,12 @@ function onChange(e) {
   if (d.moddim !== undefined) { const [dim, key, m] = d.moddim.split(':'); const r = setModuloDim(dim, key, m, el.checked); const quien = dim === 'rol' ? rolName(key) : dim === 'entidad' ? entName(key) : buName(key); toast(r.ok ? (byId(md().modulos, m)?.nombre || m).split(' (')[0] + ' ' + (el.checked ? 'habilitado' : 'deshabilitado') + ' para ' + quien : r.motivo, r.ok ? 'ok' : 'warn'); if (!moduloHabilitado(S.ctx.screen)) S.ctx.screen = 'inicio'; render({ keep: true }); return; }
   if (d.sim !== undefined) { S.ctx.sim = S.ctx.sim || { rol: S.ctx.rol, ent: S.ctx.entidad, bu: S.ctx.bu }; S.ctx.sim[d.sim] = el.value; if (d.sim === 'ent' && S.ctx.sim.bu !== 'ALL' && bu(S.ctx.sim.bu)?.entidad !== el.value && el.value !== 'ALL') S.ctx.sim.bu = 'ALL'; render({ keep: true }); return; }
   if (d.areasel !== undefined) { S.ctx.area = el.value; render(); return; }
+  if (d.lupuerto !== undefined) { S.ctx.luPuerto = el.value; render({ keep: true }); return; }
+  if (d.lf !== undefined) { leerFormLineup();
+    if (d.lf === 'buque') lufAplicarBuque(el.value);
+    if (d.lf === 'bodegas') lufBodegas(el.value);
+    if (d.lf === 'terminal') { LUF.terminal = el.value; const pu = puertoDeTerminal(el.value); const pr = LUF.escalas.find(e => e.propia) || LUF.escalas[0]; if (pr) { pr.puerto = pu; pr.propia = true; } LUF.cargas.forEach(c => { if (!c.bl) { c.puertoDescarga = pu; c.operador = el.value === 'TT' ? 'TT' : 'TYS'; } }); }
+    setTimeout(pintarFormLineup, 0); return; }
   if (d.mdsel !== undefined) { S.ctx.mdM = el.value; S.ctx.mdSub = S.ctx.mdSub || 'REG'; render(); return; }
   if (d.perm !== undefined) { if (S.ctx.rol !== 'MD') { toast('Solo Máster data modifica los permisos', 'warn'); render({ keep: true }); return; } const [m, rol] = d.perm.split(':'); const r = setPermisoMD(m, rol, el.value); toast(r.ok ? m + ' · ' + rolName(rol) + ': ' + nivelPermiso(el.value).nombre : r.motivo, r.ok ? 'ok' : 'crit'); render({ keep: true }); return; }
   if (d.bind === 'ordFilter') { S.ctx.ordFilter = el.value; render({ keep: true }); return; }
@@ -548,13 +686,7 @@ function onChange(e) {
     else if (['muelle', 'deposito', 'balanza'].includes(d.pf)) R[d.pf] = el.value || null;
     else { const [k, id] = d.pf.split(':');
       if (k === 'maqpct') { R.maqPct = R.maqPct || {}; R.maqPct[id] = Math.max(1, Math.min(100, +el.value || 100)); }
-      else if (k === 'maqu') { /* unidades concretas de una maquinaria (S34): la cantidad sale de las elegidas */
-        const [maq, uid] = d.pf.split(':').slice(1); R.maqUnidades = R.maqUnidades || {}; const lst = new Set(R.maqUnidades[maq] || []);
-        if (el.checked) lst.add(uid); else lst.delete(uid);
-        R.maqUnidades[maq] = [...lst]; R.logistica = R.logistica || {};
-        if (R.maqUnidades[maq].length) { R.logistica[maq] = R.maqUnidades[maq].length; R.maqPct = R.maqPct || {}; if (R.maqPct[maq] == null) R.maqPct[maq] = 100; }
-        else { delete R.maqUnidades[maq]; }
-      }
+      else if (k === 'maqu') { const [maq, uid] = d.pf.split(':').slice(1); toggleUnidadMaq(R, maq, uid, el.checked); }
       else if (k === 'puesto') { R.puestos = R.puestos || {}; const v = Math.round(+el.value || 0); if (v) R.puestos[id] = v; else delete R.puestos[id]; }
       else { const map = { mano: 'manos', func: 'funciones', log: 'logistica' }[k]; R[map] = R[map] || {}; R[map][id] = Math.max(0, +el.value || 0); if (k === 'log' && !R[map][id] && R.maqPct) delete R.maqPct[id]; }
     }
@@ -584,6 +716,7 @@ function onChange(e) {
     if (d.w === 'ventanaInicio' || d.w === 'ventanaFin') { const iso2 = fromLocalInput(val); if (iso2) { W.ventana = W.ventana || { inicio: iso2, fin: iso2 }; W.ventana[d.w === 'ventanaInicio' ? 'inicio' : 'fin'] = iso2; } render({ keep: true }); return; }
     W[d.w] = val;
     if (W_ORDER.includes(d.w)) { wReset(d.w); if (d.w === 'origen') wApplyOrigen(); }
+    if (d.w === 'producto') W.presentacion = presentacionSugerida(val);
     if (d.w === 'servicio' || d.w === 'bu' || d.w === 'dest' || d.w === 'producto') wAutoFill();
     render({ keep: true }); return;
   }
@@ -607,6 +740,7 @@ function init() {
   document.addEventListener('change', onChange);
   document.addEventListener('input', onInput);
   document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeModal(); navOpen(false); } });
+  const bv = document.getElementById('brand-ver'); if (bv) bv.textContent = VERSION + ' · orden de servicio';
   render();
 }
 init();

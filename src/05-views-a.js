@@ -4,7 +4,8 @@
    ===================================================================== */
 function pill(estado) { return '<span class="pill ' + esc(estado) + '">' + esc(estadoName(estado)) + '</span>'; }
 function chip(txt, cls, title) { return '<span class="chip ' + (cls || '') + '"' + (title ? ' title="' + esc(title) + '"' : '') + '>' + esc(txt) + '</span>'; }
-function sup(id) { const s = byId(SUPUESTOS, id); return s ? '<span class="sup" title="' + esc(s.tema + ' — ' + s.supuesto) + '">SUPUESTO ' + esc(id) + '</span>' : ''; }
+/* Los supuestos siguen registrados y se consultan en la pantalla Supuestos; la leyenda en línea se quitó de la interfaz (revisión 17/09). */
+function sup(id) { return ''; }
 function osLink(id) { return '<a href="#" class="osid" data-action="open" data-id="' + esc(id) + '">' + esc(id) + '</a>'; }
 function condChips(o) {
   const c = condiciones(o); const out = [];
@@ -27,7 +28,7 @@ function bar(pct, cls) { return '<div class="bar"><i class="' + (cls || '') + '"
 function sel(id, options, value, attrs = '') { return '<select id="' + id + '" ' + attrs + '>' + options.map(op => '<option value="' + esc(op.v) + '"' + (op.v === value ? ' selected' : '') + (op.dis ? ' disabled' : '') + '>' + esc(op.t) + '</option>').join('') + '</select>'; }
 function field(label, control, cls = '', attrs = '') { return '<label class="field ' + cls + '" ' + attrs + '><span>' + label + '</span>' + control + '</label>'; }
 function ventanaTxt(v) { return v ? fmtDT(v.inicio) + ' → ' + fmtDT(v.fin) : '—'; }
-function ctxTxt() { const c = S.ctx; return (c.entidad === 'ALL' ? 'Grupo (consolidado)' : ent(c.entidad)?.nombre) + ' · ' + (c.bu === 'ALL' ? 'todas las BU' : buName(c.bu)) + ' · ' + rolName(c.rol) + ' (' + userOf(c.rol) + ')'; }
+function ctxTxt() { const c = S.ctx; return (c.entidad === 'ALL' ? 'Grupo (consolidado)' : ent(c.entidad)?.nombre) + ' · ' + (c.bu === 'ALL' ? 'todas las BU' : buName(c.bu)) + ' · ' + rolName(c.rol); }
 
 /* ---------- Inicio ---------- */
 function viewInicio() {
@@ -68,7 +69,10 @@ function viewInicio() {
 /* ---------- Logística de arribo ---------- */
 function viewArribos() {
   const E = S.ctx.entidad; const admin = S.ctx.rol === 'LAR';
-  const lus = S.ops.lineups.filter(l => E === 'ALL' || l.terminal === E).sort((a, b) => a.etb.localeCompare(b.etb));
+  const lusAll = S.ops.lineups.filter(l => E === 'ALL' || l.terminal === E).sort((a, b) => a.etb.localeCompare(b.etb));
+  /* filtros por estado del buque y por puerto (revisión 17/09) */
+  const fEst = S.ctx.luEst || 'ALL'; const fPu = S.ctx.luPuerto || 'ALL';
+  const lus = lusAll.filter(l => (fEst === 'ALL' || l.estado === fEst) && (fPu === 'ALL' || puertosDeLineup(l).includes(fPu)));
   const cus = S.ops.cupos.filter(c => E === 'ALL' || c.terminal === E);
   const trs = S.ops.trenes.filter(t => E === 'ALL' || t.terminal === E);
   const sos = S.ops.solicitudes;
@@ -77,31 +81,85 @@ function viewArribos() {
   return pageH('Logística de arribo', (admin ? '<b>Rol administrador:</b> da de alta y modifica lineup, cupos de camiones y operativos ferroviarios; cada cambio queda registrado. ' : 'Consulta para los roles del workflow; la administración corresponde a <b>Logística de arribo</b> (cambiá el rol para editar). ') + sup('S10'), acts) +
     (admin ? alertBox('info', '<div>' + arribosSinOrden().length + ' arribos programados sin orden de servicio. Comercial los toma como origen al crear la orden.</div>') : '') +
     '<div class="stack" style="margin-top:12px">' +
-    '<div class="card"><div class="card-h"><h2>Lineup de buques ' + sup('A2') + '</h2><span class="small muted">' + lus.length + ' escalas · ordenadas por ETB</span></div>' +
-    (lus.length ? '<div class="stack" style="gap:10px">' + lus.map(l => luCard(l, admin, estSel)).join('') + '</div>' : '<p class="muted">Sin escalas para el contexto actual.</p>') + '</div>' +
+    '<div class="card"><div class="card-h"><h2>Lineup de buques</h2><span class="small muted">' + lus.length + ' de ' + lusAll.length + ' escalas · ordenadas por ETB</span></div>' +
+    filtrosLineup(lusAll, fEst, fPu) +
+    (lus.length ? '<div class="stack" style="gap:10px">' + lus.map(l => luCard(l, admin, estSel)).join('') + '</div>' : '<p class="muted">Ninguna escala coincide con los filtros. ' + btn('Quitar filtros', 'lu-filtro', { est: 'ALL', puerto: 'ALL' }, 'sm ghost') + '</p>') + '</div>' +
     '<div class="card"><div class="card-h"><h2>Cupos de camiones</h2><span class="small muted">' + cus.length + ' cupos</span></div>' + table([{ h: 'Cupo', f: c => '<span class="mono nowrap">' + esc(c.id) + '</span>' }, { h: 'Fecha · franja', f: c => '<span class="nowrap">' + fmtD(c.fecha) + ' · ' + esc(c.franja) + '</span>' }, { h: 'Cliente', f: c => esc(cli(c.cliente)?.nombre) }, { h: 'Producto · calidad', f: c => esc(prod(c.producto)?.nombre) + (c.calidad ? '<br><span class="xs muted">' + esc(c.calidad) + '</span>' : '') }, { h: 'Camiones', cls: 'num', k: 'camiones' }, { h: 't', cls: 'num', f: c => fmtT(c.toneladas) }, { h: 'Transportista', f: c => esc(provName(c.transportista)) }, { h: 'Orden', f: c => { const os = ordenesDeOrigen('cupo', c.id); return os.length ? os.map(o => osLink(o.id)).join(' ') : '<span class="dim">sin orden</span>'; } }, { h: 'Estado', f: c => estSel('cupo', c, ['Solicitado', 'Confirmado', 'Vigente', 'Cumplido', 'Cancelado']) }], cus, { cls: 'compact' }) + '</div>' +
     '<div class="card"><div class="card-h"><h2>Operativos ferroviarios</h2><span class="small muted">' + trs.length + ' operativos</span></div>' + table([{ h: 'Operativo', f: t => '<span class="mono nowrap">' + esc(t.id) + '</span>' }, { h: 'Fecha', f: t => '<span class="nowrap">' + fmtD(t.fecha) + '</span>' }, { h: 'Formación', f: t => esc(t.formacion) + ' · ' + t.vagones + ' vagones<br><span class="xs muted">' + esc(t.operador) + ' · ' + esc(t.tipo) + '</span>' }, { h: 'Cliente', f: t => esc(cli(t.cliente)?.nombre) }, { h: 'Producto · calidad', f: t => esc(prod(t.producto)?.nombre) + (t.calidad ? '<br><span class="xs muted">' + esc(t.calidad) + '</span>' : '') }, { h: 't', cls: 'num', f: t => fmtT(t.toneladas) }, { h: 'Orden', f: t => { const os = ordenesDeOrigen('tren', t.id); return os.length ? os.map(o => osLink(o.id)).join(' ') : '<span class="dim">sin orden</span>'; } }, { h: 'Estado', f: t => estSel('tren', t, ['Previsto', 'Anunciado', 'Confirmado', 'En playa', 'Cumplido', 'Cancelado']) }], trs, { cls: 'compact' }) + '</div>' +
     '<div class="card"><div class="card-h"><h2>Solicitudes internas y externas ' + sup('S7') + '</h2><span class="small muted">Origen de los servicios de las demás BU</span></div>' +
     table([{ h: 'Solicitud', f: x => '<span class="mono">' + esc(x.id) + '</span>' }, { h: 'Tipo', f: x => chip(x.tipo, x.tipo === 'Externa' ? 'info' : 'acc') }, { h: 'Solicitante', f: x => esc(destinatarioNombre(x.solicitante)) }, { h: 'Detalle', k: 'detalle' }, { h: 'Ventana', f: x => '<span class="mono">' + fmtDT(x.desde) + ' → ' + fmtDT(x.hasta) + '</span>' }, { h: 'Orden', f: x => { const os = ordenesDeOrigen('solicitud', x.id); return os.length ? os.map(o => osLink(o.id)).join(' ') : '<span class="dim">sin orden</span>'; } }], sos, { cls: 'compact' }) + '</div>' +
     '<div class="card"><div class="card-h"><h2>Registro de cambios de Logística de arribo</h2><span class="small muted">quién, cuándo y qué cambió</span></div>' +
-    ((S.arriboLog || []).length ? '<div class="hist">' + S.arriboLog.slice(0, 30).map(h => '<div class="ev"><span class="ts">' + fmtDT(h.ts) + '</span><span class="who">' + esc(rolName(h.rol)) + ' · ' + esc(h.usuario) + '</span><span class="what"><b>' + esc(h.accion) + ' · ' + esc(h.tipo) + ' ' + esc(h.id) + '</b>' + (h.detalle ? ' — ' + esc(h.detalle) : '') + '</span></div>').join('') + '</div>' : '<p class="muted small">Sin cambios registrados en esta sesión. El escenario inicial proviene de la carga base.</p>') + '</div>' +
+    ((S.arriboLog || []).length ? '<div class="hist">' + S.arriboLog.slice(0, 30).map(h => '<div class="ev"><span class="ts">' + fmtDT(h.ts) + '</span><span class="who">' + esc(rolName(h.rol)) + '</span><span class="what"><b>' + esc(h.accion) + ' · ' + esc(h.tipo) + ' ' + esc(h.id) + '</b>' + (h.detalle ? ' — ' + esc(h.detalle) : '') + '</span></div>').join('') + '</div>' : '<p class="muted small">Sin cambios registrados en esta sesión. El escenario inicial proviene de la carga base.</p>') + '</div>' +
     '</div>';
 }
 
-/* tarjeta de una escala del lineup: cabecera del buque, fechas y equipos, y la tabla de cargas con sus órdenes */
+/* filtros del lineup: estado del buque y puerto de la rotación */
+function filtrosLineup(lus, fEst, fPu) {
+  const estados = ['Anunciado', 'Confirmado', 'En rada', 'En operación', 'Zarpó', 'Cancelado'];
+  const n = e => lus.filter(l => l.estado === e).length;
+  const chipBtn = (v, txt, act, cnt) => '<button class="fchip' + (act ? ' on' : '') + '" data-action="lu-filtro" data-est="' + esc(v) + '">' + esc(txt) + (cnt != null ? ' <span class="c">' + cnt + '</span>' : '') + '</button>';
+  const puertos = [...new Set(lus.flatMap(puertosDeLineup))];
+  return '<div class="filtros">' +
+    '<span class="up">Estado del buque</span><div class="fchips">' + chipBtn('ALL', 'Todos', fEst === 'ALL', lus.length) +
+      estados.filter(e => n(e)).map(e => chipBtn(e, e, fEst === e, n(e))).join('') + '</div>' +
+    '<span class="up">Puerto</span>' + sel('lu-puerto', [{ v: 'ALL', t: 'Todos los puertos (' + puertos.length + ')' }, ...puertos.map(p => ({ v: p, t: puertoNombre(p) + ' · ' + lus.filter(l => puertosDeLineup(l).includes(p)).length + ' escalas' }))], fPu, 'data-lupuerto="1" style="min-width:210px"') +
+    ((fEst !== 'ALL' || fPu !== 'ALL') ? btn('Quitar filtros', 'lu-filtro', { est: 'ALL', puerto: 'ALL' }, 'sm ghost') : '') +
+    '</div>';
+}
+/* tarjeta de una escala del lineup: buque, secuencia de puertos, evolución de fechas,
+   cantidades declaradas vs nominadas y la carga de cada bodega (revisión 17/09) */
 function luCard(l, admin, estSel) {
   const bq = buqueDeLineup(l); const eb = bq?.equipos_propios || l.equiposBuque; const os = ordenesDeOrigen('lineup', l.id);
+  const R = resumenLineup(l); const escs = escalasDe(l); const log = fechasLogDe(l);
   const estadoCls = l.estado === 'En operación' ? 'acc' : ['Zarpó', 'Cumplido', 'Cancelado'].includes(l.estado) ? '' : 'info';
-  const kvs = [['ETA', fmtDT(l.eta)], ['ETB → ETC', '<span class="nowrap">' + fmtDT(l.etb) + ' → ' + fmtDT(l.etc) + '</span>'], ['Terminal', esc(ent(l.terminal)?.nombre || l.terminal)], ['Equipos del buque (M-08)', eb ? esc(tipoEquipoInfo(eb.tipo).buque) + ' · ' + eb.cantidad + ' × ' + eb.capacidadTh + ' t/h' : '<span class="dim">sin equipos propios (gearless)</span>'], ['Toneladas', fmtT(sum(l.cargas, c => c.toneladas)) + ' t en ' + l.cargas.length + ' carga' + (l.cargas.length > 1 ? 's' : '') + ' · ' + os.length + ' orden' + (os.length === 1 ? '' : 'es')]];
+  const mini = (v, lbl, cls, det) => '<div class="lu-q ' + (cls || '') + '"><span class="v">' + v + '</span><span class="l">' + lbl + '</span>' + (det ? '<span class="d">' + det + '</span>' : '') + '</div>';
+  const porPuerto = Object.entries(R.porPuerto).map(([pu, x]) => fmtT(x.t) + ' t → ' + esc(puertoNombre(pu))).join(' · ');
+  const cantidades = '<div class="lu-qs">' +
+    mini(fmtT(R.total) + ' t', 'Declarado por el buque', '', R.bodegas + ' bodegas · ' + R.conBL + ' con BL' + (R.vacias ? ' · ' + R.vacias + ' vacías' : '')) +
+    mini(fmtT(R.nominado) + ' t', 'Nominado a nosotros', R.nominado ? 'acc' : '', R.ordenes.length ? R.ordenes.length + ' orden' + (R.ordenes.length > 1 ? 'es' : '') + (porPuerto ? ' · ' + porPuerto : '') : 'se nomina al crear el operativo') +
+    mini(fmtT(R.terceros) + ' t', 'Opera un tercero', R.terceros ? 'info' : '', [...new Set((l.cargas || []).filter(c => c.operador && !esOperadorPropio(c.operador)).map(c => operadorNombre(c.operador)))].join(' · ') || '—') +
+    mini(fmtT(R.sinOperador) + ' t', 'Sin operador', R.sinOperador ? 'warn' : '', R.sinOperador ? 'oportunidad comercial: carga sin operador asignado' : '—') +
+    '</div>';
+  const escTabla = table([
+    { h: '#', cls: 'num', f: e => e.n },
+    { h: 'Puerto', f: e => '<b>' + esc(puertoNombre(e.puerto)) + '</b>' + (e.propia ? ' ' + chip('nuestra terminal', 'acc') : puertoMD(e.puerto)?.operador ? ' <span class="xs muted">' + esc(operadorNombre(puertoMD(e.puerto).operador)) + '</span>' : '') },
+    { h: 'ETA', f: e => '<span class="mono nowrap">' + fmtDT(e.eta) + '</span>' },
+    { h: 'ETB', f: e => '<span class="mono nowrap">' + fmtDT(e.etb) + '</span>' },
+    { h: 'ETC', f: e => '<span class="mono nowrap">' + fmtDT(e.etc) + '</span>' },
+    { h: 'Estado', f: e => chip(e.estado, e.propia ? estadoCls : '') },
+  ], escs, { cls: 'compact' });
+  const difOrig = ['ETA', 'ETB', 'ETC'].filter(k => fechaOriginal(l, k) !== l[k.toLowerCase()]);
+  const evolucion = '<details class="lu-ev"' + (log.length && l.estado !== 'Zarpó' ? ' open' : '') + '><summary>' +
+    (log.length ? '<b>' + log.length + ' cambio' + (log.length > 1 ? 's' : '') + '</b> en las fechas declaradas' + (difOrig.length ? ' · ' + difOrig.join(', ') + ' difiere' + (difOrig.length > 1 ? 'n' : '') + ' del dato de origen' : '') : 'Fechas sin cambios desde el anuncio') + '</summary>' +
+    '<div class="hist" style="margin-top:6px">' +
+    ['ETA', 'ETB', 'ETC'].map(k => '<div class="ev"><span class="ts">origen</span><span class="who">' + k + ' declarada</span><span class="what"><span class="mono">' + fmtDT(fechaOriginal(l, k)) + '</span></span></div>').join('') +
+    log.map(f => '<div class="ev"><span class="ts">' + fmtDT(f.ts) + '</span><span class="who">' + esc(f.campo) + ' · ' + esc(rolName(f.rol)) + '</span><span class="what"><span class="mono">' + fmtDT(f.de) + '</span> → <b class="mono">' + fmtDT(f.a) + '</b>' + (f.motivo ? ' — ' + esc(f.motivo) : '') + '</span></div>').join('') +
+    ['ETA', 'ETB', 'ETC'].map(k => '<div class="ev"><span class="ts">vigente</span><span class="who">' + k + '</span><span class="what"><b class="mono">' + fmtDT(l[k.toLowerCase()]) + '</b></span></div>').join('') +
+    '</div></details>';
+  const kvs = [['Buque (M-08)', (bq ? esc(bq.id) + ' · IMO ' + esc(bq.numero_imo || 's/d') : '—') + ' · ' + esc(l.bandera) + ' · eslora ' + l.eslora + ' m · calado ' + l.calado + ' m · ' + (bq?.cantidad_bodegas || (l.cargas || []).length) + ' bodegas'],
+    ['Agencia (M-21)', esc(agName(l.agencia))],
+    ['Equipos del buque', eb ? esc(tipoEquipoInfo(eb.tipo).buque) + ' · ' + eb.cantidad + ' × ' + eb.capacidadTh + ' t/h' : '<span class="dim">sin equipos propios (gearless)</span>']];
   const rsv = reservasVigentes().filter(r => r.origen?.tipo === 'lineup' && r.origen.id === l.id);
-  kvs.push(['Nominación a TyS (M-17)', l.nominado_a_tys ? '<b>' + fmtT(l.toneladas_para_tys) + ' t</b> de ' + fmtT(l.toneladas_nominadas_total_buque || 0) + ' t del buque · ' + os.length + ' orden' + (os.length > 1 ? 'es' : '') : '<span class="dim">sin órdenes: se nomina al crear el operativo</span>']);
-  if (rsv.length) kvs.push(['Capacidad reservada por las áreas', rsv.map(r => fmtT(r.cantidad) + ' × ' + esc(recNombre(r.rid)) + ' <span class="xs muted">' + esc(areaMD(r.area)?.nombre || r.area) + ' · ' + esc(r.estado) + '</span>').join('<br>') + ' ' + sup('S24')]);
+  if (rsv.length) kvs.push(['Capacidad reservada por las áreas', rsv.map(r => fmtT(r.cantidad) + ' × ' + esc(recNombre(r.rid)) + ' <span class="xs muted">' + esc(areaMD(r.area)?.nombre || r.area) + ' · ' + esc(r.estado) + '</span>').join('<br>')]);
+  const bodTabla = table([
+    { h: 'Bodega', cls: 'num', f: c => c.bodega || ((l.cargas || []).indexOf(c) + 1) },
+    { h: 'BL', f: c => c.bl ? '<span class="mono nowrap">' + esc(c.bl) + '</span>' : '<span class="dim">vacía</span>' },
+    { h: 'Cliente', f: c => c.cliente ? esc(cli(c.cliente)?.nombre) : '<span class="dim">—</span>' },
+    { h: 'Producto · calidad', f: c => c.producto ? esc(prod(c.producto)?.nombre) + (c.calidad ? '<br><span class="xs muted">' + esc(c.calidad) + '</span>' : '') : '<span class="dim">—</span>' },
+    { h: 't', cls: 'num', f: c => c.toneladas ? '<b>' + fmtT(c.toneladas) + '</b>' : '<span class="dim">—</span>' },
+    { h: 'Puerto de descarga', f: c => c.puertoDescarga ? esc(puertoNombre(c.puertoDescarga)) + (puertoMD(c.puertoDescarga)?.propio ? ' ' + chip('propio', 'acc') : '') : '<span class="dim">a definir</span>' },
+    { h: 'Operador', f: c => !c.toneladas ? '<span class="dim">—</span>' : c.operador ? (esOperadorPropio(c.operador) ? chip(operadorNombre(c.operador), 'acc') : chip(operadorNombre(c.operador), 'info')) : chip('Sin operador', 'warn', 'Carga sin operador asignado: oportunidad para captar al cliente') },
+    { h: 'Orden de servicio', f: c => { const i = (l.cargas || []).indexOf(c); const o2 = ordenesDeOrigen('lineup', l.id, i); return o2.length ? o2.map(o => osLink(o.id) + ' ' + pill(o.estado)).join('<br>') : (c.bl && esOperadorPropio(c.operador) ? '<span class="dim">sin orden</span>' : '<span class="dim">—</span>'); } },
+  ], l.cargas || [], { cls: 'compact', rowAttr: c => (c.bl && c.toneladas ? '' : 'class="dimrow"') });
   return '<div class="lu' + (l.estado === 'En operación' ? ' on' : '') + '">' +
-    '<div class="lu-h"><div class="lu-t"><span class="mono">' + esc(l.id) + '</span><b>' + esc(l.buque) + '</b>' + (bq ? '<span class="tag">' + esc(bq.id) + (bq.numero_imo ? ' · IMO ' + esc(bq.numero_imo) : ' · sin IMO') + '</span>' : '') + (l.tipo ? chip(l.tipo, 'info') : chip('Descarga', '')) + '</div>' +
-    '<div class="lu-meta small muted">' + esc(l.bandera) + ' · eslora ' + l.eslora + ' m · calado ' + l.calado + ' m · ' + esc(agName(l.agencia)) + '</div>' +
+    '<div class="lu-h"><div class="lu-t"><span class="mono">' + esc(l.id) + '</span><b>' + esc(l.buque) + '</b>' + (l.tipo ? chip(l.tipo, 'info') : chip('Descarga', '')) + (escs.length > 1 ? chip(escs.length + ' puertos', 'info', 'El buque atraca en más de un puerto') : '') + '</div>' +
+    '<div class="lu-meta small muted">' + esc(puertoNombre(escalaPropia(l).puerto)) + ' · ETB ' + fmtDT(l.etb) + ' · ' + esc(agName(l.agencia)) + '</div>' +
     '<div class="lu-acts">' + (admin ? estSel('lineup', l, ['Anunciado', 'Confirmado', 'En rada', 'En operación', 'Zarpó', 'Cancelado']) + btn('Editar', 'lu-editar', { id: l.id }, 'sm') : chip(l.estado, estadoCls)) + '</div></div>' +
+    cantidades +
     '<div class="lu-kv">' + kvs.map(([k, v]) => '<div><span class="l">' + k + '</span><span class="v">' + v + '</span></div>').join('') + '</div>' +
-    table([{ h: 'BL', f: c => '<span class="mono nowrap">' + esc(c.bl) + '</span>' }, { h: 'Cliente', f: c => esc(cli(c.cliente)?.nombre) }, { h: 'Producto', f: c => esc(prod(c.producto)?.nombre) }, { h: 'Calidad', f: c => c.calidad ? esc(c.calidad) : '<span class="dim">—</span>' }, { h: 't', cls: 'num', f: c => '<b>' + fmtT(c.toneladas) + '</b>' }, { h: 'Orden de servicio', f: c => { const i = l.cargas.indexOf(c); const o2 = ordenesDeOrigen('lineup', l.id, i); return o2.length ? o2.map(o => osLink(o.id) + ' ' + pill(o.estado)).join('<br>') : '<span class="dim">sin orden</span>'; } }], l.cargas, { cls: 'compact' }) + '</div>';
+    '<div class="grid g2" style="gap:10px;margin-bottom:8px"><div><div class="up" style="margin-bottom:4px">Secuencia de puertos</div>' + escTabla + '</div>' +
+    '<div><div class="up" style="margin-bottom:4px">Evolución de las fechas</div>' + evolucion + '</div></div>' +
+    '<div class="up" style="margin-bottom:4px">Bodegas y cargas</div>' + bodTabla + '</div>';
 }
 
 /* ---------- Mi bandeja ---------- */
@@ -190,7 +248,7 @@ function secH(id, n, extra) { return '<h2 id="sec-' + id + '"><span class="n">' 
 function secResumen(o) {
   const r = byId(md().relaciones, o.relacion); const vo = ventanaOrigenDe(o); const tOrig = toneladasOrigenDe(o);
   return '<section class="card sec" id="s-resumen">' + secH('resumen', 'Resumen', sup('A1')) + bannersEstado(o) + '<div class="grid g2">' +
-    kv([['Entidad', esc(ent(o.entidad)?.nombre)], ['Ámbito del servicio', (o.bu ? 'BU prestadora: <b>' + esc(buName(o.bu)) + '</b>' : '<b>Entidad</b> — el servicio impacta a ' + esc(entName(o.entidad)) + ' en su conjunto; las BU intervienen como ejecutoras') + ' ' + sup('S8')], ['Relación', relChip(o) + ' <span class="xs muted">' + esc(r?.imputacion || '') + '</span>'], ['Destinatario', esc(destinatarioNombre(o.destinatario))], ['Servicio', esc(srv(o.servicio)?.nombre)], ['Medio', esc(medio(o.medio)?.nombre)], ['Producto', esc(prod(o.producto)?.nombre || 'No aplica') + (o.producto ? ' ' + chip(presentacionTxt(o.producto), estadoFisico(o.producto) === 'liquido' ? 'info' : '', 'Presentación del producto (M-07): define equipos, manos y depósito compatibles') : '') + (o.calidad ? ' <span class="muted">· ' + esc(o.calidad) + '</span>' : '') + (o.producto ? '<br><span class="xs muted">familia ' + esc(presentacionProducto(o.producto).familia) + ' · ' + esc(estadoFisico(o.producto) === 'liquido' ? 'líquido' : 'sólido') + ' · ' + fmtT(o.toneladas) + ' ' + esc(presentacionProducto(o.producto).um) + '</span>' : '')], ['Toneladas a operar', (o.toneladas ? '<b class="num">' + fmtT(o.toneladas) + ' t</b>' : '—') + (tOrig != null && tOrig !== o.toneladas ? ' <span class="xs muted">de ' + fmtT(tOrig) + ' t del origen</span>' : '') + ' ' + sup('S19') + (puedeEditarDatosServicio(o) ? ' ' + btn('Editar toneladas y fechas', 'datos-servicio', { id: o.id }, 'sm') : '')]]) +
+    kv([['Entidad', esc(ent(o.entidad)?.nombre)], ['Ámbito del servicio', (o.bu ? 'BU prestadora: <b>' + esc(buName(o.bu)) + '</b>' : '<b>Entidad</b> — el servicio impacta a ' + esc(entName(o.entidad)) + ' en su conjunto; las BU intervienen como ejecutoras') + ' ' + sup('S8')], ['Relación', relChip(o) + ' <span class="xs muted">' + esc(r?.imputacion || '') + '</span>'], ['Destinatario', esc(destinatarioNombre(o.destinatario))], ['Servicio', esc(srv(o.servicio)?.nombre)], ['Medio', esc(medio(o.medio)?.nombre)], ['Producto', esc(prod(o.producto)?.nombre || 'No aplica') + (o.producto ? ' ' + chip(presentacionOrden(o), estadoFisico(o.producto) === 'liquido' ? 'info' : '', 'Presentación elegida por Comercial al crear la orden; la propone el producto (M-07). Define equipos, manos y depósito compatibles') : '') + (o.calidad ? ' <span class="muted">· ' + esc(o.calidad) + '</span>' : '') + (o.producto ? '<br><span class="xs muted">familia ' + esc(presentacionProducto(o.producto).familia) + ' · ' + esc(estadoFisico(o.producto) === 'liquido' ? 'líquido' : 'sólido') + ' · ' + fmtT(o.toneladas) + ' ' + esc(presentacionProducto(o.producto).um) + '</span>' : '')], ['Toneladas a operar', (o.toneladas ? '<b class="num">' + fmtT(o.toneladas) + ' t</b>' : '—') + (tOrig != null && tOrig !== o.toneladas ? ' <span class="xs muted">de ' + fmtT(tOrig) + ' t del origen</span>' : '') + ' ' + sup('S19') + (puedeEditarDatosServicio(o) ? ' ' + btn('Editar toneladas y fechas', 'datos-servicio', { id: o.id }, 'sm') : '')]]) +
     kv([['Estado', pill(o.estado)], ['Próximo paso', esc(byId(md().estados, o.estado)?.proximo)], ['Rol de cierre', esc(rolName(rolCierre(o))) + ' ' + sup('S6')], ['Ventana del servicio', '<span class="mono">' + ventanaTxt(o.ventana) + '</span> ' + sup('S19') + (vo && (vo.inicio !== o.ventana?.inicio || vo.fin !== o.ventana?.fin) ? '<br><span class="xs muted">' + esc(vo.txt) + ': ' + ventanaTxt(vo) + '</span>' : '') + '<br><span class="xs muted">definida por Comercial; valida la disponibilidad de los recursos</span>'], ['Origen', o.detalle ? '<span class="small">' + esc(detalleResumen(o)) + '</span>' : esc(origenInfo(o)?.label || '—')], ['Instrumento contractual', esc(o.contrato ? o.contrato.id + ' · ' + o.contrato.tipo : '—')], ['Creada', '<span class="mono">' + fmtDT(o.creado) + '</span>'], o.notas ? ['Notas', esc(o.notas)] : null]) + '</div>' +
     '<h3 style="margin:14px 0 8px">Líneas de ejecución por componente ' + sup('S1') + '</h3>' +
     table([{ h: 'Componente', f: l => esc(compName(l.componente)) }, { h: 'BU ejecutora', f: l => esc(buLabel(l.bu, o.entidad)) + (l.bu && bu(l.bu)?.entidad !== o.entidad ? ' <span class="xs muted">(' + esc(entName(bu(l.bu)?.entidad)) + ')</span>' : '') }, { h: 'Tarifa aplicada', cls: 'num', f: l => l.tarifa != null ? fmtN(l.tarifa, 2) + ' ' + esc(l.um) : '<span class="dim">—</span>' }, { h: 'Ingreso estimado', cls: 'num', f: l => l.tarifa != null && o.toneladas && l.componente !== 'SRV' ? fmtUSD(l.tarifa * o.toneladas * (l.componente === 'DEP' ? (o.contrato?.condiciones?.franquiciaDias || 1) : 1)) + (l.componente === 'DEP' ? ' <span class="xs dim">(' + (o.contrato?.condiciones?.franquiciaDias || 1) + ' días)</span>' : '') : '<span class="dim">—</span>' }], o.lineas, { cls: 'compact', empty: 'El servicio no tiene componentes definidos' }) + '</section>';
@@ -380,7 +438,7 @@ function secHistorial(o) {
     (o.cierreSnapshot ? '<p class="xs dim" style="margin-top:4px">Comparativas congeladas al cierre el ' + fmtDT(o.deposito.cierre?.ts) + '.</p>' : '') +
     propiosTercerosBlock(o) +
     '<h3 style="margin:14px 0 6px">Historial de eventos <span class="small muted" style="font-weight:400">' + o.historial.length + ' eventos · quién, cuándo y qué cambió</span></h3>' +
-    '<div class="hist">' + o.historial.slice().reverse().map(h => '<div class="ev"><span class="ts">' + fmtDT(h.ts) + '</span><span class="who">' + esc(rolName(h.rol)) + ' · ' + esc(h.usuario) + '</span><span class="what"><b>' + esc(h.evento) + '</b>' + (h.detalle ? ' — ' + esc(h.detalle) : '') + '</span></div>').join('') + '</div></section>';
+    '<div class="hist">' + o.historial.slice().reverse().map(h => '<div class="ev"><span class="ts">' + fmtDT(h.ts) + '</span><span class="who">' + esc(rolName(h.rol)) + '</span><span class="what"><b>' + esc(h.evento) + '</b>' + (h.detalle ? ' — ' + esc(h.detalle) : '') + '</span></div>').join('') + '</div></section>';
 }
 
 /* ---------- Máster data: registros en validación y registro de cambios ---------- */
@@ -389,5 +447,5 @@ function registrosValidacionTable(pend) {
   return table([{ h: 'Maestro', f: x => '<button class="btn sm ghost" data-action="mdgo" data-m="' + esc(x.m) + '"><span class="mono xs">' + esc(x.m) + '</span>&nbsp;' + esc(nombreMaestro(x.m)) + '</button>' }, { h: 'Registro', f: x => '<b class="mono">' + esc(x.rec.id) + '</b>' + (x.rec.nombre ? ' · ' + esc(x.rec.nombre) : '') + (x.tipo && x.tipo !== x.m ? ' <span class="xs muted">' + esc(x.tipo) + '</span>' : '') }, { h: 'Cambio', f: x => chip(x.rec._aud?.version > 1 ? 'Modificación v' + x.rec._aud.version : 'Alta', 'warn') }, { h: 'Quién · cuándo', f: x => esc(x.rec._aud?.modificado_por || x.rec._aud?.creado_por || '') + ' <span class="mono xs">' + fmtDT(x.rec._aud?.modificado_el || x.rec._aud?.creado_el) + '</span>' }, { h: 'Estado', f: x => estadoChipMD(estadoRegistro(x.rec)) }, { h: '', f: x => esMD ? '<div class="btn-row" style="gap:3px">' + btn('Validar y publicar', 'md-validar', { m: x.m, id: x.rec.id }, 'sm pri') + btn('Rechazar', 'md-rechazar', { m: x.m, id: x.rec.id }, 'sm danger') + '</div>' : '<span class="xs muted">valida Máster data</span>' }], pend, { cls: 'compact', empty: 'No hay registros pendientes de validación' });
 }
 function mdLogTable(rows) {
-  return (rows || []).length ? '<div class="hist">' + rows.map(h => '<div class="ev"><span class="ts">' + fmtDT(h.ts) + '</span><span class="who">' + esc(rolName(h.rol)) + ' · ' + esc(h.usuario) + '</span><span class="what"><b>' + esc(h.accion) + ' · ' + esc(h.maestro) + (h.registro ? ' ' + esc(h.registro) : '') + '</b>' + (h.detalle ? ' — ' + esc(h.detalle) : '') + '</span></div>').join('') + '</div>' : '<p class="muted small">Sin cambios registrados en esta sesión. Los registros de la carga base nacen vigentes con origen migración.</p>';
+  return (rows || []).length ? '<div class="hist">' + rows.map(h => '<div class="ev"><span class="ts">' + fmtDT(h.ts) + '</span><span class="who">' + esc(rolName(h.rol)) + '</span><span class="what"><b>' + esc(h.accion) + ' · ' + esc(h.maestro) + (h.registro ? ' ' + esc(h.registro) : '') + '</b>' + (h.detalle ? ' — ' + esc(h.detalle) : '') + '</span></div>').join('') + '</div>' : '<p class="muted small">Sin cambios registrados en esta sesión. Los registros de la carga base nacen vigentes con origen migración.</p>';
 }

@@ -1,0 +1,4585 @@
+{
+ "version": "v2.14",
+ "modelMeta": {
+  "version": "v3.1",
+  "fecha": "15/09/2026",
+  "archivo": "TyS Circuito Detalle de Construccion Master Data v3.1.xlsx"
+ },
+ "counts": {
+  "fichas": 35,
+  "ext": 6,
+  "atributos": 374,
+  "atrExt": 63,
+  "reglas": 58,
+  "tx": 52,
+  "ev": 21,
+  "conv": 9,
+  "def": 18,
+  "dec": 18,
+  "mapeo": 31,
+  "cruce": 43,
+  "dominios": 10,
+  "registros": 384,
+  "ordenes": 11
+ },
+ "entidades": [
+  {
+   "id": "TYS",
+   "nombre": "Terminales y Servicios",
+   "sigla": "TyS",
+   "tipo": "Terminal portuaria y logística",
+   "localidad": "San Nicolás",
+   "modOff": "todos"
+  },
+  {
+   "id": "TT",
+   "nombre": "Terminal Timbúes",
+   "sigla": "TT",
+   "tipo": "Terminal portuaria",
+   "localidad": "Timbúes",
+   "modOff": "todos"
+  },
+  {
+   "id": "AMA",
+   "nombre": "Amarre",
+   "sigla": "Amarre",
+   "tipo": "Servicios de amarre",
+   "localidad": "San Nicolás",
+   "modOff": "Depósito · Comparativas"
+  }
+ ],
+ "bus": [
+  {
+   "id": "TYS-RENT",
+   "nombre": "Rental",
+   "entidad": "TyS",
+   "cc": "CC-110",
+   "sup": false,
+   "nota": "",
+   "modOff": "Logística de arribo · Depósito"
+  },
+  {
+   "id": "TYS-LOG",
+   "nombre": "Logística",
+   "entidad": "TyS",
+   "cc": "CC-120",
+   "sup": false,
+   "nota": "",
+   "modOff": "todos"
+  },
+  {
+   "id": "TYS-OPS",
+   "nombre": "Operaciones",
+   "entidad": "TyS",
+   "cc": "CC-125",
+   "sup": false,
+   "nota": "Definición 15/09: la descarga la realiza Operaciones, no Logística. BU ejecutora del componente Descarga (y Carga, a confirmar).",
+   "modOff": "todos"
+  },
+  {
+   "id": "TYS-MAQ",
+   "nombre": "Maquinarias",
+   "entidad": "TyS",
+   "cc": "CC-130",
+   "sup": false,
+   "nota": "",
+   "modOff": "Depósito"
+  },
+  {
+   "id": "TYS-DEP",
+   "nombre": "Depósitos",
+   "entidad": "TyS",
+   "cc": "CC-140",
+   "sup": false,
+   "nota": "",
+   "modOff": "todos"
+  },
+  {
+   "id": "TYS-MANT",
+   "nombre": "Mantenimiento",
+   "entidad": "TyS",
+   "cc": "CC-150",
+   "sup": false,
+   "nota": "",
+   "modOff": "Logística de arribo · Depósito"
+  },
+  {
+   "id": "TYS-CORP",
+   "nombre": "Corporate",
+   "entidad": "TyS",
+   "cc": "CC-160",
+   "sup": false,
+   "nota": "",
+   "modOff": "Logística de arribo · Recursos · Depósito"
+  },
+  {
+   "id": "TYS-ADM",
+   "nombre": "Administración",
+   "entidad": "TyS",
+   "cc": "CC-170",
+   "sup": false,
+   "nota": "",
+   "modOff": "Logística de arribo · Recursos · Depósito"
+  },
+  {
+   "id": "TT-LOG",
+   "nombre": "Logística TT",
+   "entidad": "TT",
+   "cc": "CC-220",
+   "sup": true,
+   "nota": "",
+   "modOff": "todos"
+  },
+  {
+   "id": "TT-OPS",
+   "nombre": "Operaciones TT",
+   "entidad": "TT",
+   "cc": "CC-225",
+   "sup": true,
+   "nota": "",
+   "modOff": "todos"
+  },
+  {
+   "id": "TT-DEP",
+   "nombre": "Depósitos TT",
+   "entidad": "TT",
+   "cc": "CC-240",
+   "sup": true,
+   "nota": "",
+   "modOff": "todos"
+  },
+  {
+   "id": "AMA-OPS",
+   "nombre": "Operaciones de amarre",
+   "entidad": "Amarre",
+   "cc": "CC-310",
+   "sup": true,
+   "nota": "",
+   "modOff": "todos"
+  }
+ ],
+ "departamentos": [
+  {
+   "id": "COM",
+   "nombre": "Comercial / Backoffice",
+   "entidad": "TyS",
+   "bus": [
+    "Logística",
+    "Depósitos",
+    "Rental",
+    "Mantenimiento",
+    "Administración",
+    "Corporate"
+   ]
+  },
+  {
+   "id": "PLAN",
+   "nombre": "Planificación",
+   "entidad": "TyS",
+   "bus": [
+    "Operaciones",
+    "Logística",
+    "Depósitos",
+    "Maquinarias",
+    "Rental"
+   ]
+  },
+  {
+   "id": "OPS",
+   "nombre": "Operaciones",
+   "entidad": "TyS",
+   "bus": [
+    "Operaciones",
+    "Maquinarias"
+   ]
+  },
+  {
+   "id": "DEP",
+   "nombre": "Depósito",
+   "entidad": "TyS",
+   "bus": [
+    "Depósitos"
+   ]
+  },
+  {
+   "id": "PERS",
+   "nombre": "Personal",
+   "entidad": "TyS",
+   "bus": [
+    "Logística",
+    "Depósitos",
+    "Maquinarias",
+    "Mantenimiento"
+   ]
+  },
+  {
+   "id": "SEG",
+   "nombre": "Seguridad",
+   "entidad": "TyS",
+   "bus": [
+    "Logística",
+    "Depósitos",
+    "Maquinarias"
+   ]
+  },
+  {
+   "id": "ADM",
+   "nombre": "Administración",
+   "entidad": "TyS",
+   "bus": [
+    "Administración",
+    "Corporate"
+   ]
+  },
+  {
+   "id": "LAR",
+   "nombre": "Logística de arribo",
+   "entidad": "TyS",
+   "bus": [
+    "Logística"
+   ]
+  },
+  {
+   "id": "TT-COM",
+   "nombre": "Comercial / Backoffice TT",
+   "entidad": "TT",
+   "bus": [
+    "Logística TT",
+    "Depósitos TT"
+   ]
+  },
+  {
+   "id": "TT-OPS",
+   "nombre": "Operaciones TT",
+   "entidad": "TT",
+   "bus": [
+    "Logística TT",
+    "Depósitos TT"
+   ]
+  }
+ ],
+ "relaciones": [
+  {
+   "id": "Interna",
+   "nombre": "Interna",
+   "descripcion": "Una BU presta un servicio a otra BU de la misma entidad.",
+   "imputacion": "Transferencia interna a costo estándar (sin factura)",
+   "sup": true
+  },
+  {
+   "id": "Grupo",
+   "nombre": "Entre empresas del grupo",
+   "descripcion": "Una entidad presta un servicio a otra entidad del grupo.",
+   "imputacion": "Factura intercompany a tarifa de transferencia",
+   "sup": true
+  },
+  {
+   "id": "Externa",
+   "nombre": "Externa",
+   "descripcion": "Una entidad presta un servicio a un cliente tercero.",
+   "imputacion": "Factura al cliente según instrumento contractual",
+   "sup": false
+  }
+ ],
+ "roles": [
+  {
+   "id": "COM",
+   "nombre": "Comercial / Backoffice",
+   "etapa": 1,
+   "nota": "",
+   "etapas": [
+    "Borrador"
+   ],
+   "perm": {
+    "oculto": 1,
+    "consulta": 35,
+    "abm": 5
+   },
+   "modulos": [
+    "Mi área"
+   ]
+  },
+  {
+   "id": "PLAN",
+   "nombre": "Planificador",
+   "etapa": 2,
+   "nota": "",
+   "etapas": [
+    "Pendiente de planificación"
+   ],
+   "perm": {
+    "oculto": 2,
+    "consulta": 37,
+    "abm": 2
+   },
+   "modulos": []
+  },
+  {
+   "id": "OPS",
+   "nombre": "Operaciones",
+   "etapa": 3,
+   "nota": "",
+   "etapas": [
+    "Planificada / pendiente de inicio",
+    "En ejecución"
+   ],
+   "perm": {
+    "oculto": 3,
+    "consulta": 35,
+    "abm": 3
+   },
+   "modulos": []
+  },
+  {
+   "id": "DEP",
+   "nombre": "Depósito",
+   "etapa": 4,
+   "nota": "",
+   "etapas": [
+    "Pendiente de cierre"
+   ],
+   "perm": {
+    "oculto": 3,
+    "consulta": 34,
+    "abm": 4
+   },
+   "modulos": []
+  },
+  {
+   "id": "LAR",
+   "nombre": "Logística de arribo",
+   "etapa": 0,
+   "nota": "Administra lineup, cupos de camiones y operativos ferroviarios; no tiene etapa en el workflow de la orden.",
+   "etapas": [],
+   "perm": {
+    "oculto": 5,
+    "consulta": 31,
+    "abm": 5
+   },
+   "modulos": [
+    "Workflow · mi etapa",
+    "Mi área",
+    "Depósito"
+   ]
+  },
+  {
+   "id": "ARE",
+   "nombre": "Responsable de área",
+   "etapa": 0,
+   "nota": "Administra la capacidad de su propio sector (recursos, ABM por workflow de master data) y hace reservas para operativos futuros referenciando un lineup, un cupo o un operativo ferroviario. No tiene etapa en el workflow de la orden. El área activa se elige en el módulo Mi área (en el sistema real vendría del usuario).",
+   "etapas": [],
+   "perm": {
+    "oculto": 4,
+    "consulta": 30,
+    "abm": 7
+   },
+   "modulos": [
+    "Depósito",
+    "Comparativas"
+   ]
+  },
+  {
+   "id": "MD",
+   "nombre": "Máster data",
+   "etapa": 0,
+   "nota": "Administra la master data (ABM de todos los maestros), valida y publica las altas de otros roles y otorga o quita a cada rol el permiso sobre cada maestro (no lo visualiza · solo consulta · puede ABM). No interviene en el workflow de la orden.",
+   "etapas": [],
+   "perm": {
+    "oculto": 0,
+    "consulta": 0,
+    "abm": 41
+   },
+   "modulos": [
+    "Depósito"
+   ]
+  }
+ ],
+ "permisosMD": [
+  {
+   "codigo": "M-01",
+   "nombre": "Unidad de negocio",
+   "niveles": [
+    "consulta",
+    "consulta",
+    "consulta",
+    "consulta",
+    "consulta",
+    "consulta",
+    "abm"
+   ]
+  },
+  {
+   "codigo": "M-02",
+   "nombre": "Centro de costo",
+   "niveles": [
+    "consulta",
+    "consulta",
+    "consulta",
+    "consulta",
+    "oculto",
+    "consulta",
+    "abm"
+   ]
+  },
+  {
+   "codigo": "M-03",
+   "nombre": "Cuenta objeto",
+   "niveles": [
+    "consulta",
+    "oculto",
+    "oculto",
+    "oculto",
+    "oculto",
+    "oculto",
+    "abm"
+   ]
+  },
+  {
+   "codigo": "M-04",
+   "nombre": "Tipos de comprobantes",
+   "niveles": [
+    "consulta",
+    "oculto",
+    "oculto",
+    "oculto",
+    "oculto",
+    "oculto",
+    "abm"
+   ]
+  },
+  {
+   "codigo": "M-05",
+   "nombre": "Áreas",
+   "niveles": [
+    "consulta",
+    "consulta",
+    "consulta",
+    "consulta",
+    "consulta",
+    "abm",
+    "abm"
+   ]
+  },
+  {
+   "codigo": "M-06",
+   "nombre": "Clientes / Proveedores",
+   "niveles": [
+    "abm",
+    "consulta",
+    "consulta",
+    "consulta",
+    "consulta",
+    "consulta",
+    "abm"
+   ]
+  },
+  {
+   "codigo": "M-07",
+   "nombre": "Productos",
+   "niveles": [
+    "consulta",
+    "consulta",
+    "consulta",
+    "consulta",
+    "consulta",
+    "consulta",
+    "abm"
+   ]
+  },
+  {
+   "codigo": "M-08",
+   "nombre": "Buques",
+   "niveles": [
+    "consulta",
+    "consulta",
+    "consulta",
+    "consulta",
+    "abm",
+    "consulta",
+    "abm"
+   ]
+  },
+  {
+   "codigo": "M-09",
+   "nombre": "Plantas",
+   "niveles": [
+    "consulta",
+    "consulta",
+    "consulta",
+    "consulta",
+    "consulta",
+    "consulta",
+    "abm"
+   ]
+  },
+  {
+   "codigo": "M-10",
+   "nombre": "Depósitos",
+   "niveles": [
+    "consulta",
+    "consulta",
+    "consulta",
+    "abm",
+    "consulta",
+    "consulta",
+    "abm"
+   ]
+  },
+  {
+   "codigo": "M-10a",
+   "nombre": "Celdas · boxes · tanques (detalle de Depósitos)",
+   "niveles": [
+    "consulta",
+    "consulta",
+    "consulta",
+    "abm",
+    "consulta",
+    "abm",
+    "abm"
+   ]
+  },
+  {
+   "codigo": "M-11",
+   "nombre": "Transporte",
+   "niveles": [
+    "consulta",
+    "consulta",
+    "consulta",
+    "consulta",
+    "consulta",
+    "consulta",
+    "abm"
+   ]
+  },
+  {
+   "codigo": "M-12",
+   "nombre": "Maquinaria",
+   "niveles": [
+    "consulta",
+    "consulta",
+    "abm",
+    "consulta",
+    "consulta",
+    "abm",
+    "abm"
+   ]
+  },
+  {
+   "codigo": "M-13",
+   "nombre": "Personal contratado",
+   "niveles": [
+    "consulta",
+    "consulta",
+    "consulta",
+    "consulta",
+    "consulta",
+    "abm",
+    "abm"
+   ]
+  },
+  {
+   "codigo": "M-14",
+   "nombre": "Tipos de servicios",
+   "niveles": [
+    "consulta",
+    "consulta",
+    "consulta",
+    "consulta",
+    "consulta",
+    "consulta",
+    "abm"
+   ]
+  },
+  {
+   "codigo": "M-15",
+   "nombre": "Tarifas",
+   "niveles": [
+    "abm",
+    "consulta",
+    "oculto",
+    "oculto",
+    "oculto",
+    "oculto",
+    "abm"
+   ]
+  },
+  {
+   "codigo": "M-16",
+   "nombre": "Contratos",
+   "niveles": [
+    "abm",
+    "consulta",
+    "consulta",
+    "consulta",
+    "consulta",
+    "oculto",
+    "abm"
+   ]
+  },
+  {
+   "codigo": "M-17",
+   "nombre": "LineUp",
+   "niveles": [
+    "consulta",
+    "consulta",
+    "consulta",
+    "consulta",
+    "abm",
+    "consulta",
+    "abm"
+   ]
+  },
+  {
+   "codigo": "M-18",
+   "nombre": "Monedas y cotizaciones",
+   "niveles": [
+    "consulta",
+    "consulta",
+    "consulta",
+    "consulta",
+    "consulta",
+    "consulta",
+    "abm"
+   ]
+  },
+  {
+   "codigo": "M-19",
+   "nombre": "Calendario y turnos",
+   "niveles": [
+    "consulta",
+    "consulta",
+    "consulta",
+    "consulta",
+    "consulta",
+    "consulta",
+    "abm"
+   ]
+  },
+  {
+   "codigo": "M-20",
+   "nombre": "Tolerancias",
+   "niveles": [
+    "consulta",
+    "abm",
+    "consulta",
+    "consulta",
+    "consulta",
+    "consulta",
+    "abm"
+   ]
+  },
+  {
+   "codigo": "M-21",
+   "nombre": "Agencia marítima / Armador",
+   "niveles": [
+    "consulta",
+    "consulta",
+    "consulta",
+    "consulta",
+    "abm",
+    "consulta",
+    "abm"
+   ]
+  },
+  {
+   "codigo": "M-22",
+   "nombre": "Despachante de aduana",
+   "niveles": [
+    "abm",
+    "consulta",
+    "consulta",
+    "consulta",
+    "consulta",
+    "consulta",
+    "abm"
+   ]
+  },
+  {
+   "codigo": "M-23",
+   "nombre": "Matriz de calidad",
+   "niveles": [
+    "abm",
+    "consulta",
+    "consulta",
+    "abm",
+    "consulta",
+    "consulta",
+    "abm"
+   ]
+  },
+  {
+   "codigo": "M-24",
+   "nombre": "Matriz de compatibilidad",
+   "niveles": [
+    "consulta",
+    "abm",
+    "consulta",
+    "abm",
+    "consulta",
+    "consulta",
+    "abm"
+   ]
+  },
+  {
+   "codigo": "M-25",
+   "nombre": "Muelles",
+   "niveles": [
+    "consulta",
+    "consulta",
+    "consulta",
+    "consulta",
+    "consulta",
+    "consulta",
+    "abm"
+   ]
+  },
+  {
+   "codigo": "M-26",
+   "nombre": "Balanzas",
+   "niveles": [
+    "consulta",
+    "consulta",
+    "consulta",
+    "consulta",
+    "consulta",
+    "abm",
+    "abm"
+   ]
+  },
+  {
+   "codigo": "M-27",
+   "nombre": "Choferes",
+   "niveles": [
+    "consulta",
+    "consulta",
+    "consulta",
+    "consulta",
+    "consulta",
+    "consulta",
+    "abm"
+   ]
+  },
+  {
+   "codigo": "M-28",
+   "nombre": "Personal propio",
+   "niveles": [
+    "consulta",
+    "consulta",
+    "consulta",
+    "consulta",
+    "consulta",
+    "consulta",
+    "abm"
+   ]
+  },
+  {
+   "codigo": "M-29",
+   "nombre": "Causas de demora",
+   "niveles": [
+    "consulta",
+    "consulta",
+    "abm",
+    "consulta",
+    "consulta",
+    "consulta",
+    "abm"
+   ]
+  },
+  {
+   "codigo": "M-30",
+   "nombre": "Insumos y repuestos",
+   "niveles": [
+    "oculto",
+    "consulta",
+    "abm",
+    "consulta",
+    "oculto",
+    "abm",
+    "abm"
+   ]
+  },
+  {
+   "codigo": "M-31",
+   "nombre": "Cupos de ingreso",
+   "niveles": [
+    "consulta",
+    "consulta",
+    "consulta",
+    "consulta",
+    "abm",
+    "consulta",
+    "abm"
+   ]
+  },
+  {
+   "codigo": "M-32",
+   "nombre": "Arribos ferroviarios",
+   "niveles": [
+    "consulta",
+    "consulta",
+    "consulta",
+    "consulta",
+    "abm",
+    "consulta",
+    "abm"
+   ]
+  },
+  {
+   "codigo": "M-33",
+   "nombre": "Régimen de turnos",
+   "niveles": [
+    "consulta",
+    "consulta",
+    "consulta",
+    "consulta",
+    "consulta",
+    "consulta",
+    "abm"
+   ]
+  },
+  {
+   "codigo": "M-34",
+   "nombre": "Métodos seguros",
+   "niveles": [
+    "consulta",
+    "consulta",
+    "consulta",
+    "consulta",
+    "consulta",
+    "consulta",
+    "abm"
+   ]
+  },
+  {
+   "codigo": "M-35",
+   "nombre": "Unidades de negocio (BU)",
+   "niveles": [
+    "consulta",
+    "consulta",
+    "consulta",
+    "consulta",
+    "consulta",
+    "consulta",
+    "abm"
+   ]
+  },
+  {
+   "codigo": "M-36",
+   "nombre": "Matriz de ejecución y relaciones",
+   "niveles": [
+    "consulta",
+    "consulta",
+    "consulta",
+    "consulta",
+    "consulta",
+    "consulta",
+    "abm"
+   ]
+  },
+  {
+   "codigo": "M-37",
+   "nombre": "Workflows de la orden de servicio",
+   "niveles": [
+    "consulta",
+    "consulta",
+    "consulta",
+    "consulta",
+    "consulta",
+    "consulta",
+    "abm"
+   ]
+  },
+  {
+   "codigo": "M-38",
+   "nombre": "Usuarios, roles y permisos",
+   "niveles": [
+    "consulta",
+    "consulta",
+    "consulta",
+    "consulta",
+    "consulta",
+    "consulta",
+    "abm"
+   ]
+  },
+  {
+   "codigo": "M-12a",
+   "nombre": "Unidades de maquinaria",
+   "niveles": [
+    "consulta",
+    "consulta",
+    "consulta",
+    "consulta",
+    "consulta",
+    "consulta",
+    "abm"
+   ]
+  },
+  {
+   "codigo": "M-39",
+   "nombre": "Áreas operativas y capacidad",
+   "niveles": [
+    "consulta",
+    "consulta",
+    "consulta",
+    "consulta",
+    "consulta",
+    "abm",
+    "abm"
+   ]
+  }
+ ],
+ "niveles": [
+  {
+   "id": "oculto",
+   "nombre": "No lo visualiza",
+   "cls": ""
+  },
+  {
+   "id": "consulta",
+   "nombre": "Solo consulta",
+   "cls": "info"
+  },
+  {
+   "id": "abm",
+   "nombre": "Puede ABM",
+   "cls": "acc"
+  }
+ ],
+ "servicios": [
+  {
+   "id": "SRV-DTD",
+   "nombre": "Descarga, transporte y depósito",
+   "nivel": "entidad",
+   "requiereProducto": true,
+   "ambito": [
+    "TyS",
+    "TT"
+   ],
+   "destinatario": "terceros",
+   "medios": [
+    "Buque",
+    "Camión",
+    "Ferrocarril"
+   ],
+   "componentes": [
+    "Descarga",
+    "Transporte",
+    "Depósito"
+   ],
+   "usaDeposito": true,
+   "cierre": "Depósito",
+   "bus": [
+    "Operaciones",
+    "Logística",
+    "Operaciones TT",
+    "Logística TT"
+   ],
+   "detalle": "",
+   "pendiente": false,
+   "nota": ""
+  },
+  {
+   "id": "SRV-DES",
+   "nombre": "Descarga",
+   "nivel": "entidad",
+   "requiereProducto": true,
+   "ambito": [
+    "TyS",
+    "TT"
+   ],
+   "destinatario": "terceros",
+   "medios": [
+    "Buque",
+    "Camión",
+    "Ferrocarril"
+   ],
+   "componentes": [
+    "Descarga",
+    "Depósito"
+   ],
+   "usaDeposito": true,
+   "cierre": "Depósito",
+   "bus": [
+    "Operaciones",
+    "Operaciones TT"
+   ],
+   "detalle": "",
+   "pendiente": false,
+   "nota": "Descarga a depósito de la terminal sin servicio de transporte (SUPUESTO)."
+  },
+  {
+   "id": "SRV-DCV",
+   "nombre": "Descarga costado vapor",
+   "nivel": "entidad",
+   "requiereProducto": true,
+   "ambito": [
+    "TyS",
+    "TT"
+   ],
+   "destinatario": "terceros",
+   "medios": [
+    "Buque"
+   ],
+   "componentes": [
+    "Descarga"
+   ],
+   "usaDeposito": false,
+   "cierre": "Operaciones",
+   "bus": [
+    "Operaciones",
+    "Operaciones TT"
+   ],
+   "detalle": "",
+   "pendiente": false,
+   "nota": "Descarga directa del buque a camiones del cliente; sin ingreso a depósito."
+  },
+  {
+   "id": "SRV-CAR",
+   "nombre": "Carga",
+   "nivel": "entidad",
+   "requiereProducto": true,
+   "ambito": [
+    "TyS",
+    "TT"
+   ],
+   "destinatario": "terceros",
+   "medios": [
+    "Buque",
+    "Camión",
+    "Ferrocarril"
+   ],
+   "componentes": [
+    "Carga"
+   ],
+   "usaDeposito": false,
+   "cierre": "Operaciones",
+   "bus": [
+    "Operaciones",
+    "Operaciones TT"
+   ],
+   "detalle": "",
+   "pendiente": false,
+   "nota": "Carga de buque, camión o vagón desde depósito; egreso, sin ingreso físico a depósito."
+  },
+  {
+   "id": "SRV-ALQM",
+   "nombre": "Alquiler de maquinaria",
+   "nivel": "bu",
+   "requiereProducto": false,
+   "ambito": [
+    "TyS"
+   ],
+   "destinatario": "entidad-o-terceros",
+   "medios": [
+    "Interna",
+    "Externa"
+   ],
+   "componentes": [
+    "Prestación"
+   ],
+   "usaDeposito": false,
+   "cierre": "Operaciones",
+   "bus": [
+    "Rental"
+   ],
+   "detalle": "rental",
+   "pendiente": false,
+   "nota": ""
+  },
+  {
+   "id": "SRV-LOGI",
+   "nombre": "Servicios logísticos",
+   "nivel": "bu",
+   "requiereProducto": true,
+   "ambito": [
+    "TyS",
+    "TT"
+   ],
+   "destinatario": "entidad-o-terceros",
+   "medios": [
+    "Interna",
+    "Externa"
+   ],
+   "componentes": [
+    "Transporte"
+   ],
+   "usaDeposito": false,
+   "cierre": "Operaciones",
+   "bus": [
+    "Logística",
+    "Logística TT"
+   ],
+   "detalle": "logistica",
+   "pendiente": false,
+   "nota": ""
+  },
+  {
+   "id": "SRV-ALQE",
+   "nombre": "Alquiler de espacio",
+   "nivel": "bu",
+   "requiereProducto": false,
+   "ambito": [
+    "TyS",
+    "TT"
+   ],
+   "destinatario": "entidad-o-terceros",
+   "medios": [
+    "Solicitud interna / externa"
+   ],
+   "componentes": [
+    "Depósito"
+   ],
+   "usaDeposito": true,
+   "cierre": "Depósito",
+   "bus": [
+    "Depósitos",
+    "Depósitos TT"
+   ],
+   "detalle": "",
+   "pendiente": false,
+   "nota": ""
+  },
+  {
+   "id": "SRV-MANT",
+   "nombre": "Servicios, repuestos e insumos",
+   "nivel": "bu",
+   "requiereProducto": false,
+   "ambito": [
+    "TyS"
+   ],
+   "destinatario": "entidad-o-grupo",
+   "medios": [
+    "Solicitud interna / externa"
+   ],
+   "componentes": [
+    "Prestación"
+   ],
+   "usaDeposito": false,
+   "cierre": "Operaciones",
+   "bus": [
+    "Mantenimiento"
+   ],
+   "detalle": "",
+   "pendiente": false,
+   "nota": ""
+  },
+  {
+   "id": "SRV-ADM",
+   "nombre": "Prestación de servicios",
+   "nivel": "bu",
+   "requiereProducto": false,
+   "ambito": [
+    "TyS"
+   ],
+   "destinatario": "entidad-o-grupo",
+   "medios": [
+    "Solicitud interna / externa"
+   ],
+   "componentes": [
+    "Prestación"
+   ],
+   "usaDeposito": false,
+   "cierre": "Operaciones",
+   "bus": [
+    "Administración",
+    "Corporate"
+   ],
+   "detalle": "",
+   "pendiente": false,
+   "nota": ""
+  },
+  {
+   "id": "SRV-MAQ",
+   "nombre": "Maquinarias — alcance pendiente",
+   "nivel": "bu",
+   "requiereProducto": false,
+   "ambito": [
+    "TyS"
+   ],
+   "destinatario": "pendiente",
+   "medios": [],
+   "componentes": [],
+   "usaDeposito": false,
+   "cierre": "Operaciones",
+   "bus": [
+    "Maquinarias"
+   ],
+   "detalle": "",
+   "pendiente": true,
+   "nota": ""
+  }
+ ],
+ "componentes": [
+  {
+   "id": "DES",
+   "nombre": "Descarga"
+  },
+  {
+   "id": "TRA",
+   "nombre": "Transporte"
+  },
+  {
+   "id": "DEP",
+   "nombre": "Depósito"
+  },
+  {
+   "id": "CAR",
+   "nombre": "Carga"
+  },
+  {
+   "id": "SRV",
+   "nombre": "Prestación"
+  }
+ ],
+ "medios": [
+  {
+   "id": "BUQ",
+   "nombre": "Buque",
+   "origen": "lineup",
+   "origenNombre": "Lineup"
+  },
+  {
+   "id": "CAM",
+   "nombre": "Camión",
+   "origen": "cupo",
+   "origenNombre": "Cupo de camiones"
+  },
+  {
+   "id": "FFCC",
+   "nombre": "Ferrocarril",
+   "origen": "tren",
+   "origenNombre": "Operativo de tren"
+  },
+  {
+   "id": "SOL",
+   "nombre": "Solicitud interna / externa",
+   "origen": "solicitud",
+   "origenNombre": "Solicitud"
+  },
+  {
+   "id": "INT",
+   "nombre": "Interna",
+   "origen": "detalle",
+   "origenNombre": "Detalle del servicio"
+  },
+  {
+   "id": "EXT",
+   "nombre": "Externa",
+   "origen": "detalle",
+   "origenNombre": "Detalle del servicio"
+  }
+ ],
+ "matriz": [
+  {
+   "entidad": "Terminales y Servicios",
+   "Descarga": "Operaciones",
+   "Transporte": "Logística",
+   "Depósito": "Depósitos",
+   "Carga": "Operaciones",
+   "Prestación": "—"
+  },
+  {
+   "entidad": "Terminal Timbúes",
+   "Descarga": "Operaciones TT",
+   "Transporte": "Logística TT",
+   "Depósito": "Depósitos TT",
+   "Carga": "Operaciones TT",
+   "Prestación": "—"
+  }
+ ],
+ "estados": [
+  {
+   "id": "BORR",
+   "nombre": "Borrador",
+   "responsable": "COM",
+   "proximo": "Completar y crear la orden."
+  },
+  {
+   "id": "PEND_PLAN",
+   "nombre": "Pendiente de planificación",
+   "responsable": "PLAN",
+   "proximo": "Asignar y confirmar recursos."
+  },
+  {
+   "id": "PLANIF",
+   "nombre": "Planificada / pendiente de inicio",
+   "responsable": "OPS",
+   "proximo": "Verificar habilitaciones e iniciar."
+  },
+  {
+   "id": "EJEC",
+   "nombre": "En ejecución",
+   "responsable": "OPS",
+   "proximo": "Registrar y finalizar el operativo."
+  },
+  {
+   "id": "PEND_CIERRE",
+   "nombre": "Pendiente de cierre",
+   "responsable": "DEP",
+   "proximo": "Revisar y cerrar."
+  },
+  {
+   "id": "CERRADA",
+   "nombre": "Cerrada",
+   "responsable": null,
+   "proximo": "Consultar resultados e historial."
+  },
+  {
+   "id": "ANULADA",
+   "nombre": "Anulada",
+   "responsable": null,
+   "proximo": "Solo consulta: conserva el historial y el motivo de la anulación.",
+   "sup": true
+  }
+ ],
+ "transiciones": [
+  {
+   "de": "BORR",
+   "a": "PEND_PLAN",
+   "accion": "Crear y enviar a planificación",
+   "rol": "COM",
+   "validacion": "Selección secuencial completa; habilitaciones registradas (pueden estar pendientes).",
+   "deN": "Borrador",
+   "aN": "Pendiente de planificación",
+   "rolN": "Comercial / Backoffice"
+  },
+  {
+   "de": "PEND_PLAN",
+   "a": "PLANIF",
+   "accion": "Confirmar planificación y enviar a operaciones",
+   "rol": "PLAN",
+   "validacion": "Disponibilidad, superposición, capacidad, compatibilidad y reglas del circuito sin errores.",
+   "deN": "Pendiente de planificación",
+   "aN": "Planificada / pendiente de inicio",
+   "rolN": "Planificador"
+  },
+  {
+   "de": "PLANIF",
+   "a": "EJEC",
+   "accion": "Iniciar operativo",
+   "rol": "OPS",
+   "validacion": "Nacionalización y método seguro cumplidos (bloqueo duro).",
+   "deN": "Planificada / pendiente de inicio",
+   "aN": "En ejecución",
+   "rolN": "Operaciones"
+  },
+  {
+   "de": "EJEC",
+   "a": "PEND_CIERRE",
+   "accion": "Finalizar operativo y enviar a cierre",
+   "rol": "OPS",
+   "validacion": "Si el acumulado difiere de lo previsto, se registra la diferencia.",
+   "deN": "En ejecución",
+   "aN": "Pendiente de cierre",
+   "rolN": "Operaciones"
+  },
+  {
+   "de": "PEND_CIERRE",
+   "a": "CERRADA",
+   "accion": "Cerrar operativo",
+   "rol": "cierre",
+   "validacion": "Rol de cierre según el servicio (Depósito por defecto).",
+   "deN": "Pendiente de cierre",
+   "aN": "Cerrada",
+   "rolN": "Rol de cierre del servicio"
+  },
+  {
+   "de": "PEND_PLAN",
+   "a": "BORR",
+   "accion": "Devolver a Comercial",
+   "rol": "PLAN",
+   "validacion": "Motivo obligatorio; la recomendación se conserva.",
+   "sup": true,
+   "deN": "Pendiente de planificación",
+   "aN": "Borrador",
+   "rolN": "Planificador"
+  },
+  {
+   "de": "PLANIF",
+   "a": "PEND_PLAN",
+   "accion": "Devolver al Planificador",
+   "rol": "OPS",
+   "validacion": "Motivo obligatorio; la planificación queda como historial y se liberan las reservas.",
+   "sup": true,
+   "deN": "Planificada / pendiente de inicio",
+   "aN": "Pendiente de planificación",
+   "rolN": "Operaciones"
+  },
+  {
+   "de": "EJEC",
+   "a": "PLANIF",
+   "accion": "Revertir el inicio",
+   "rol": "OPS",
+   "validacion": "Solo sin tickets registrados; motivo obligatorio.",
+   "sup": true,
+   "deN": "En ejecución",
+   "aN": "Planificada / pendiente de inicio",
+   "rolN": "Operaciones"
+  },
+  {
+   "de": "PEND_CIERRE",
+   "a": "EJEC",
+   "accion": "Devolver a Operaciones",
+   "rol": "cierre",
+   "validacion": "Motivo obligatorio; el operativo vuelve a ejecución con sus recursos activos.",
+   "sup": true,
+   "deN": "Pendiente de cierre",
+   "aN": "En ejecución",
+   "rolN": "Rol de cierre del servicio"
+  },
+  {
+   "de": "*",
+   "a": "ANULADA",
+   "accion": "Anular orden",
+   "rol": "responsable de la etapa",
+   "validacion": "Cualquier etapa salvo Cerrada; motivo obligatorio; libera reservas y conserva el historial.",
+   "sup": true,
+   "deN": "*",
+   "aN": "Anulada",
+   "rolN": "responsable de la etapa"
+  }
+ ],
+ "modulos": [
+  {
+   "id": "inicio",
+   "nombre": "Inicio",
+   "fijo": true,
+   "grupo": "operacion"
+  },
+  {
+   "id": "arribos",
+   "nombre": "Logística de arribo",
+   "grupo": "operacion"
+  },
+  {
+   "id": "bandeja",
+   "nombre": "Workflow · mi etapa",
+   "grupo": "operacion"
+  },
+  {
+   "id": "ordenes",
+   "nombre": "Operaciones · órdenes (incluye Nueva orden y expediente)",
+   "grupo": "operacion"
+  },
+  {
+   "id": "area",
+   "nombre": "Mi área (capacidad y reservas)",
+   "grupo": "operacion"
+  },
+  {
+   "id": "recursos",
+   "nombre": "Recursos",
+   "grupo": "operacion"
+  },
+  {
+   "id": "deposito",
+   "nombre": "Depósito",
+   "grupo": "operacion"
+  },
+  {
+   "id": "comparativas",
+   "nombre": "Comparativas",
+   "grupo": "operacion"
+  },
+  {
+   "id": "md",
+   "nombre": "Datos maestros",
+   "grupo": "configuracion"
+  },
+  {
+   "id": "admin",
+   "nombre": "Administración",
+   "grupo": "configuracion"
+  },
+  {
+   "id": "casos",
+   "nombre": "Casos guiados (maqueta)",
+   "grupo": "maqueta"
+  },
+  {
+   "id": "supuestos",
+   "nombre": "Supuestos (maqueta)",
+   "grupo": "maqueta"
+  }
+ ],
+ "permisosModulos": {
+  "COM": {
+   "area": false
+  },
+  "LAR": {
+   "bandeja": false,
+   "deposito": false,
+   "area": false
+  },
+  "MD": {
+   "deposito": false
+  },
+  "ARE": {
+   "deposito": false,
+   "comparativas": false
+  }
+ },
+ "permisosModulosEntidad": {
+  "AMA": {
+   "deposito": false,
+   "comparativas": false
+  }
+ },
+ "permisosModulosBU": {
+  "TYS-RENT": {
+   "arribos": false,
+   "deposito": false
+  },
+  "TYS-CORP": {
+   "arribos": false,
+   "deposito": false,
+   "recursos": false
+  },
+  "TYS-ADM": {
+   "arribos": false,
+   "deposito": false,
+   "recursos": false
+  },
+  "TYS-MANT": {
+   "arribos": false,
+   "deposito": false
+  },
+  "TYS-MAQ": {
+   "deposito": false
+  }
+ },
+ "parametros": {
+  "pesos": {
+   "costo": 0.5,
+   "duracion": 0.3,
+   "cumplimiento": 0.2
+  },
+  "eficienciaEquipo": 0.75,
+  "horasTurno": 6,
+  "camionesPorMano": null,
+  "diasDepositoEstimados": 1,
+  "toleranciaCierrePct": 2,
+  "toleranciaMermaPct": 0.5,
+  "origenEquiposPorDefecto": "muelle",
+  "factorRuta": 1.3,
+  "costoKmTraslado": 2.5,
+  "costoKmCamion": 1.9
+ },
+ "motivos": {
+  "modificacion": [
+   "Aumento de ritmo requerido por el cliente",
+   "Avería / reemplazo de equipo",
+   "Condiciones climáticas",
+   "Optimización de costos",
+   "Recurso planificado no disponible",
+   "Fin de la necesidad operativa"
+  ],
+  "desvio": [
+   "Menor costo total",
+   "Reserva del equipo para otro operativo",
+   "Preferencia operativa del supervisor",
+   "Restricción del cliente",
+   "Otro"
+  ],
+  "devolucion": [
+   "Datos de la orden incompletos o incorrectos",
+   "Cambio en la solicitud del cliente",
+   "Recursos planificados no disponibles",
+   "Ventana operativa modificada",
+   "Error de carga o de asignación",
+   "Otro"
+  ],
+  "anulacion": [
+   "Cancelación del arribo o del servicio por el cliente",
+   "Orden duplicada",
+   "Error de alta",
+   "Reprogramación: se crea una orden nueva",
+   "Otro"
+  ],
+  "responsabilidades": [
+   "Propia",
+   "Cliente",
+   "Transportista",
+   "Proveedor de personal",
+   "Agencia marítima",
+   "Fuerza mayor"
+  ]
+ },
+ "causasDemora": [
+  {
+   "id": "CD-01",
+   "nombre": "Lluvia / condiciones climáticas",
+   "responsabilidad": "Fuerza mayor",
+   "imputable": "fuerza mayor"
+  },
+  {
+   "id": "CD-02",
+   "nombre": "Falta de camiones",
+   "responsabilidad": "Transportista",
+   "imputable": "tercero"
+  },
+  {
+   "id": "CD-03",
+   "nombre": "Avería de grúa / equipo",
+   "responsabilidad": "Propia",
+   "imputable": "TyS"
+  },
+  {
+   "id": "CD-04",
+   "nombre": "Espera de documentación aduanera",
+   "responsabilidad": "Cliente",
+   "imputable": "cliente"
+  },
+  {
+   "id": "CD-05",
+   "nombre": "Falta de personal de mano",
+   "responsabilidad": "Proveedor de personal",
+   "imputable": "tercero"
+  },
+  {
+   "id": "CD-06",
+   "nombre": "Cambio de turno / relevo",
+   "responsabilidad": "Propia",
+   "imputable": "TyS"
+  },
+  {
+   "id": "CD-07",
+   "nombre": "Bodega no lista / demora del buque",
+   "responsabilidad": "Agencia marítima",
+   "imputable": "buque"
+  },
+  {
+   "id": "CD-08",
+   "nombre": "Congestión de balanza",
+   "responsabilidad": "Propia",
+   "imputable": "TyS"
+  },
+  {
+   "id": "CD-09",
+   "nombre": "Recepción lenta en depósito",
+   "responsabilidad": "Propia",
+   "imputable": "TyS"
+  },
+  {
+   "id": "CD-10",
+   "nombre": "Desvío logístico (GPS)",
+   "responsabilidad": "Transportista",
+   "imputable": "tercero"
+  }
+ ],
+ "tolerancias": [
+  {
+   "id": "TOL-MERMA-CIERRE",
+   "nombre": "Merma / excedente al cierre",
+   "parametro": "Diferencia declarada sobre lo previsto",
+   "valor": 0.5,
+   "unidad": "%",
+   "accion": "requerir autorización",
+   "uso": "Cierre del operativo (si el instrumento no fija la suya)"
+  },
+  {
+   "id": "TOL-DIF-FIN",
+   "nombre": "Diferencia al finalizar",
+   "parametro": "Faltante entre previsto y acumulado al finalizar",
+   "valor": 2,
+   "unidad": "%",
+   "accion": "alertar y registrar desvío",
+   "uso": "Finalizar operativo"
+  },
+  {
+   "id": "TOL-BALANZAS",
+   "nombre": "Diferencia entre balanzas",
+   "parametro": "Ticket fiscal de puerto vs. balanza TyS",
+   "valor": 4,
+   "unidad": "%",
+   "accion": "alertar y registrar desvío",
+   "uso": "Conciliación (fuera del alcance de la maqueta)"
+  },
+  {
+   "id": "TOL-ETA",
+   "nombre": "Variación de ETA",
+   "parametro": "ETA nueva − ETA anterior",
+   "valor": 24,
+   "unidad": "horas",
+   "accion": "alertar y registrar desvío",
+   "uso": "Logística de arribo (cambio de fechas)"
+  },
+  {
+   "id": "TOL-CAMIONES-OP",
+   "nombre": "Camiones por operativo",
+   "parametro": "Camiones asignados vs. necesarios",
+   "valor": 2,
+   "unidad": "camiones",
+   "accion": "alertar y registrar desvío",
+   "uso": "Planificación de logística"
+  },
+  {
+   "id": "TOL-RITMO",
+   "nombre": "Ritmo bajo el comprometido",
+   "parametro": "Ritmo neto vs. ritmo contractual",
+   "valor": 10,
+   "unidad": "%",
+   "accion": "alertar y registrar desvío",
+   "uso": "Alertas de ejecución"
+  },
+  {
+   "id": "TOL-ANTELACION",
+   "nombre": "Antelación del aviso",
+   "parametro": "ETA − fecha del aviso",
+   "valor": 15,
+   "unidad": "días",
+   "accion": "alertar y registrar desvío",
+   "uso": "Registro del aviso (fuera del alcance de la maqueta)"
+  },
+  {
+   "id": "TOL-DOTACION",
+   "nombre": "Dotación mínima por puesto",
+   "parametro": "Cantidad planificada vs. mínimo del puesto",
+   "valor": 0,
+   "unidad": "personas",
+   "accion": "requerir autorización",
+   "uso": "Planificación de personal propio"
+  }
+ ],
+ "fichas": [
+  {
+   "codigo": "M-01",
+   "nombre": "Unidad de negocio",
+   "dominio": "2.1 Organización y contabilidad",
+   "nivel": 0,
+   "clave": "cuit",
+   "depende": "— (raíz)",
+   "existeHoy": "Parcial",
+   "administra": "Administración y Finanzas",
+   "autoriza": "Administración y Finanzas",
+   "maqueta": false,
+   "nAtributos": 7,
+   "nRegs": 3,
+   "abm": "ABM directo",
+   "descripcion": "Empresas del grupo que facturan y registran."
+  },
+  {
+   "codigo": "M-02",
+   "nombre": "Centro de costo",
+   "dominio": "2.1 Organización y contabilidad",
+   "nivel": 1,
+   "clave": "codigo",
+   "depende": "M-01",
+   "existeHoy": "No (nuevo en el modelo)",
+   "administra": "Administración y Finanzas",
+   "autoriza": "Administración y Finanzas",
+   "maqueta": false,
+   "nAtributos": 5,
+   "nRegs": 14,
+   "abm": "ABM directo",
+   "descripcion": "Centros de costo de la unidad de negocio."
+  },
+  {
+   "codigo": "M-03",
+   "nombre": "Cuenta objeto",
+   "dominio": "2.1 Organización y contabilidad",
+   "nivel": 1,
+   "clave": "codigo",
+   "depende": "M-02",
+   "existeHoy": "Parcial / Sí",
+   "administra": "Administración y Finanzas",
+   "autoriza": "Administración y Finanzas",
+   "maqueta": false,
+   "nAtributos": 5,
+   "nRegs": 12,
+   "abm": "ABM directo",
+   "descripcion": "Cuentas y objetos de imputación: cuentas del plan y el objeto de costo que se abre por cada operativo."
+  },
+  {
+   "codigo": "M-04",
+   "nombre": "Tipos de comprobantes",
+   "dominio": "2.1 Organización y contabilidad",
+   "nivel": 1,
+   "clave": "codigo",
+   "depende": "M-01 · M-02 · M-03",
+   "existeHoy": "Sí",
+   "administra": "Administración y Finanzas",
+   "autoriza": "Administración y Finanzas",
+   "maqueta": false,
+   "nAtributos": 6,
+   "nRegs": 6,
+   "abm": "ABM directo",
+   "descripcion": "Comprobantes que emite el sistema y su imputación por defecto."
+  },
+  {
+   "codigo": "M-05",
+   "nombre": "Áreas",
+   "dominio": "2.1 Organización y contabilidad",
+   "nivel": 0,
+   "clave": "codigo",
+   "depende": "M-01",
+   "existeHoy": "No",
+   "administra": "RRHH",
+   "autoriza": "RRHH",
+   "maqueta": false,
+   "nAtributos": 9,
+   "nRegs": 15,
+   "abm": "ABM directo",
+   "descripcion": "Áreas de la organización y los puestos de trabajo que dependen de ellas. La dotación propia se planifica por puesto (rol) y cantidad, nunca por persona: el puesto es el recurso; el legajo (28) se asigna en la ejecución."
+  },
+  {
+   "codigo": "M-06",
+   "nombre": "Clientes / Proveedores",
+   "dominio": "2.2 Clientes, proveedores y terceros",
+   "nivel": 1,
+   "clave": "cuit",
+   "depende": "M-01",
+   "existeHoy": "Sí",
+   "administra": "Comercial · Compras",
+   "autoriza": "Comercial · Compras",
+   "maqueta": false,
+   "nAtributos": 11,
+   "nRegs": 10,
+   "abm": "ABM directo",
+   "descripcion": "Terceros con los que operamos: un CUIT, uno o varios roles (cliente, proveedor)."
+  },
+  {
+   "codigo": "M-07",
+   "nombre": "Productos",
+   "dominio": "2.3 Productos y condiciones de mercadería",
+   "nivel": 0,
+   "clave": "codigo",
+   "depende": "— (raíz)",
+   "existeHoy": "Parcial / Sí",
+   "administra": "Operaciones · Calidad",
+   "autoriza": "Operaciones · Calidad",
+   "maqueta": false,
+   "nAtributos": 18,
+   "nRegs": 7,
+   "abm": "ABM directo",
+   "descripcion": "Cada producto que se descarga, transporta o almacena."
+  },
+  {
+   "codigo": "M-08",
+   "nombre": "Buques",
+   "dominio": "2.5 Buques y transporte",
+   "nivel": 0,
+   "clave": "numero_imo",
+   "depende": "— (raíz)",
+   "existeHoy": "No",
+   "administra": "Operaciones Portuarias",
+   "autoriza": "Operaciones Portuarias",
+   "maqueta": false,
+   "nAtributos": 8,
+   "nRegs": 9,
+   "abm": "ABM directo",
+   "descripcion": "Cada buque: solo sus datos propios (la agencia es del arribo, en el LineUp)."
+  },
+  {
+   "codigo": "M-09",
+   "nombre": "Plantas",
+   "dominio": "2.4 Infraestructura",
+   "nivel": 1,
+   "clave": "codigo",
+   "depende": "M-01 · M-02",
+   "existeHoy": "Parcial",
+   "administra": "Operaciones",
+   "autoriza": "Operaciones",
+   "maqueta": false,
+   "nAtributos": 16,
+   "nRegs": 5,
+   "abm": "ABM directo",
+   "descripcion": "Plantas propias, satélites, alquiladas, puertos y terminales."
+  },
+  {
+   "codigo": "M-10",
+   "nombre": "Depósitos",
+   "dominio": "2.4 Infraestructura",
+   "nivel": 2,
+   "clave": "codigo",
+   "depende": "M-09",
+   "existeHoy": "Parcial",
+   "administra": "Depósitos",
+   "autoriza": "Depósitos",
+   "maqueta": false,
+   "nAtributos": 14,
+   "nRegs": 6,
+   "abm": "ABM directo",
+   "descripcion": "Galpones, depósitos y parques de tanques, con sus celdas y boxes (detalle en 10a)."
+  },
+  {
+   "codigo": "M-10a",
+   "nombre": "Celdas · boxes · tanques (detalle de Depósitos)",
+   "dominio": "2.4 Infraestructura",
+   "nivel": 3,
+   "clave": "codigo",
+   "depende": "M-10",
+   "existeHoy": "No",
+   "administra": "Depósitos",
+   "autoriza": "Depósitos",
+   "maqueta": false,
+   "nAtributos": 13,
+   "nRegs": 11,
+   "abm": "ABM directo",
+   "descripcion": "Cada celda, box o tanque del depósito con su capacidad. Es el detalle \"celdas y capacidad / boxes y capacidad\" del maestro 10."
+  },
+  {
+   "codigo": "M-11",
+   "nombre": "Transporte",
+   "dominio": "2.5 Buques y transporte",
+   "nivel": 2,
+   "clave": "codigo",
+   "depende": "M-06",
+   "existeHoy": "Sí",
+   "administra": "Logística",
+   "autoriza": "Logística",
+   "maqueta": false,
+   "nAtributos": 14,
+   "nRegs": 8,
+   "abm": "ABM directo",
+   "descripcion": "Unidades de transporte (camión, batea, cisterna, barcaza) propias o de terceros."
+  },
+  {
+   "codigo": "M-12",
+   "nombre": "Maquinaria",
+   "dominio": "2.6 Maquinaria, personal e insumos",
+   "nivel": 2,
+   "clave": "codigo",
+   "depende": "M-09 · M-02",
+   "existeHoy": "No",
+   "administra": "Rental · Mantenimiento",
+   "autoriza": "Rental · Mantenimiento",
+   "maqueta": false,
+   "nAtributos": 14,
+   "nRegs": 11,
+   "abm": "ABM directo",
+   "descripcion": "Grúas, palas, tolvas, cintas, autoelevadores, bombas."
+  },
+  {
+   "codigo": "M-13",
+   "nombre": "Personal contratado",
+   "dominio": "2.6 Maquinaria, personal e insumos",
+   "nivel": 2,
+   "clave": "proveedor+categoria",
+   "depende": "M-06 · M-18 · M-02",
+   "existeHoy": "No",
+   "administra": "RRHH · Compras",
+   "autoriza": "RRHH · Compras",
+   "maqueta": false,
+   "nAtributos": 11,
+   "nRegs": 4,
+   "abm": "ABM directo",
+   "descripcion": "Manos de estiba y personal eventual contratado a proveedores. La mano es un recurso: categoría con composición por roles (ej. 8 estibadores · 1 capataz), tarifa por mano y turno y método seguro; se planifica por cantidad de manos, nunca por nombre."
+  },
+  {
+   "codigo": "M-14",
+   "nombre": "Tipos de servicios",
+   "dominio": "2.7 Servicios, tarifas y contratos",
+   "nivel": 0,
+   "clave": "codigo",
+   "depende": "— (raíz)",
+   "existeHoy": "No",
+   "administra": "Comercial · Operaciones",
+   "autoriza": "Comercial · Operaciones",
+   "maqueta": false,
+   "nAtributos": 14,
+   "nRegs": 10,
+   "abm": "ABM directo",
+   "descripcion": "Servicios simples y combinados. Cada tipo indica qué componentes, recursos, controles y etapas requiere."
+  },
+  {
+   "codigo": "M-15",
+   "nombre": "Tarifas",
+   "dominio": "2.7 Servicios, tarifas y contratos",
+   "nivel": 2,
+   "clave": "codigo",
+   "depende": "M-14 · M-07 · M-06 · M-18",
+   "existeHoy": "Parcial",
+   "administra": "Comercial",
+   "autoriza": "Comercial",
+   "maqueta": false,
+   "nAtributos": 11,
+   "nRegs": 24,
+   "abm": "Derivado",
+   "descripcion": "Precio de cada tipo de servicio, general o particular por cliente y producto."
+  },
+  {
+   "codigo": "M-16",
+   "nombre": "Contratos",
+   "dominio": "2.7 Servicios, tarifas y contratos",
+   "nivel": 2,
+   "clave": "numero",
+   "depende": "M-06 · M-14",
+   "existeHoy": "Parcial",
+   "administra": "Comercial",
+   "autoriza": "Comercial",
+   "maqueta": false,
+   "nAtributos": 22,
+   "nRegs": 7,
+   "abm": "ABM directo",
+   "descripcion": "Acuerdo con el cliente: servicios, ritmo, tolerancias, merma, volumen, cupos, plazos."
+  },
+  {
+   "codigo": "M-17",
+   "nombre": "LineUp",
+   "dominio": "2.8 Planificación portuaria y de arribos",
+   "nivel": 1,
+   "clave": "codigo",
+   "depende": "M-09 · M-08 · M-06 · M-21 · M-07 · M-25",
+   "existeHoy": "Parcial",
+   "administra": "Comercial / Backoffice (tramo comercial) · Planificación / Operaciones Portuarias (tramo portuario)",
+   "autoriza": "Cada rol autoriza su tramo (vigente al guardar)",
+   "maqueta": false,
+   "nAtributos": 33,
+   "nRegs": 8,
+   "abm": "Pantalla arribos",
+   "descripcion": "Agenda de buques del río: entrada principal de la planificación. Administración centralizada en dos tramos: Comercial / Backoffice registra el arribo con lo que informa el cliente o la agencia (buque, cliente, producto, toneladas, ETA, operación) y Planificación lo completa con lo que fija el Consorcio (ETB, ETC, sitio, orden de puerto, estado operativo)."
+  },
+  {
+   "codigo": "M-18",
+   "nombre": "Monedas y cotizaciones",
+   "dominio": "2.9 Parámetros generales",
+   "nivel": 0,
+   "clave": "codigo",
+   "depende": "— (raíz)",
+   "existeHoy": "Sí",
+   "administra": "Administración y Finanzas",
+   "autoriza": "Administración y Finanzas",
+   "maqueta": false,
+   "nAtributos": 6,
+   "nRegs": 2,
+   "abm": "ABM directo",
+   "descripcion": "Monedas y su cotización."
+  },
+  {
+   "codigo": "M-19",
+   "nombre": "Calendario y turnos",
+   "dominio": "2.9 Parámetros generales",
+   "nivel": 1,
+   "clave": "planta+fecha+turno_codigo",
+   "depende": "M-09 · M-33",
+   "existeHoy": "No",
+   "administra": "RRHH · Operaciones",
+   "autoriza": "RRHH · Operaciones",
+   "maqueta": false,
+   "nAtributos": 9,
+   "nRegs": 36,
+   "abm": "Derivado",
+   "descripcion": "Días hábiles e inhábiles y turnos por planta y fecha, sobre el régimen de turnos (33). Habilita los turnos en días inhábiles / feriados con su costo."
+  },
+  {
+   "codigo": "M-20",
+   "nombre": "Tolerancias",
+   "dominio": "2.9 Parámetros generales",
+   "nivel": 0,
+   "clave": "codigo",
+   "depende": "— (raíz)",
+   "existeHoy": "No",
+   "administra": "Operaciones · Logística · Tráfico",
+   "autoriza": "Operaciones · Logística · Tráfico",
+   "maqueta": false,
+   "nAtributos": 8,
+   "nRegs": 8,
+   "abm": "ABM directo",
+   "descripcion": "Cuánto desvío se admite en cada control y qué pasa al excederlo."
+  },
+  {
+   "codigo": "M-21",
+   "nombre": "Agencia marítima / Armador",
+   "dominio": "2.2 Clientes, proveedores y terceros",
+   "nivel": 0,
+   "clave": "identificacion_fiscal",
+   "depende": "— (raíz)",
+   "existeHoy": "No",
+   "administra": "Operaciones Portuarias",
+   "autoriza": "Operaciones Portuarias",
+   "maqueta": false,
+   "nAtributos": 9,
+   "nRegs": 3,
+   "abm": "ABM directo",
+   "descripcion": "Representa al buque ante el puerto en cada arribo."
+  },
+  {
+   "codigo": "M-22",
+   "nombre": "Despachante de aduana",
+   "dominio": "2.2 Clientes, proveedores y terceros",
+   "nivel": 0,
+   "clave": "cuit",
+   "depende": "— (raíz)",
+   "existeHoy": "No",
+   "administra": "Comercial",
+   "autoriza": "Comercial",
+   "maqueta": false,
+   "nAtributos": 6,
+   "nRegs": 2,
+   "abm": "ABM directo",
+   "descripcion": "Nacionaliza la mercadería fiscal por cuenta del cliente."
+  },
+  {
+   "codigo": "M-23",
+   "nombre": "Matriz de calidad",
+   "dominio": "2.3 Productos y condiciones de mercadería",
+   "nivel": 1,
+   "clave": "codigo",
+   "depende": "M-07",
+   "existeHoy": "Parcial",
+   "administra": "Calidad",
+   "autoriza": "Calidad",
+   "maqueta": false,
+   "nAtributos": 5,
+   "nRegs": 9,
+   "abm": "ABM directo",
+   "descripcion": "Parámetros de calidad admitidos por producto."
+  },
+  {
+   "codigo": "M-24",
+   "nombre": "Matriz de compatibilidad",
+   "dominio": "2.3 Productos y condiciones de mercadería",
+   "nivel": 1,
+   "clave": "producto_a+producto_b",
+   "depende": "M-07",
+   "existeHoy": "No",
+   "administra": "Calidad",
+   "autoriza": "Calidad",
+   "maqueta": false,
+   "nAtributos": 4,
+   "nRegs": 8,
+   "abm": "ABM directo",
+   "descripcion": "Qué productos pueden convivir en la misma ubicación."
+  },
+  {
+   "codigo": "M-25",
+   "nombre": "Muelles",
+   "dominio": "2.4 Infraestructura",
+   "nivel": 1,
+   "clave": "codigo",
+   "depende": "M-09",
+   "existeHoy": "No",
+   "administra": "Operaciones Portuarias",
+   "autoriza": "Operaciones Portuarias",
+   "maqueta": false,
+   "nAtributos": 10,
+   "nRegs": 3,
+   "abm": "ABM directo",
+   "descripcion": "Muelles, grúas de muelle y puntos de conexión donde se opera."
+  },
+  {
+   "codigo": "M-26",
+   "nombre": "Balanzas",
+   "dominio": "2.4 Infraestructura",
+   "nivel": 2,
+   "clave": "codigo",
+   "depende": "M-09",
+   "existeHoy": "Parcial",
+   "administra": "Tráfico",
+   "autoriza": "Tráfico",
+   "maqueta": false,
+   "nAtributos": 18,
+   "nRegs": 2,
+   "abm": "ABM directo",
+   "descripcion": "Balanzas propias, de puerto y de terceros con su certificación y su habilitación fiscal (con vencimiento): si la mercadería del operativo no está nacionalizada solo se ofrecen las habilitadas para fiscal."
+  },
+  {
+   "codigo": "M-27",
+   "nombre": "Choferes",
+   "dominio": "2.2 Clientes, proveedores y terceros",
+   "nivel": 0,
+   "clave": "cuil",
+   "depende": "— (raíz)",
+   "existeHoy": "Sí",
+   "administra": "Logística",
+   "autoriza": "Logística",
+   "maqueta": false,
+   "nAtributos": 7,
+   "nRegs": 6,
+   "abm": "ABM directo",
+   "descripcion": "Choferes habilitados con credencial portuaria. En la planificación el chofer es un recurso (cantidad de choferes habilitados); el nombre se registra en la ejecución / portería."
+  },
+  {
+   "codigo": "M-28",
+   "nombre": "Personal propio",
+   "dominio": "2.6 Maquinaria, personal e insumos",
+   "nivel": 2,
+   "clave": "legajo",
+   "depende": "M-05 · M-09",
+   "existeHoy": "Parcial",
+   "administra": "RRHH",
+   "autoriza": "RRHH",
+   "maqueta": false,
+   "nAtributos": 7,
+   "nRegs": 27,
+   "abm": "ABM directo",
+   "descripcion": "Personal propio y eventual con su puesto y planta."
+  },
+  {
+   "codigo": "M-29",
+   "nombre": "Causas de demora",
+   "dominio": "2.9 Parámetros generales",
+   "nivel": 0,
+   "clave": "codigo",
+   "depende": "— (raíz)",
+   "existeHoy": "No",
+   "administra": "Operaciones · Calidad",
+   "autoriza": "Operaciones · Calidad",
+   "maqueta": false,
+   "nAtributos": 6,
+   "nRegs": 10,
+   "abm": "ABM directo",
+   "descripcion": "Lista cerrada de motivos de demora."
+  },
+  {
+   "codigo": "M-30",
+   "nombre": "Insumos y repuestos",
+   "dominio": "2.6 Maquinaria, personal e insumos",
+   "nivel": 1,
+   "clave": "codigo",
+   "depende": "M-09",
+   "existeHoy": "No",
+   "administra": "Mantenimiento · Pañol",
+   "autoriza": "Mantenimiento · Pañol",
+   "maqueta": false,
+   "nAtributos": 14,
+   "nRegs": 5,
+   "abm": "ABM directo",
+   "descripcion": "Repuestos e insumos del pañol."
+  },
+  {
+   "codigo": "M-31",
+   "nombre": "Cupos de ingreso",
+   "dominio": "2.8 Planificación portuaria y de arribos",
+   "nivel": 3,
+   "clave": "codigo",
+   "depende": "M-09 · M-06 · M-07 · M-16",
+   "existeHoy": "Parcial (planilla de cupos)",
+   "administra": "Comercial / Backoffice (tramo comercial) · Tráfico — Portería y Balanza (tramo de portería)",
+   "autoriza": "Cada rol autoriza su tramo (vigente al guardar)",
+   "maqueta": false,
+   "nAtributos": 17,
+   "nRegs": 4,
+   "abm": "Pantalla arribos",
+   "descripcion": "Cuadro de cupos de ingreso por camión (no buque): fecha, planta, cliente, producto, camiones y toneladas autorizadas. Entrada de la planificación para servicios sin buque. Administración centralizada en dos tramos: Comercial carga el cupo (cliente, producto, contrato, día, camiones, toneladas) y Tráfico — Portería lo completa (turno, portón, confirmación de planta)."
+  },
+  {
+   "codigo": "M-32",
+   "nombre": "Arribos ferroviarios",
+   "dominio": "2.8 Planificación portuaria y de arribos",
+   "nivel": 3,
+   "clave": "codigo",
+   "depende": "M-09 · M-06 · M-07 · M-16",
+   "existeHoy": "No (hoy avisos por correo / teléfono del operador)",
+   "administra": "Comercial / Backoffice (tramo comercial) · Logística (tramo operativo)",
+   "autoriza": "Cada rol autoriza su tramo (vigente al guardar)",
+   "maqueta": false,
+   "nAtributos": 18,
+   "nRegs": 2,
+   "abm": "Pantalla arribos",
+   "descripcion": "Programa de trenes: formaciones que arriban a la playa de vías con mercadería del cliente (ingreso) o para cargar (egreso). Es la entrada de los servicios sin buque que llegan por ferrocarril; se administra en forma centralizada con dos tramos: comercial (Comercial / Backoffice) y operativo (Logística)."
+  },
+  {
+   "codigo": "M-33",
+   "nombre": "Régimen de turnos",
+   "dominio": "2.9 Parámetros generales",
+   "nivel": 0,
+   "clave": "codigo",
+   "depende": "— (raíz)",
+   "existeHoy": "Parcial (régimen escrito en los convenios; hoy 3 × 8 h)",
+   "administra": "RRHH · Operaciones",
+   "autoriza": "RRHH y Planta (cadena de autorización)",
+   "maqueta": false,
+   "nAtributos": 8,
+   "nRegs": 4,
+   "abm": "ABM directo",
+   "descripcion": "Turnos operativos del día y su duración (por defecto 4 turnos de 6 h). Parametriza la duración del turno: la cantidad de turnos planificados determina la duración del operativo (ETC = ETB + turnos × duración). 19 Calendario y turnos clasifica cada día (hábil / inhábil / feriado) sobre estos turnos."
+  },
+  {
+   "codigo": "M-34",
+   "nombre": "Métodos seguros",
+   "dominio": "2.10 Seguridad y métodos seguros",
+   "nivel": 0,
+   "clave": "codigo",
+   "depende": "M-05",
+   "existeHoy": "Parcial (procedimientos de SyH en papel / carpeta)",
+   "administra": "Seguridad e Higiene",
+   "autoriza": "Seguridad e Higiene (cadena de autorización)",
+   "maqueta": false,
+   "nAtributos": 12,
+   "nRegs": 13,
+   "abm": "ABM directo",
+   "descripcion": "Procedimiento y documentación que avalan la forma segura de gestionar un recurso u operación (método seguro, MS). Cada recurso de la master data referencia el o los MS que lo avalan; un MS vencido deja al recurso sin disponibilidad para planificar (o lo deja con observación, según la acción declarada al vencer)."
+  },
+  {
+   "codigo": "M-35",
+   "nombre": "Unidades de negocio (BU)",
+   "dominio": "2.1 Organización y contabilidad",
+   "nivel": 1,
+   "clave": "codigo",
+   "depende": "M-01 · M-02",
+   "existeHoy": "Parcial (estructura societaria y de gestión)",
+   "administra": "Administración y Finanzas",
+   "autoriza": "Administración y Finanzas",
+   "maqueta": true,
+   "nAtributos": 8,
+   "nRegs": 12,
+   "abm": "ABM directo",
+   "descripcion": "Unidad de negocio de la estructura nueva (15/09): presupuesto, costos y facturación propios dentro de una entidad fiscal (M-01). Puede convertirse en entidad fiscal con fecha de vigencia conservando el historial."
+  },
+  {
+   "codigo": "M-36",
+   "nombre": "Matriz de ejecución y relaciones",
+   "dominio": "2.7 Servicios, tarifas y contratos",
+   "nivel": 2,
+   "clave": "entidad+componente",
+   "depende": "M-01 · M-14 · M-35",
+   "existeHoy": "No",
+   "administra": "Comercial · Administración",
+   "autoriza": "Administración y Finanzas",
+   "maqueta": true,
+   "nAtributos": 5,
+   "nRegs": 11,
+   "abm": "Pantalla admin",
+   "descripcion": "Qué BU ejecuta —e imputa— cada componente de los servicios a terceros por entidad (SUPUESTO S1) y cómo se imputa cada relación de la orden (interna · entre empresas del grupo · externa)."
+  },
+  {
+   "codigo": "M-37",
+   "nombre": "Workflows de la orden de servicio",
+   "dominio": "2.9 Parámetros generales",
+   "nivel": 1,
+   "clave": "de+a",
+   "depende": "M-14 · M-38",
+   "existeHoy": "No",
+   "administra": "Máster data / Administrador",
+   "autoriza": "Operaciones · Comercial",
+   "maqueta": true,
+   "nAtributos": 6,
+   "nRegs": 17,
+   "abm": "Pantalla admin",
+   "descripcion": "Estados de la orden, transiciones, rol responsable y validación de cada acción; rol de cierre configurable por servicio (SUPUESTO S6)."
+  },
+  {
+   "codigo": "M-38",
+   "nombre": "Usuarios, roles y permisos",
+   "dominio": "2.1 Organización y contabilidad",
+   "nivel": 1,
+   "clave": "codigo",
+   "depende": "M-05 · M-35",
+   "existeHoy": "Parcial",
+   "administra": "Máster data / Administrador",
+   "autoriza": "Gerencia",
+   "maqueta": true,
+   "nAtributos": 5,
+   "nRegs": 7,
+   "abm": "Derivado",
+   "descripcion": "Roles del circuito (Comercial / Backoffice, Planificador, Operaciones, Depósito, Logística de arribo), su etapa del workflow, bandeja y permisos. Los usuarios se referencian desde la auditoría de cada maestro."
+  },
+  {
+   "codigo": "M-12a",
+   "nombre": "Unidades de maquinaria",
+   "dominio": "2.6 Maquinaria, personal e insumos",
+   "nivel": 2,
+   "clave": "codigo",
+   "depende": "M-12 · M-10a",
+   "existeHoy": "Parcial (planillas de mantenimiento)",
+   "administra": "Maquinarias / Rental",
+   "autoriza": "Mantenimiento",
+   "maqueta": true,
+   "nAtributos": 10,
+   "nRegs": 18,
+   "abm": "ABM directo",
+   "descripcion": "Cada unidad física de una maquinaria de M-12: interno, marca, modelo, año, capacidad y medidas. La misma máquina puede tener características distintas y, según el acceso del destino (ancho y alto del portón, pasillo o boca), sirve una unidad y no otra (revisión 17/09)."
+  },
+  {
+   "codigo": "M-39",
+   "nombre": "Áreas operativas y capacidad",
+   "dominio": "2.1 Organización y contabilidad",
+   "nivel": 1,
+   "clave": "codigo",
+   "depende": "M-01 · M-05 · M-35",
+   "existeHoy": "No (nuevo en el modelo)",
+   "administra": "Máster data / Administrador",
+   "autoriza": "Gerencia de operaciones",
+   "maqueta": true,
+   "nAtributos": 8,
+   "nRegs": 5,
+   "abm": "ABM directo",
+   "descripcion": "Sectores que administran su propia capacidad (Logística, Rental, Depósitos, RRHH, Portería y balanza): qué recursos les pertenecen, cuánta capacidad total tienen, el ABM de esos recursos por workflow y las reservas para operativos futuros referenciadas a un lineup, un cupo o un operativo ferroviario (revisión 16/09)."
+  }
+ ],
+ "dominios": [
+  "2.1 Organización y contabilidad",
+  "2.2 Clientes, proveedores y terceros",
+  "2.3 Productos y condiciones de mercadería",
+  "2.4 Infraestructura",
+  "2.5 Buques y transporte",
+  "2.6 Maquinaria, personal e insumos",
+  "2.7 Servicios, tarifas y contratos",
+  "2.8 Planificación portuaria y de arribos",
+  "2.9 Parámetros generales",
+  "2.10 Seguridad y métodos seguros"
+ ],
+ "ordenCarga": [
+  {
+   "nivel": 0,
+   "maestros": "M-01 Unidad de negocio · M-05 Áreas · M-07 Productos · M-08 Buques · M-14 Tipos de servicios · M-18 Monedas y cotizaciones · M-20 Tolerancias · M-21 Agencia marítima / Armador · M-22 Despachante de aduana · M-27 Choferes · M-29 Causas de demora · M-33 Régimen de turnos · M-34 Métodos seguros",
+   "queSeHace": "Sin dependencias: catálogos, parámetros y objetos raíz. El régimen de turnos y el catálogo de métodos seguros se cargan primero porque los demás maestros los referencian.",
+   "esfuerzo": "1 a 2 semanas"
+  },
+  {
+   "nivel": 1,
+   "maestros": "M-02 Centro de costo · M-03 Cuenta objeto · M-04 Tipos de comprobantes · M-06 Clientes / Proveedores · M-09 Plantas · M-19 Calendario y turnos · M-23 Matriz de calidad · M-24 Matriz de compatibilidad · M-25 Muelles · M-30 Insumos y repuestos",
+   "queSeHace": "Dependen solo del nivel 0. M-19 Calendario referencia el régimen de turnos (M-33).",
+   "esfuerzo": "3 a 4 semanas"
+  },
+  {
+   "nivel": 2,
+   "maestros": "M-10 Depósitos · M-11 Transporte · M-12 Maquinaria · M-13 Personal contratado · M-15 Tarifas · M-16 Contratos · M-17 LineUp · M-26 Balanzas · M-28 Personal propio",
+   "queSeHace": "Maestros que controlan la operación: exigen definiciones previas del negocio y su método seguro vigente (M-34).",
+   "esfuerzo": "3 a 4 semanas"
+  },
+  {
+   "nivel": 3,
+   "maestros": "M-10a Celdas · boxes · tanques (detalle de Depósitos) · M-31 Cupos de ingreso · M-32 Arribos ferroviarios",
+   "queSeHace": "Inventario físico de celdas, boxes y tanques; programas de cupos y arribos ferroviarios (dependen del contrato y se administran por tramos).",
+   "esfuerzo": "2 a 3 semanas de relevamiento"
+  }
+ ],
+ "auditoria": [
+  {
+   "atributo": "estado_registro",
+   "tipo": "Enumerado",
+   "obligatorio": "Sí",
+   "dominio": "borrador · en validación · en autorización · vigente · publicada · suspendida · dada de baja",
+   "regla": "Lo maneja el motor de workflow, no el usuario. Nada se borra: la baja solo procede sin movimientos."
+  },
+  {
+   "atributo": "creado_por / creado_el",
+   "tipo": "Ref. usuario · Fecha y hora",
+   "obligatorio": "Sí",
+   "dominio": "—",
+   "regla": "Solicitante y momento de la solicitud."
+  },
+  {
+   "atributo": "validado_por / validado_el",
+   "tipo": "Ref. usuario · Fecha y hora",
+   "obligatorio": "Condicional",
+   "dominio": "—",
+   "regla": "Curador del dominio: controla consistencia, documentación y duplicados. Obligatorio para pasar a autorización."
+  },
+  {
+   "atributo": "autorizado_por / autorizado_el",
+   "tipo": "Ref. usuario · Fecha y hora",
+   "obligatorio": "Condicional",
+   "dominio": "—",
+   "regla": "El autorizante no puede ser el solicitante: el sistema lo impide (control por oposición)."
+  },
+  {
+   "atributo": "version",
+   "tipo": "Entero",
+   "obligatorio": "Sí",
+   "dominio": "≥ 1",
+   "regla": "Se incrementa con cada cambio autorizado; la versión anterior queda cerrada y legible."
+  },
+  {
+   "atributo": "origen",
+   "tipo": "Enumerado",
+   "obligatorio": "Sí",
+   "dominio": "manual · migración · integración · alta provisoria",
+   "regla": "Permite medir las altas fuera del circuito."
+  },
+  {
+   "atributo": "vence_el",
+   "tipo": "Fecha",
+   "obligatorio": "Condicional",
+   "dominio": "—",
+   "regla": "Solo altas provisorias: 72 horas para regularizar o suspender."
+  }
+ ],
+ "ciclo": [
+  {
+   "estado": "1 Borrador",
+   "quePasa": "Cualquier solicitante del dominio completa el formulario.",
+   "regla": "No avanza con un obligatorio vacío ni una referencia inexistente."
+  },
+  {
+   "estado": "2 En validación",
+   "quePasa": "El curador del dominio controla consistencia, documentación, vencimientos y duplicados.",
+   "regla": "La devolución exige motivo, que queda en la traza."
+  },
+  {
+   "estado": "3 En autorización",
+   "quePasa": "El autorizante del dominio aprueba o rechaza.",
+   "regla": "Para entidades con impacto económico la autorización es nominal y no delegable. Autorizante ≠ solicitante."
+  },
+  {
+   "estado": "4 Vigente",
+   "quePasa": "Se activa desde su fecha de vigencia y cierra la versión anterior.",
+   "regla": "Una transacción vieja se lee con el parámetro que regía cuando ocurrió: sin retroactividad."
+  },
+  {
+   "estado": "5 Publicada",
+   "quePasa": "El maestro publica el alta o el cambio y los módulos que lo consumen lo reciben.",
+   "regla": "Ningún módulo mantiene copia editable propia."
+  },
+  {
+   "estado": "6 Suspendida / baja",
+   "quePasa": "El dueño del dominio suspende con autorización.",
+   "regla": "El vencimiento de un atributo con fecha suspende automáticamente. La baja solo sin movimientos."
+  }
+ ],
+ "supuestos": [
+  {
+   "id": "S1",
+   "origen": "Pendiente 1",
+   "tema": "Qué BU ejecuta cada servicio de TyS y TT",
+   "supuesto": "Matriz configurable Servicio × Componente → BU ejecutora. Valores iniciales: Descarga, Transporte y Carga → Logística; Depósito → Depósitos. Las grúas las provee Maquinarias como recurso interno.",
+   "impacto": "Imputación por BU y líneas de la orden.",
+   "donde": "Administración › Matriz de ejecución · Expediente › Costos y cargos"
+  },
+  {
+   "id": "S2",
+   "origen": "Pendiente 2",
+   "tema": "Qué significa \"mejor combinación\" y cómo se calcula",
+   "supuesto": "Puntaje ponderado: costo 50 % · duración 30 % · cumplimiento del ritmo contractual 20 % (pesos configurables). Eficiencia de equipo 75 % sobre capacidad nominal; turnos completos de 6 h.",
+   "impacto": "Recomendación automática y comparativas.",
+   "donde": "Expediente › Planificación · Administración › Parámetros"
+  },
+  {
+   "id": "S3",
+   "origen": "Pendiente 3",
+   "tema": "Quién actualiza y valida la nacionalización y el método seguro",
+   "supuesto": "Nacionalización: la registra Comercial / Backoffice con referencia (despacho) y responsable. Método seguro: definido 15/09 — la habilitación no se confirma a mano; proviene de la master data (método seguro asignado al producto o a su familia, con procedimiento y vigencia) y la administra Seguridad. Supuesto: Comercial es quien registra la nacionalización y no hay un circuito de validación adicional.",
+   "impacto": "Bloqueo de inicio y bandeja de Comercial.",
+   "donde": "Expediente › Habilitaciones · Datos maestros › Seguridad"
+  },
+  {
+   "id": "S4",
+   "origen": "Pendiente 4",
+   "tema": "Cómo se obtiene la disponibilidad de recursos",
+   "supuesto": "Calendario de reservas propio del sistema (órdenes planificadas y en ejecución) + estado del recurso en su maestro (operativo / en mantenimiento con fecha / fuera de servicio). En la maqueta, ambos se simulan.",
+   "impacto": "Validaciones del Planificador y pantalla Recursos.",
+   "donde": "Recursos · Expediente › Planificación"
+  },
+  {
+   "id": "S5",
+   "origen": "Pendiente 5",
+   "tema": "Cómo se aprueban y facturan los gastos adicionales",
+   "supuesto": "Quedan \"Pendiente de aprobación\" en Costos y cargos. Comercial aprueba o rechaza; los aprobados se emiten como evento a facturación (fuera del alcance de la maqueta).",
+   "impacto": "Sección Costos y cargos; cierre.",
+   "donde": "Expediente › Costos y cargos"
+  },
+  {
+   "id": "S6",
+   "origen": "Pendiente 6",
+   "tema": "Cómo cierra un servicio que no utiliza depósito",
+   "supuesto": "El rol de cierre es un atributo del workflow de cada servicio. Descarga costado vapor, Carga y los servicios de solicitud cierran en Operaciones; el resto en Depósito.",
+   "impacto": "Bandeja de cierre y estado Pendiente de cierre.",
+   "donde": "Administración › Workflows"
+  },
+  {
+   "id": "S7",
+   "origen": "Pendiente 7",
+   "tema": "Qué recorrido tendrán los servicios de las otras BU",
+   "supuesto": "Fuera del primer alcance. La maqueta los muestra con origen \"Solicitud\" y el mismo workflow simplificado (sin recomendación automática) para distinguir entidad y BU prestadora de la destinataria.",
+   "impacto": "Casos 9a y 9b.",
+   "donde": "Órdenes OS-2026-0009 y OS-2026-0010"
+  },
+  {
+   "id": "S8",
+   "origen": "Definición 15/09",
+   "tema": "Nivel del servicio: entidad o BU",
+   "supuesto": "Cada servicio del catálogo tiene un nivel. Asignación inicial: los servicios a terceros de TyS y TT (descarga, transporte y depósito; descarga; descarga costado vapor; carga) impactan a la entidad y no llevan BU prestadora; las BU intervienen como ejecutoras de componentes. Los servicios de Rental, Logística, Depósitos, Mantenimiento, Administración y Corporate son de nivel BU.",
+   "impacto": "Selección secuencial de Comercial (el servicio va después de la entidad y define el resto) e imputación.",
+   "donde": "Nueva orden · Datos maestros › Catálogo de servicios · Expediente › Resumen"
+  },
+  {
+   "id": "S10",
+   "origen": "Definición 15/09",
+   "tema": "Logística de arribo administra lineup, cupos y operativos ferroviarios",
+   "supuesto": "Se modela como área y rol propio (quinto rol del selector), sin etapa en el workflow de la orden: solo administra la logística de arribo y no interviene en las operaciones; consulta las órdenes únicamente para visualizarlas. Solo ese rol da de alta y modifica lineups, cupos y operativos ferroviarios; los cuatro roles del workflow los consultan. Cada cambio queda en un registro con quién, cuándo y qué cambió.",
+   "impacto": "Pantalla Logística de arribo; origen de las órdenes.",
+   "donde": "Logística de arribo · Datos maestros › Usuarios y roles"
+  },
+  {
+   "id": "S11",
+   "origen": "Definición 15/09",
+   "tema": "Comparativa de recursos propios y de terceros: necesario vs aplicado",
+   "supuesto": "Propios: muelle, grúas y equipos, camiones propios, palas y tolvas, personal propio, depósito y balanza. Terceros: manos (proveedores de personal) y camiones de transportista. \"Necesario\" = planificación aceptada (cantidad × horas o turnos); \"aplicado\" = ejecución real (horas efectivas de cada recurso). Las dimensiones muelle, mercadería, calidad y destino se toman del expediente (plan y origen).",
+   "impacto": "Sección Comparativas del expediente y pantalla Comparativas.",
+   "donde": "Expediente › Comparativas e historial · Comparativas"
+  },
+  {
+   "id": "S12",
+   "origen": "Definición 15/09",
+   "tema": "Merma o excedente al cierre y tolerancia contractual",
+   "supuesto": "Depósito registra manualmente la merma o el excedente (toneladas) para cerrar el operativo; se propone por la diferencia entre lo previsto y lo pesado. La tolerancia es un parámetro del instrumento contractual (% sobre las toneladas previstas; si el instrumento no lo define, rige el parámetro general 0,5 %). Fuera de tolerancia el cierre queda bloqueado y requiere aprobación de Comercial, que en la maqueta se registra como confirmación manual con motivo.",
+   "impacto": "Cierre en Depósito; comparativas; facturación.",
+   "donde": "Expediente › Depósito (cierre) · Datos maestros › Comercial"
+  },
+  {
+   "id": "S13",
+   "origen": "Definición 15/09",
+   "tema": "Solicitud de habilitación de recursos a la BU dueña",
+   "supuesto": "Cuando en la planificación un recurso no está disponible, el Planificador genera desde el mismo lugar una solicitud a la BU o área dueña del recurso (Maquinarias para grúas y equipos, Logística para muelles, balanzas y camiones, Depósitos para ubicaciones, Rental para palas, Personal para funciones y manos) con la información de la operación: orden, servicio, cliente, producto, ventana, toneladas y motivo. La BU responde habilitando (con detalle) o rechazando; el Planificador revalida. En la maqueta la respuesta se simula desde la pantalla Recursos por cualquier rol; en el sistema real la recibiría el responsable de la BU. Habilitar un recurso en mantenimiento lo pone operativo; habilitar capacidad de logística agrega las unidades pedidas.",
+   "impacto": "Planificación; disponibilidad; bandeja de las BU dueñas.",
+   "donde": "Expediente › Planificación · Recursos › Solicitudes de habilitación"
+  },
+  {
+   "id": "S14",
+   "origen": "Definición 15/09",
+   "tema": "Equipos de descarga / carga: tipo según el producto y origen muelle o buque",
+   "supuesto": "La sección Equipos de descarga / carga solo tiene grúas o sistemas de bombeo. El tipo lo define el estado físico de la familia del producto en la master data (sólido y embolsado → grúas; líquido → bombas). Antes de elegir el equipo, el Planificador indica si se usan los del muelle (terminal) o los del buque. Los equipos del buque los declara Logística de arribo en el lineup (tipo, cantidad y t/h); si se eligen, quedan seleccionados por defecto, no consumen equipos del muelle, no generan superposición, no tienen costo para la terminal y se computan como recurso de tercero en la comparativa. La recomendación evalúa primero los equipos del muelle y solo propone los del buque si no hay combinación factible con los propios.",
+   "impacto": "Planificación, recomendación, comparativa propios/terceros, lineup.",
+   "donde": "Expediente › Planificación · Logística de arribo › Lineup · Datos maestros › Productos"
+  },
+  {
+   "id": "S15",
+   "origen": "Definición 15/09",
+   "tema": "Cambio de fecha de arribo desde la planificación",
+   "supuesto": "Si un equipo del muelle no está disponible porque otro operativo lo tiene reservado, el Planificador puede cambiar la fecha de arribo del servicio desde la misma pantalla: el sistema propone el primer turno libre después de la reserva que genera el conflicto y mantiene la duración de la ventana. El cambio corre ETA, ETB y ETC del lineup (o la fecha del cupo / tren), actualiza la ventana de las órdenes vinculadas que aún no iniciaron y queda en el registro de cambios de Logística de arribo con el Planificador como responsable y la orden como motivo. Solo se admite mientras el arribo esté Anunciado o Confirmado; se asume que la coordinación con la agencia marítima ocurre fuera del sistema.",
+   "impacto": "Ventana operativa; lineup; reservas.",
+   "donde": "Expediente › Planificación › Equipos de descarga / carga · Logística de arribo › Registro de cambios"
+  },
+  {
+   "id": "S16",
+   "origen": "Definición 15/09",
+   "tema": "La master data de la maqueta adopta el modelo v3.1 completo",
+   "supuesto": "La maqueta incorpora los 35 maestros del Excel \"Circuito Detalle de Construcción Master Data v3.1\" (M-01..M-34 + M-10a) con sus 374 atributos, auditoría y ciclo de vida, convenciones, orden de carga, definiciones y decisiones, reglas, mapeo de fuentes y catálogo de transacciones y eventos, y siembra registros de demostración para cada maestro. La estructura nueva del 15/09 se mapea sobre el modelo: la entidad fiscal es M-01 \"Unidad de negocio\" (sociedad que factura), y se agregan como maestros propios de la maqueta M-35 Unidades de negocio (BU), M-36 Matriz de ejecución y relaciones, M-37 Workflows y M-38 Usuarios y roles, más atributos ★ Maqueta (equipos propios del buque en M-08, nivel y rol de cierre del servicio en M-14, productos incluidos y tarifas por componente en M-16, cargas del lineup en M-17). El motor usa los atributos del modelo donde ya existían circuitos: M-07.tipo define grúas o bombas; M-08 aporta los equipos del buque; M-26.habilitada_fiscal y su vencimiento filtran balanzas para mercadería no nacionalizada; M-10 aporta la habilitación aduanera del depósito; M-33 parametriza los turnos de 6 h; M-34 aplica días de aviso y acción al vencer sobre productos y recursos; M-20 fija la tolerancia general de merma. Los atributos \"definidos, sin uso aún\" quedan marcados como insumo del fit-gap. Los valores de los registros son de demostración y deben validarse con cada área.",
+   "impacto": "Pantalla Datos maestros; validaciones del Planificador; habilitaciones; FD y Excel v2.0.",
+   "donde": "Datos maestros (todas las pestañas)"
+  },
+  {
+   "id": "S17",
+   "origen": "Definición 15/09",
+   "tema": "Rol Máster data y permisos por maestro",
+   "supuesto": "Se agrega el rol Máster data (MD), que no interviene en el workflow de la orden. Es el único que puede hacer el ABM de todos los maestros sin restricción y el único que otorga o quita a cada rol el permiso sobre cada maestro, en tres niveles: no lo visualiza (el maestro no aparece en Datos maestros ni en sus enlaces), solo consulta y puede ABM. Los permisos se administran en Datos maestros › Permisos por rol y cada cambio queda en el registro de cambios de la master data. Las altas y modificaciones que hace un rol con permiso ABM nacen \"en validación\" y no las usa el circuito hasta que Máster data las valida y publica (o las rechaza); las de Máster data nacen vigentes. La baja es lógica (el registro queda \"dado de baja\", se conserva y deja de ofrecerse en la planificación). Los registros que la maqueta administra desde otras pantallas (lineups, cupos y trenes en Logística de arribo; matriz de ejecución y workflows en Administración; tarifas y calendario derivados) no tienen ABM directo en Datos maestros. Los permisos iniciales son de demostración y deben validarse con cada área.",
+   "impacto": "Datos maestros (visibilidad, ABM, permisos, registro de cambios); validaciones del Planificador (registros dados de baja o en validación no se ofrecen).",
+   "donde": "Datos maestros › Maestros · Permisos por rol · Registro de cambios · Workflow (rol Máster data)"
+  },
+  {
+   "id": "S18",
+   "origen": "Definición 15/09",
+   "tema": "Devolver la orden al paso anterior o anularla",
+   "supuesto": "En cada etapa, el rol responsable puede devolver la orden al paso anterior o anularla, siempre con motivo obligatorio y registro en el historial. Devolver: Pendiente de planificación → Borrador (Planificador); Planificada → Pendiente de planificación (Operaciones; la planificación queda como historial y se liberan las reservas); En ejecución → Planificada (Operaciones, solo si aún no se registraron tickets: se revierte el inicio); Pendiente de cierre → En ejecución (rol de cierre; el operativo vuelve a estar activo con sus recursos). El rol que recibe la orden devuelta la ve en su bandeja con el motivo. Anular: cualquier etapa salvo Cerrada; la orden pasa a Anulada, libera las reservas de recursos y el origen (la carga del lineup vuelve a estar disponible para una orden nueva), conserva todo el historial y, si ya había toneladas descargadas, quedan registradas sin cierre de depósito. Una orden anulada es de solo consulta. Se asume que anular no requiere aprobación adicional.",
+   "impacto": "Workflow, bandejas, reservas, origen de la orden, comparativas.",
+   "donde": "Expediente › acciones de la etapa · Workflow › pipeline (estado Anulada)"
+  },
+  {
+   "id": "S19",
+   "origen": "Definición 15/09",
+   "tema": "Toneladas y fechas del servicio las define Comercial",
+   "supuesto": "Al generar la orden, Comercial indica las toneladas del producto que va a operar (no siempre es el total de la carga del lineup, del cupo o del tren: se proponen por el remanente y se editan) y la fecha y hora de inicio y fin del servicio (se proponen desde el origen —ETB → ETC, franja del cupo, día del tren— y se editan). Esa ventana es la que se usa para validar la disponibilidad de todos los recursos en la planificación y para las reservas. Reglas adoptadas: la orden puede superar las toneladas declaradas en el origen (se advierte, no se bloquea); toneladas y fechas se pueden modificar (ABM) mientras la orden está en Borrador o Pendiente de planificación —con motivo, registro y recomendación regenerada—; desde Planificada hay que devolver la orden al Planificador para cambiarlas (o cambiar la fecha de arribo, S15).",
+   "impacto": "Alta y edición de la orden; validaciones de disponibilidad; reservas; recomendación.",
+   "donde": "Nueva orden › Datos del servicio · Expediente › Resumen › Editar toneladas y fechas"
+  },
+  {
+   "id": "S20",
+   "origen": "Definición 15/09",
+   "tema": "La descarga la realiza Operaciones; módulos habilitables por rol",
+   "supuesto": "Se agrega la BU Operaciones (TyS y TT) como ejecutora del componente Descarga en la matriz de ejecución (antes Logística); la Carga se asigna también a Operaciones, a confirmar. Logística conserva el transporte. Los muelles siguen siendo recursos de Logística y las grúas de Maquinarias hasta que se defina lo contrario. Además, cada módulo (pantalla) del sistema se habilita o deshabilita por rol / sector desde Administración › Usuarios y permisos › Módulos; Inicio no se puede deshabilitar; en la maqueta la edición no está restringida por rol (en el sistema real correspondería a Máster data o a Administración) y cada cambio queda en el registro de cambios.",
+   "impacto": "Líneas de ejecución e imputación de la descarga; menú y navegación por rol.",
+   "donde": "Administración › Matriz de ejecución · Usuarios y permisos › Módulos por rol"
+  },
+  {
+   "id": "S21",
+   "origen": "Definición 15/09",
+   "tema": "Alta de servicios de Rental y Logística",
+   "supuesto": "Para Alquiler de maquinaria (Rental) y Servicios logísticos (Logística) la selección es Entidad → Servicio → BU prestadora → Medio = Interna o Externa → Cliente (Interna: las otras BU de la entidad y, como supuesto, las empresas del grupo; Externa: la nómina de clientes) → (producto solo en Logística) → Instrumento → Detalle del servicio, que reemplaza al origen operativo. Rental: una o más maquinarias del inventario de Rental con cantidad, fecha desde y hasta, km de entrega y km de devolución. Logística: camión (propio o de transportista) y cantidad, origen y destino elegidos entre las plantas / puertos del grupo y los lugares de los clientes, fechas, y km calculados automáticamente (distancia geodésica entre los lugares × factor de ruta 1,3); se estiman los viajes por la capacidad del camión y los km totales ida y vuelta. Los km se costean con parámetros (USD/km de traslado y USD/km por camión). El Planificador recibe lo solicitado ya cargado en la asignación de recursos y valida disponibilidad en la ventana; Operaciones ejecuta y cierra (rol de cierre del servicio). Las solicitudes internas / externas siguen como origen para los demás servicios de las BU.",
+   "impacto": "Alta de la orden, planificación, costos y comparativas de Rental y Logística.",
+   "donde": "Nueva orden › Detalle del servicio · Expediente › Origen"
+  },
+  {
+   "id": "S22",
+   "origen": "Definición 16/09",
+   "tema": "Menú de Operación por entidad y por BU; ABM del modelo por Máster data",
+   "supuesto": "Además del permiso por rol, cada módulo del menú de Operación (Logística de arribo, Workflow, Operaciones · órdenes, Recursos, Depósito, Comparativas; Inicio es fijo) se habilita o deshabilita por entidad y por unidad de negocio desde Administración › Usuarios, permisos y módulos. El menú muestra la intersección: rol activo ∧ entidad activa ∧ BU activa; con \"Grupo (consolidado)\" o \"Todas las BU\" no se aplica la restricción de esa dimensión. Los módulos de Configuración y Maqueta siguen solo por rol. Valores iniciales de demostración: Amarre sin Depósito ni Comparativas; Rental, Corporate, Administración y Mantenimiento sin Logística de arribo ni Depósito (Corporate y Administración tampoco Recursos); Maquinarias sin Depósito. Máster data puede además hacer el ABM de las listas del modelo —convenciones, reglas por maestro, definiciones previas y decisiones— con el mismo formulario genérico y la misma auditoría (alta vigente, modificación versionada, baja lógica) y registro de cambios; esas listas dejan de ser constantes del Excel y pasan a la master data de la maqueta. Orden de carga, mapeo de fuentes, transacciones y eventos siguen de solo consulta.",
+   "impacto": "Menú y navegación según contexto; gobierno del modelo de master data.",
+   "donde": "Administración › Usuarios, permisos y módulos · Datos maestros › Convenciones · Reglas · Definiciones y decisiones"
+  },
+  {
+   "id": "A1",
+   "origen": "Análisis A1",
+   "tema": "Estructura de la orden para servicios combinados",
+   "supuesto": "Orden madre comercial (lo que el cliente contrata y se factura) + líneas de ejecución por componente con su BU ejecutora (lo que imputa cada unidad).",
+   "impacto": "Expediente › Resumen y Costos.",
+   "donde": "Expediente › Resumen"
+  },
+  {
+   "id": "A2",
+   "origen": "Análisis A2",
+   "tema": "Cardinalidad origen operativo ↔ orden",
+   "supuesto": "Un lineup puede generar N órdenes (una por carga / BL / cliente). Una misma carga admite más de una orden (descarga parcial, cambio de servicio): se advierte, se muestran las órdenes ya vinculadas y las toneladas se proponen por el remanente. Las órdenes del mismo lineup comparten muelle sin conflicto de superposición; los equipos no se comparten.",
+   "impacto": "Wizard de Comercial y validaciones.",
+   "donde": "Logística de arribo · LU-2026-031"
+  },
+  {
+   "id": "S9",
+   "origen": "Definición 15/09",
+   "tema": "Instrumento contractual sin cobertura",
+   "supuesto": "Si para el destinatario no hay instrumento vigente, o el servicio no está contratado, o el producto no está incluido, Comercial puede cargar desde la misma orden un instrumento nuevo o una adenda del existente. La adenda hereda tarifas y condiciones del instrumento padre y agrega servicios, productos y vigencia; queda como registro propio en el maestro de Comercial. Se asume que Comercial tiene atribución para hacerlo sin un circuito de aprobación adicional.",
+   "impacto": "Paso Instrumento del alta de orden · maestro de instrumentos.",
+   "donde": "Nueva orden › Instrumento contractual · Datos maestros › Comercial"
+  },
+  {
+   "id": "A3",
+   "origen": "Análisis A3",
+   "tema": "Relación Departamento ↔ BU",
+   "supuesto": "Dimensiones independientes: el departamento organiza usuarios y maestros a nivel entidad; la BU imputa presupuesto, costos y facturación. Relación N:N configurable.",
+   "impacto": "Permisos, bandejas y ámbito de maestros.",
+   "donde": "Administración › Departamentos"
+  },
+  {
+   "id": "A4",
+   "origen": "Análisis A4",
+   "tema": "Entidad efectiva por fecha al convertir una BU en entidad",
+   "supuesto": "La orden guarda la entidad y la BU vigentes al crearse (mismo criterio que las condiciones contractuales congeladas). La conversión rige desde su fecha de vigencia solo para órdenes nuevas.",
+   "impacto": "Historial y consolidación.",
+   "donde": "Administración › Entidades › Convertir BU"
+  },
+  {
+   "id": "A5",
+   "origen": "Análisis A5",
+   "tema": "Ventana operativa y fecha de inicio",
+   "supuesto": "La ventana de la orden se toma del origen (ETB→ETC, fecha del cupo o del tren). La maqueta no bloquea iniciar fuera de la ventana; solo advierte.",
+   "impacto": "Reservas y validaciones de superposición.",
+   "donde": "Expediente › Planificación"
+  },
+  {
+   "id": "S23",
+   "origen": "Revisión 16/09",
+   "tema": "Áreas operativas: qué recursos administra cada sector",
+   "supuesto": "Se crea el maestro M-39 Áreas operativas y capacidad con las cinco áreas indicadas (Logística, Rental, Depósitos, RRHH, Portería y balanza) y se les asigna la capacidad por tipo de recurso: Logística administra camiones propios y contratados, tolvas y cintas (BU Logística y Maquinarias); Rental las maquinarias de alquiler; Depósitos las celdas, tanques, galpones y silos; RRHH los puestos de personal propio y las manos de proveedores; Portería y balanza las balanzas. Cada área ve su capacidad total, el pico comprometido por órdenes en los próximos 14 días y lo reservado, y hace el ABM de sus recursos con el mismo workflow de la master data (las altas y modificaciones nacen en validación y Máster data las publica; la baja es lógica). En la maqueta el área activa se elige en el módulo; en el sistema real vendría del usuario (M-38). Queda sin área dueña asignada la infraestructura de muelles y equipos de descarga / carga (grúas y bombas).",
+   "impacto": "Menú Mi área, ABM por rol de área, permisos por maestro del rol Responsable de área.",
+   "donde": "Mi área · Datos maestros › M-39"
+  },
+  {
+   "id": "S24",
+   "origen": "Revisión 16/09",
+   "tema": "Reservas de capacidad de un área para un operativo futuro",
+   "supuesto": "El área reserva capacidad de su sector referenciando un lineup, un cupo o un operativo ferroviario, con cantidad, ventana y motivo. La reserva nace \"Reservada\" y se informa expresamente en la planificación y en el ajuste de Operaciones de todas las órdenes de ese origen, con un botón para tomar lo reservado. Al confirmar el plan o el ajuste: si la asignación toma lo reservado, la reserva queda \"Aplicada\"; si toma menos o elige otra opción, pasa a \"A revalidar\" y vuelve a la bandeja del área, que decide liberar la capacidad o mantener la reserva y pedir que se revise el plan. Anular la orden también deja las reservas de ese origen a revalidar. Una reserva de otro operativo se informa como aviso en la validación de recursos (no bloquea). Queda por definir si debería bloquear, quién resuelve el conflicto entre un área y el Planificador y si la reserva caduca sola al vencer la ventana.",
+   "impacto": "Planificación, ajuste de Operaciones, bandeja del área, validación de recursos.",
+   "donde": "Mi área › Reservas · Expediente › Planificación y Origen"
+  },
+  {
+   "id": "S25",
+   "origen": "Revisión 16/09 (tarde)",
+   "tema": "Personal propio compartido entre operativos",
+   "supuesto": "Un puesto de personal propio puede estar afectado a más de un operativo a la vez: la superposición deja de ser un error. Cuando la demanda simultánea de un puesto supera su dotación, el sistema calcula automáticamente el % de afectación de cada orden (dotación / demanda total), lo muestra en la planificación y prorratea el costo del puesto por ese porcentaje. El % se congela al confirmar el plan para que el costo no cambie después. Supuesto: el reparto es proporcional y parejo; queda por definir si debe poder fijarse a mano y si algún puesto (por ejemplo el capataz de turno) debe seguir siendo exclusivo.",
+   "impacto": "Validación de recursos, costos del plan y comparativas.",
+   "donde": "Planificación › Personal propio"
+  },
+  {
+   "id": "S26",
+   "origen": "Revisión 16/09 (tarde)",
+   "tema": "Cantidad de turnos y régimen de turnos",
+   "supuesto": "La duración del turno y el catálogo de turnos salen de la tabla de turnos M-33 (T1 06–12 · T2 12–18 · T3 18–24 · T4 00–06, 6 h), no de un parámetro suelto. El sistema propone la cantidad de turnos por el ritmo de los equipos y las toneladas, y el Planificador puede fijar otra cantidad; los turnos se ocupan en secuencia desde el inicio de la ventana. Queda por definir si deben poder elegirse turnos salteados (por ejemplo solo T2 y T3) y si el régimen cambia por planta o por día hábil / inhábil.",
+   "impacto": "Duración, costos por turno y ocupación de recursos.",
+   "donde": "Planificación › Turnos"
+  },
+  {
+   "id": "S27",
+   "origen": "Revisión 16/09 (tarde)",
+   "tema": "Merma y excedente según la balanza",
+   "supuesto": "La merma y el excedente dejan de cargarse a mano en el cierre: se calculan como la diferencia entre las toneladas previstas en la orden y las pesadas en balanza al finalizar el operativo. Si la diferencia supera la tolerancia del instrumento contractual, el cierre sigue requiriendo la aprobación de Comercial. Queda por definir qué pasa con las diferencias por humedad o por doble pesaje y si se admite un ajuste posterior con autorización.",
+   "impacto": "Cierre de depósito, comparativas y facturación.",
+   "donde": "Expediente › Depósito › Cierre"
+  },
+  {
+   "id": "S28",
+   "origen": "Revisión 16/09 (tarde)",
+   "tema": "Calidad de la mercadería registrada por Operaciones",
+   "supuesto": "La calidad llega declarada en el origen (lineup, cupo u operativo ferroviario) y Operaciones registra la calidad efectiva durante la ejecución, eligiéndola de la matriz de calidad del producto (M-23) o escribiéndola, con motivo y traza. La calidad queda en la orden y alimenta la comparativa por calidad. Queda por definir si exige respaldo de laboratorio y si un cambio de calidad debe avisar a Comercial por su impacto en la tarifa.",
+   "impacto": "Expediente, comparativas por calidad y cierre.",
+   "donde": "Expediente › Ejecución"
+  },
+  {
+   "id": "S29",
+   "origen": "Revisión 16/09 (tarde)",
+   "tema": "Destino en depósito por la distribución de la planta",
+   "supuesto": "El destino se elige recorriendo la distribución física: planta (M-09) → depósito (M-10) → celda / tanque / galpón / silo (M-10a) → box → mini box. Se puede parar en cualquier nivel y el destino es el último seleccionado. Se agregan a M-10a los niveles box y mini box con su padre, capacidad y ocupación propias. Queda por definir la distribución real de cada planta y si la capacidad del nivel superior debe recalcularse desde sus hijos.",
+   "impacto": "Planificación, control de capacidad, ingresos y trazabilidad por lote.",
+   "donde": "Planificación › Destino en depósito · Datos maestros M-10a"
+  },
+  {
+   "id": "S30",
+   "origen": "Revisión 16/09 (tarde)",
+   "tema": "Composición del personal externo",
+   "supuesto": "El Planificador asigna manos completas (categoría × cantidad) y además puede ajustar la composición puesto por puesto: agregar personas de cualquier puesto —esté o no en la mano asignada— o desafectarlas. El costo de cada ajuste sale del costo por persona y turno del puesto, derivado de la composición y el costo de la mano (M-13). Queda por definir si el convenio admite manos incompletas y cómo se factura un puesto suelto al proveedor.",
+   "impacto": "Costos de personal externo y pedido al proveedor.",
+   "donde": "Planificación › Personal externo"
+  },
+  {
+   "id": "S31",
+   "origen": "Revisión 16/09 (tarde)",
+   "tema": "Logística y maquinaria separadas, con % de uso",
+   "supuesto": "Los recursos de M-12 se clasifican en flota (logística: camiones propios y de transportista) y maquinaria (palas, autoelevadores, minicargadora, retroexcavadora, grupo electrógeno, tolvas y cintas), y se planifican y administran por separado. La maquinaria lleva un % de uso por orden: el remanente queda disponible para otro operativo en la misma ventana y el costo se prorratea por ese porcentaje. Queda por definir el % mínimo asignable y si el remanente debe ofrecerse automáticamente a las órdenes que lo necesiten.",
+   "impacto": "Planificación, capacidad disponible, costos y módulo Mi área.",
+   "donde": "Planificación › Logística y Maquinaria · Mi área"
+  },
+  {
+   "id": "S32",
+   "origen": "Revisión 16/09 (tarde)",
+   "tema": "Habilitación de puerto como rubro del operativo",
+   "supuesto": "Se agrega el rubro Habilitación de puerto: un costo por operativo que fija cada puerto en la master data (M-09) —San Nicolás USD 2.400, Timbúes USD 2.900, plantas propias sin costo— y que el Planificador incluye o excluye. Se imputa como una línea más del costo del operativo. Queda por definir si el costo es fijo por operativo o depende del buque / las toneladas, si se traslada al cliente y con qué tarifa.",
+   "impacto": "Costo del operativo y facturación al cliente.",
+   "donde": "Planificación › Habilitación de puerto · Costos y cargos"
+  },
+  {
+   "id": "S33",
+   "origen": "Revisión 17/09",
+   "tema": "Ámbito de cada recurso: Operaciones, Depósito o compartido",
+   "supuesto": "Cada recurso lleva un ámbito que indica quién lo gestiona durante el operativo: Operaciones (muelle, grúas y bombas, tolvas, retroexcavadora, manos de descarga y carga, operador de grúa), Depósito (celdas, boxes y mini boxes, autoelevadores, minicargadoras, mano de estiba de big bags, auxiliar de depósito) o compartido entre los dos (balanzas, camiones, palas, cintas, grupo electrógeno, supervisor y balancero). El ámbito se muestra en la planificación y en la ejecución, y define qué rol puede asignar, modificar o liberar cada recurso. La asignación inicial es un supuesto a validar con cada área.",
+   "impacto": "Planificación, ejecución, permisos de ABM de recursos y comparativas.",
+   "donde": "Planificación · Expediente › Ejecución y Depósito"
+  },
+  {
+   "id": "S34",
+   "origen": "Revisión 17/09",
+   "tema": "Unidades de maquinaria y acceso de cada ubicación",
+   "supuesto": "Se agrega el maestro M-12a Unidades de maquinaria: cada maquinaria de M-12 se despliega en sus unidades físicas con interno, marca, modelo, año, capacidad y medidas (ancho y alto). Cada ubicación de M-10a declara su acceso (ancho, alto y tipo: portón de celda, de galpón, pasillo de mini box, boca de silo). El Planificador elige la unidad concreta y el sistema solo ofrece las que entran por el acceso del destino y están operativas; la cantidad de la maquinaria sale de las unidades elegidas. Medidas y accesos son de demostración y deben relevarse.",
+   "impacto": "Planificación de maquinaria, capacidad real y compatibilidad con el destino.",
+   "donde": "Planificación › Maquinaria · Datos maestros M-12a y M-10a"
+  },
+  {
+   "id": "S36",
+   "origen": "Revisión 17/09 (2)",
+   "tema": "Presentación de la mercadería elegida por Comercial",
+   "supuesto": "Al crear la orden, Comercial elige la presentación de la mercadería (granel sólido, líquido a granel, embolsado en big bag o en bolsa, contenedor). La propone el producto (M-07) y queda guardada en la orden, de modo que la planificación, la ejecución y el depósito trabajan con la presentación real del operativo y no con la del maestro. Queda por definir si una misma orden puede tener más de una presentación (por ejemplo parte a granel y parte embolsada) y si la presentación condiciona la tarifa.",
+   "impacto": "Alta de la orden, equipos y manos compatibles, destino en depósito y comparativas.",
+   "donde": "Nueva orden › Presentación · Expediente › Resumen · Planificación"
+  },
+  {
+   "id": "S37",
+   "origen": "Revisión 17/09 (2)",
+   "tema": "Lineup por bodegas, con puerto de descarga y operador de cada carga",
+   "supuesto": "El lineup toma el buque del maestro M-08 y abre una línea de carga por cada bodega declarada; las bodegas pueden quedar vacías y la escala se puede registrar sin ningún BL, completándose con el tiempo. Cada línea indica el puerto de descarga y quién opera esa carga: nosotros, otro operador o ninguno. Se separan las cantidades declaradas por el buque de las nominadas a nosotros, que salen de las órdenes de servicio y llevan el puerto de la orden; una misma carga de un cliente y un producto puede nominarse a puertos distintos. Las cargas sin operador se marcan como oportunidad comercial. Queda por definir de dónde llega el detalle de las cargas de terceros (manifiesto de la agencia o carga manual) y con qué frecuencia se actualiza.",
+   "impacto": "Logística de arribo, nominación, oportunidades comerciales y planificación de la capacidad.",
+   "donde": "Logística de arribo › Lineup · Datos maestros M-17"
+  },
+  {
+   "id": "S38",
+   "origen": "Revisión 17/09 (2)",
+   "tema": "Secuencia de puertos y evolución de las fechas",
+   "supuesto": "Un buque puede atracar en más de un puerto: el lineup guarda la secuencia de escalas y cada una tiene su propia ETA, ETB y ETC. La escala de nuestra terminal es la que manda la ventana de las órdenes. De ETA, ETB y ETC se conserva el dato de origen y todos los cambios posteriores, en el orden en que se produjeron, con el motivo y el rol que los registró. Queda por definir si los puertos de terceros se toman de un maestro común (M-09 ampliado) o de una interfaz con la agencia.",
+   "impacto": "Planificación de la ventana, avisos al cliente y medición de desvíos de programación.",
+   "donde": "Logística de arribo › Secuencia de puertos y Evolución de las fechas"
+  },
+  {
+   "id": "S39",
+   "origen": "Revisión 17/09 (2)",
+   "tema": "Trazabilidad por rol, sin nombres de usuario",
+   "supuesto": "La maqueta deja de usar nombres de personas: cada acción queda registrada con el rol que la hizo (Comercial, Planificador, Operaciones, Depósito, Logística de arribo, Responsable de área, Máster data). En el sistema real la traza será del usuario autenticado, que pertenece a un rol y a un área. Las leyendas SUPUESTO se retiraron de las pantallas; los supuestos se consultan en esta misma lista.",
+   "impacto": "Auditoría de los maestros, historial de las órdenes y registros de cambios.",
+   "donde": "Todas las pantallas · Datos maestros M-38"
+  },
+  {
+   "id": "S35",
+   "origen": "Revisión 17/09",
+   "tema": "Operaciones y Depósito trabajan la misma orden en simultáneo",
+   "supuesto": "Mientras se descarga el buque la mercadería ya entra a depósito, así que Operaciones y Depósito trabajan la orden al mismo tiempo: la orden en ejecución aparece en la bandeja de Depósito y los dos roles pueden asignar, modificar y liberar recursos, cada uno sobre los de su ámbito y sobre los compartidos. Cada movimiento queda registrado con el rol que lo hizo. Operaciones sigue siendo quien registra tickets, demoras y calidad y quien finaliza el operativo; el cierre lo hace el rol de cierre del servicio. Queda por definir si Depósito debe poder registrar tickets de ingreso propios y si algún recurso compartido necesita acuerdo de los dos roles para liberarse.",
+   "impacto": "Bandejas, ejecución, trazabilidad por rol y comparativas.",
+   "donde": "Expediente › Ejecución y Depósito · Workflow de Depósito"
+  }
+ ],
+ "casos": [
+  {
+   "n": 1,
+   "titulo": "Operación completa sin incidencias",
+   "esperado": "Crear → planificar → ejecutar con tickets → cerrar y comparar.",
+   "rol": "Comercial / Backoffice",
+   "pasos": [
+    "Como Comercial, creá una orden nueva: TyS › Descarga, transporte y depósito (servicio de nivel entidad, sin BU) › Buque › Agroexport › DAP › CTO-2026-021 › lineup MV Southern Wind (BL-4510).",
+    "Marcá nacionalizada (el método seguro se habilita solo desde la master data); enviá a planificación.",
+    "Como Planificador, usá la recomendación y confirmá.",
+    "Como Operaciones, iniciá, simulá turnos hasta completar y finalizá.",
+    "Como Depósito, revisá comparativas y cerrá.",
+    "Referencia ya cerrada: OS-2026-0001."
+   ]
+  },
+  {
+   "n": 2,
+   "titulo": "Mercadería no nacionalizada",
+   "esperado": "Permite planificar; bloquea el inicio hasta regularizar la condición.",
+   "rol": "Operaciones",
+   "pasos": [
+    "Como Operaciones, abrí OS-2026-0002 (planificada) e intentá iniciar: el sistema lo impide.",
+    "Como Comercial, registrá la nacionalización en Habilitaciones (referencia de despacho).",
+    "Volvé a Operaciones: ahora el inicio está habilitado."
+   ]
+  },
+  {
+   "n": 3,
+   "titulo": "Método seguro pendiente",
+   "esperado": "Muestra advertencia en Comercial; bloquea el inicio.",
+   "rol": "Comercial / Backoffice",
+   "pasos": [
+    "Como Comercial, abrí el borrador OS-2026-0003 (UAN 32): la habilitación por método seguro viene de la master data y el MS-FERT-LIQ del producto está vencido → no habilitado.",
+    "Enviá igual a planificación: se permite con advertencia.",
+    "Como Planificador confirmá; como Operaciones verificá que el inicio queda bloqueado.",
+    "En Datos maestros › Seguridad, renová la vigencia del MS: la orden queda habilitada automáticamente, sin confirmación manual."
+   ]
+  },
+  {
+   "n": 4,
+   "titulo": "Recurso no disponible",
+   "esperado": "Impide una asignación incompatible y permite elegir una alternativa.",
+   "rol": "Planificador",
+   "pasos": [
+    "Como Planificador, abrí OS-2026-0004 (big bags, MV Baltic Trader). Como el producto es sólido, la sección Equipos de descarga / carga solo ofrece grúas.",
+    "Con origen \"Del muelle\", asigná la grúa G1: está reservada por OS-2026-0006 en la misma ventana → error, y aparece \"Cambiar fecha de arribo\" con el primer turno libre propuesto. Probá G3: en mantenimiento → error.",
+    "En \"Recursos no disponibles\" usá Solicitar habilitación a Maquinarias para G3: la solicitud lleva la información de la operación. Respondela desde Recursos › Solicitudes (simulando a la BU) y revalidá: G3 queda disponible.",
+    "Alternativas: elegí G2 y el muelle Sur; o cambiá el origen a \"Del buque\": las 4 grúas del MV Baltic Trader quedan seleccionadas por defecto, sin costo para la terminal."
+   ]
+  },
+  {
+   "n": 5,
+   "titulo": "Plan diferente de la recomendación",
+   "esperado": "Guarda ambas propuestas y las compara al cierre.",
+   "rol": "Planificador",
+   "pasos": [
+    "Como Planificador, abrí OS-2026-0005 (MV Ocean Harvest, 20.000 t de urea) y revisá la recomendación y sus supuestos.",
+    "Armá un plan distinto (por ejemplo, una sola grúa) y confirmá indicando el motivo del desvío.",
+    "La orden conserva recomendación y plan por separado; al cierre se comparan los tres escenarios."
+   ]
+  },
+  {
+   "n": 6,
+   "titulo": "Recurso adicional durante la ejecución",
+   "esperado": "Registra el cambio, su costo y la posible atribución al cliente.",
+   "rol": "Operaciones",
+   "pasos": [
+    "Como Operaciones, abrí OS-2026-0006 (en ejecución).",
+    "En Ejecución › Recursos activos, agregá la grúa G2 con motivo \"Aumento de ritmo requerido por el cliente\" y marcá el gasto como atribuible al cliente. Probá también Modificar la cantidad de camiones propios, Reemplazar el depósito destino o la balanza y Liberar un recurso: todo queda registrado para la comparativa.",
+    "El cargo aparece en Costos y cargos como pendiente de aprobación."
+   ]
+  },
+  {
+   "n": 7,
+   "titulo": "Demora causada por un tercero",
+   "esperado": "Registra duración, responsabilidad y gasto recuperable.",
+   "rol": "Operaciones",
+   "pasos": [
+    "Como Operaciones, en OS-2026-0006 registrá una demora con causa \"Falta de camiones\": responsabilidad Transportista, tercero Transportes Litoral, gasto asociado y recuperable.",
+    "La demora descuenta ritmo neto y suma un cargo recuperable en Costos y cargos."
+   ]
+  },
+  {
+   "n": 8,
+   "titulo": "Seguimiento de depósito",
+   "esperado": "Muestra ingresos mientras el operativo sigue activo.",
+   "rol": "Depósito",
+   "pasos": [
+    "Como Depósito, abrí la pantalla Depósito: OS-2026-0006 aparece en \"Ingresos en curso\" con toneladas, ritmo y ocupación de Celda 1.",
+    "Simulá tickets desde Operaciones y volvé: el progreso se actualiza sin traspaso formal.",
+    "OS-2026-0008 ya está pendiente de cierre: registrá merma o excedente (se propone por la diferencia previsto − pesado), verificá que esté dentro de la tolerancia del contrato y cerrala."
+   ]
+  },
+  {
+   "n": 9,
+   "titulo": "Servicio interno o entre empresas",
+   "esperado": "Distingue entidad y BU prestadora de la destinataria.",
+   "rol": "Planificador",
+   "pasos": [
+    "OS-2026-0009: Rental (TyS) presta una pala cargadora a Depósitos (TyS) — relación Interna, imputación a costo estándar.",
+    "OS-2026-0010: Logística (TyS) presta transporte a Terminal Timbúes — relación Grupo, factura intercompany.",
+    "Observá en Resumen la BU prestadora, el destinatario y el tratamiento de imputación de cada relación."
+   ]
+  },
+  {
+   "n": 10,
+   "titulo": "Instrumento contractual sin cobertura (agregado 15/09)",
+   "esperado": "Muestra por qué ningún instrumento aplica y permite cargar uno nuevo o una adenda desde la misma orden.",
+   "rol": "Comercial / Backoffice",
+   "pasos": [
+    "Como Comercial, creá una orden: TyS › Carga › Buque › Granos del Sur SRL › Soja.",
+    "El paso Instrumento no ofrece opciones: la tarifa spot TAR-SPOT-2026 está vencida. La pantalla lo explica y ofrece \"Adenda\" o \"Nuevo instrumento\".",
+    "Cargá una adenda (nueva vigencia, tarifas) y seguí con el lineup MV Pampa Star: el instrumento creado queda seleccionado y en el maestro de Comercial.",
+    "Variante: Fertilizantes del Litoral › Soja: el contrato CTO-2026-014 no incluye el producto → adenda que lo agrega."
+   ]
+  },
+  {
+   "n": 11,
+   "titulo": "Logística de arribo registra un nuevo arribo (agregado 15/09)",
+   "esperado": "Solo Logística de arribo administra lineup, cupos y operativos ferroviarios; el resto consulta. Comercial toma el arribo como origen de una orden.",
+   "rol": "Logística de arribo",
+   "pasos": [
+    "Como Logística de arribo, registrá un nuevo lineup (buque, ETA/ETB/ETC, equipos propios del buque, cargas con cliente, producto, calidad y toneladas) o un cupo de camiones.",
+    "Cambiá el rol a Comercial: el registro aparece en Logística de arribo en consulta y como origen disponible al crear la orden.",
+    "El registro de cambios muestra quién lo cargó y cuándo."
+   ]
+  },
+  {
+   "n": 12,
+   "titulo": "Equipos según el producto: muelle o buque, y cambio de fecha de arribo (agregado 15/09)",
+   "esperado": "Muestra solo bombas para líquidos y solo grúas para sólidos; permite elegir equipos del muelle o del buque; ante un equipo ocupado, cambia la fecha de arribo.",
+   "rol": "Planificador",
+   "pasos": [
+    "Como Comercial, enviá a planificación el borrador OS-2026-0003 (UAN 32, líquido) si aún no lo hiciste. Como Planificador, en Equipos de descarga / carga solo aparecen sistemas de bombeo.",
+    "Cambiá el origen a \"Del buque\": las bombas del MT Delta Queen (2 × 300 t/h) quedan seleccionadas por defecto; volvé a \"Del muelle\" y elegí el sistema B1.",
+    "Como Planificador en OS-2026-0004 (sólido), marcá G1: está ocupada por OS-2026-0006 → botón \"Cambiar fecha de arribo\". Aceptá la fecha propuesta: la ventana de la orden y el ETA/ETB/ETC del lineup se corren y el cambio queda registrado en Logística de arribo."
+   ]
+  },
+  {
+   "n": 13,
+   "titulo": "Master data completa según el modelo v3.1 (agregado 15/09)",
+   "esperado": "Cada maestro del Excel v3.1 está en la maqueta con su ficha, sus atributos y registros; el circuito usa esos atributos.",
+   "rol": "Planificador",
+   "pasos": [
+    "Abrí Datos maestros: la lista izquierda agrupa los 39 maestros por dominio (35 del modelo + 4 de la estructura nueva, marcados ★). Elegí M-34 Métodos seguros: la ficha (clave, dependencias, quién administra y autoriza, fuente de carga), los registros con tipo, documento, versión, aplica a, responsable, vencimiento, días de aviso y acción al vencer, y las pestañas Atributos, Reglas, Fuentes y Transacciones.",
+    "En M-34, MS-BALANZA vence en pocos días: en Inicio aparece la alerta y las balanzas quedan \"con observaciones\" al planificar. Renová la revisión desde el botón y volvé a validar.",
+    "Recorré M-07 Productos (el tipo sólido / líquido define grúas o bombas), M-08 Buques (equipos propios), M-10 → M-10a (depósito fiscal y sus celdas), M-26 Balanzas (habilitación fiscal con vencimiento) y M-16 Contratos (ritmo por turno, merma reconocida, espacio asignado).",
+    "En la pestaña Atributos de cualquier maestro, la columna \"En la maqueta\" distingue los atributos que ya se usan de los que están definidos pero sin circuito (insumo del fit-gap). Las pestañas superiores muestran auditoría y ciclo de vida, convenciones, orden de carga, definiciones y decisiones, reglas, fuentes de carga, el cruce v2.2 → modelo → maqueta y el catálogo de transacciones y eventos."
+   ]
+  },
+  {
+   "n": 14,
+   "titulo": "Máster data: ABM de maestros y permisos por rol (agregado 15/09)",
+   "esperado": "El rol Máster data hace el ABM de cualquier maestro y define para cada rol si no lo visualiza, solo consulta o puede ABM; las altas de otros roles pasan por su validación.",
+   "rol": "Máster data",
+   "pasos": [
+    "Como Máster data, abrí Datos maestros › M-29 Causas de demora: en Registros aparecen \"Nuevo registro\", Editar y Dar de baja. Creá una causa nueva (el formulario se arma con los atributos del maestro): nace vigente y queda en el Registro de cambios con quién, cuándo y qué cambió.",
+    "En la pestaña Permisos por rol, poné M-29 en \"Puede ABM\" para el Planificador y M-18 Monedas en \"No lo visualiza\" para el Planificador. Cambiá el rol a Planificador: M-18 desaparece de la lista y de los enlaces, M-29 ofrece Nuevo registro / Editar / Dar de baja y el resto queda en solo consulta (M-03 y M-04, contables, ya venían ocultos para ese rol).",
+    "Como Operaciones (tiene ABM sobre M-29, M-12 y M-30), en M-29 cargá otra causa: nace \"en validación\" y no la usa el circuito (no aparece al registrar una demora). Como Máster data, en Workflow › Registros en validación validá y publicá (o rechazá) la alta.",
+    "Dá de baja un recurso (por ejemplo, la balanza BZ2 en M-26): la baja es lógica, el registro se conserva y el Planificador deja de verlo como opción."
+   ]
+  },
+  {
+   "n": 15,
+   "titulo": "Devolver al paso anterior o anular la orden (agregado 15/09)",
+   "esperado": "Cada etapa puede devolver la orden al paso anterior con motivo o anularla; la orden devuelta aparece en la bandeja del rol anterior con el motivo y la anulada libera recursos y origen conservando el historial.",
+   "rol": "Operaciones",
+   "pasos": [
+    "Como Operaciones, abrí OS-2026-0007 (planificada): junto a \"Iniciar operativo\" están \"Devolver a Pendiente de planificación\" y \"Anular orden\". Devolvela indicando el motivo: la planificación queda como historial, se liberan las reservas y el Planificador la ve en su bandeja como \"Devuelta por Operaciones\".",
+    "Como Planificador, en OS-2026-0011 (Terminal Timbúes, pendiente de planificación) devolvela a Comercial: aparece en Borrador con el motivo; Comercial puede editarla y reenviarla.",
+    "Como Operaciones, en OS-2026-0006 (en ejecución con tickets) el sistema no permite revertir el inicio: solo finalizar o anular. Como Planificador, anulá OS-2026-0005 (pendiente de planificación): pasa a Anulada, sus reservas se liberan, la carga del lineup vuelve a estar \"sin orden\" y el expediente muestra el motivo y el historial completo.",
+    "Como Depósito, en una orden pendiente de cierre podés devolverla a Operaciones si falta registrar algo: el operativo vuelve a estar en ejecución con sus recursos activos."
+   ]
+  },
+  {
+   "n": 16,
+   "titulo": "Toneladas y fechas del servicio definidas por Comercial (agregado 15/09)",
+   "esperado": "Comercial indica cuántas toneladas del producto opera (no necesariamente todo el lineup) y la fecha y hora de inicio y fin del servicio; esa ventana valida la disponibilidad de los recursos.",
+   "rol": "Comercial / Backoffice",
+   "pasos": [
+    "Como Comercial, creá una orden: TyS › Descarga, transporte y depósito › Buque › Agroexport › DAP › CTO-2026-021 › lineup MV Southern Wind (BL-4510, 14.000 t).",
+    "En \"Datos del servicio\" cambiá las toneladas a 8.000 (se propone el remanente de la carga) y las fechas de inicio y fin del servicio (se proponen desde el ETB → ETC del lineup). Enviá a planificación.",
+    "Como Planificador, la recomendación y las validaciones de disponibilidad usan esa ventana: si coincide con OS-2026-0005 (MV Ocean Harvest, 21/09 → 24/09), G1 aparece reservada; si la movés fuera, queda disponible.",
+    "Como Comercial, en el expediente › Resumen usá \"Editar toneladas y fechas\" mientras la orden está en Borrador o Pendiente de planificación: queda el motivo en el historial y la recomendación se regenera. Desde Planificada ya no se edita: hay que devolverla al Planificador."
+   ]
+  },
+  {
+   "n": 17,
+   "titulo": "Módulos habilitados por rol / sector y descarga a cargo de Operaciones (agregado 15/09)",
+   "esperado": "Cada pantalla se habilita o deshabilita por rol; el menú y la navegación lo respetan. La descarga la ejecuta la BU Operaciones.",
+   "rol": "Máster data",
+   "pasos": [
+    "En Administración › Menú por rol, entidad y BU, en la matriz por rol destildá \"Comparativas\" para el Planificador y \"Recursos\" para Depósito: al cambiar el rol, esas pantallas desaparecen del menú y un enlace directo vuelve a Inicio con aviso. Inicio no se puede deshabilitar. Cada cambio queda en el registro de cambios de la master data.",
+    "Logística de arribo y Máster data vienen sin Workflow / Depósito según su función; ahora esa regla también se administra acá.",
+    "En Administración › Matriz de ejecución, el componente Descarga (y Carga) lo ejecuta la BU Operaciones; Transporte sigue en Logística. Abrí cualquier orden de descarga: en Resumen › Líneas de ejecución la descarga se imputa a Operaciones."
+   ]
+  },
+  {
+   "n": 18,
+   "titulo": "Rental y Logística: alta de servicios internos o externos (agregado 15/09)",
+   "esperado": "Entidad → Servicio → BU prestadora → Medio Interna / Externa → Cliente (otras BU o nómina de clientes) → detalle del servicio: maquinarias, fechas y km (Rental) o camión, origen / destino, fechas y km automáticos (Logística).",
+   "rol": "Comercial / Backoffice",
+   "pasos": [
+    "Como Comercial, creá una orden: TyS › Alquiler de maquinaria › BU Rental › Medio \"Interna\": en Cliente aparecen las otras BU (elegí Depósitos). Instrumento: acuerdo interno. En Detalle del servicio marcá una o más maquinarias con su cantidad (por ejemplo 2 palas cargadoras y 1 autoelevador), la fecha desde y hasta, y los km de entrega y de devolución; se estima el costo. Enviá a planificación.",
+    "Repetí con Medio \"Externa\": en Cliente aparece la nómina de clientes y el instrumento pasa a ser el del cliente.",
+    "Creá otra: TyS › Servicios logísticos › BU Logística › \"Externa\" › Agroexport › Urea › instrumento del cliente. En Detalle del servicio elegí el camión (propio o de transportista) y la cantidad, el origen (Planta San Nicolás) y el destino (Depósito Pergamino del cliente): los km del tramo se calculan solos, con los viajes estimados por las toneladas y los km totales ida y vuelta; fijá las fechas y enviá.",
+    "Como Planificador, en ambas órdenes lo solicitado ya viene cargado en la asignación de recursos: validá disponibilidad en la ventana y confirmá. El expediente › Origen muestra el detalle del servicio; Costos incluye los km. Referencias ya cargadas: OS-2026-0009 (Rental → Depósitos, interna) y OS-2026-0010 (Logística → Terminal Timbúes, del grupo)."
+   ]
+  },
+  {
+   "n": 19,
+   "titulo": "Menú de Operación por entidad y por BU; Máster data edita convenciones y reglas (agregado 16/09)",
+   "esperado": "Cada entidad y cada unidad de negocio tiene habilitados solo los módulos de Operación que le corresponden; el menú cambia con el contexto. Máster data hace el ABM de convenciones, reglas, definiciones y decisiones del modelo.",
+   "rol": "Máster data",
+   "pasos": [
+    "En Administración › Menú por rol, entidad y BU, además de la matriz por rol hay dos matrices para el menú de Operación: por entidad y por unidad de negocio. Destildá \"Recursos\" para Terminal Timbúes y \"Comparativas\" para Logística; cada cambio queda en el registro de cambios.",
+    "Cambiá el contexto de la barra superior: con Entidad = Terminal Timbúes desaparece Recursos; con BU = Rental desaparecen Logística de arribo y Depósito (valores iniciales); con \"Todas las BU\" o \"Grupo (consolidado)\" no se aplica esa dimensión. Si la pantalla actual queda deshabilitada, la aplicación vuelve a Inicio con aviso.",
+    "Como Máster data, en Datos maestros › Convenciones, Reglas o Definiciones y decisiones aparecen \"Nuevo registro\", Editar y Dar de baja: agregá una convención CV-10 o una regla nueva para M-29; nace vigente, versiona al editar y la baja es lógica. Como otro rol, esas pestañas quedan en solo consulta."
+   ]
+  },
+  {
+   "n": 20,
+   "titulo": "Áreas: capacidad propia, ABM del sector y nominación del lineup (agregado 16/09)",
+   "esperado": "Cada área ve su capacidad total y la comprometida, hace el ABM de sus recursos por el workflow de la master data y el lineup muestra la nominación que alimentan los operativos.",
+   "rol": "Responsable de área",
+   "pasos": [
+    "Como Responsable de área, abrí <b>Mi área</b>: el área activa es Logística. Mirá la capacidad total del sector (camiones propios y contratados, tolvas y cintas), el pico comprometido por órdenes en los próximos 14 días y lo reservado.",
+    "Cambiá el área activa a Depósitos y a Portería y balanza: cada sector ve solo sus recursos, con su capacidad y su estado de registro.",
+    "En Logística, dale de alta un recurso nuevo (Nuevo recurso en Logística y equipos auxiliares): el alta nace <b>en validación</b>; como Máster data, publicala desde su Workflow. El ABM del área pasa por el mismo workflow de la master data.",
+    "Como Logística de arribo, abrí una escala del lineup: la tarjeta muestra <b>Nominación a TyS</b> con las toneladas para TyS sobre las toneladas nominadas del buque y las órdenes vinculadas; las escalas sin orden figuran como no nominadas.",
+    "Como Comercial, creá una orden sobre una carga de una escala sin órdenes (por ejemplo MV Southern Wind): al crearla, M-17 completa toneladas_para_tys, nominado_a_tys y operativo_vinculado. En Datos maestros › M-17 se ven las tres columnas actualizadas; si anulás la orden, la nominación se revierte."
+   ]
+  },
+  {
+   "n": 21,
+   "titulo": "Reserva de un área para un operativo futuro y revalidación (agregado 16/09)",
+   "esperado": "La reserva referencia un lineup, cupo u operativo ferroviario; la planificación y Operaciones quedan informadas y, si eligen otra opción, el área revalida.",
+   "rol": "Responsable de área",
+   "pasos": [
+    "Como Responsable de área (Depósitos), en Mi área › Reservas está la reserva de la Celda 2 para el lineup de MV Ocean Harvest. Creá otra con <b>Nueva reserva</b>: elegí el operativo, el recurso del sector, la cantidad, la ventana (se propone desde el origen) y el motivo.",
+    "Como Planificador, abrí OS-2026-0005 (la orden de esa escala) › Planificación: arriba aparece <b>Capacidad reservada por las áreas para este operativo</b> con cada recurso, el área y si la asignación actual lo toma. Usá <b>Usar lo reservado por las áreas</b> para tomarlo y confirmá: la reserva queda <b>Aplicada</b>.",
+    "Probá el otro camino: como Planificador elegí otro depósito y confirmá. La reserva pasa a <b>A revalidar</b> y vuelve a la bandeja del área con el motivo.",
+    "Como Responsable de área, en Workflow · mi etapa aparece la reserva a revalidar: podés <b>liberar</b> la capacidad o <b>mantener la reserva</b> y pedir que se revise el plan.",
+    "Ejemplo ya cargado: la Balanza 2 reservada por Portería y balanza para MV Río Carcarañá quedó A revalidar porque OS-2026-0002 se planificó con la Balanza 1.",
+    "Como Operaciones, en una orden planificada usá Ajustar recursos: el mismo aviso aparece antes de guardar y, si quitás un recurso reservado, el área lo revalida."
+   ]
+  },
+  {
+   "n": 22,
+   "titulo": "Planificación afinada: equipos, turnos, personal, maquinaria y depósito (agregado 16/09)",
+   "esperado": "Grúas del muelle o del buque sin mezclarse, turnos desde M-33, manos ajustables puesto por puesto, personal propio compartido con % de afectación, logística separada de maquinaria con % de uso, habilitación de puerto y destino por la distribución de la planta.",
+   "rol": "Planificador",
+   "pasos": [
+    "Abrí OS-2026-0004 › Planificación. En <b>Equipos</b> cambiá el origen a \"Del buque\": se listan las cuatro grúas del MV Baltic Trader y desaparecen las del muelle; destildá dos y quedan 2 de 4 en uso. Volvé a \"Del muelle\" y solo se ofrecen las grúas de la terminal.",
+    "En <b>Turnos</b>, la duración (6 h) y los turnos T1–T4 salen de la tabla de turnos M-33. El sistema propone la cantidad por el ritmo; escribí otra cantidad y mirá cómo cambian las horas y el costo.",
+    "En <b>Habilitación de puerto</b> se incluye el costo del puerto de la escala (Puerto San Nicolás, USD 2.400 por operativo); destildala y desaparece de Costos y cargos.",
+    "En <b>Personal externo</b> asigná una mano completa y después ajustá la composición: sumá 2 estibadores y desafectá 1 señalero; se puede agregar un puesto que la mano no incluye. El total de personas por turno y el costo se actualizan.",
+    "En <b>Personal propio</b>, pedí 4 supervisores: como el mismo puesto está en otros operativos simultáneos, el sistema muestra el <b>% de afectación</b> y prorratea el costo. El porcentaje se congela al confirmar.",
+    "En <b>Maquinaria</b> (ahora separada de la flota) asigná 1 pala cargadora al <b>60 % de uso</b>: el 40 % restante queda disponible para otra orden y el costo se prorratea. La <b>Logística (flota)</b> queda en su propio bloque con los camiones.",
+    "En <b>Destino en depósito</b> recorré la distribución: planta → depósito → celda / galpón → box → mini box. Elegí el Galpón embolsado, después el Box B y después el Mini box B-1: el destino es el último nivel elegido y controla su propia capacidad."
+   ]
+  },
+  {
+   "n": 23,
+   "titulo": "Operaciones registra la calidad y el cierre toma la merma de la balanza (agregado 16/09)",
+   "esperado": "La calidad efectiva la carga Operaciones durante la ejecución; en el cierre la merma o el excedente ya no se escriben: salen de lo pesado en balanza.",
+   "rol": "Operaciones",
+   "pasos": [
+    "Como Operaciones, abrí OS-2026-0006 › Ejecución: arriba aparece la <b>calidad de la mercadería</b> con la declarada en el origen y el aviso de que falta registrar la efectiva.",
+    "Usá <b>Calidad de la mercadería</b>: elegí una calidad de la matriz del producto (M-23) o escribí otra, con un motivo. Queda registrada con responsable y hora en el historial y viaja al cierre y a las comparativas.",
+    "Simulá turnos hasta completar y finalizá el operativo.",
+    "Como Depósito, abrí el cierre: la merma o el excedente ya <b>no se cargan a mano</b>; la pantalla muestra previsto, pesado en balanza y la diferencia resultante. Si supera la tolerancia del contrato, el cierre sigue pidiendo la aprobación de Comercial."
+   ]
+  },
+  {
+   "n": 24,
+   "titulo": "Presentación del producto, unidades de maquinaria y ámbito de los recursos (agregado 17/09)",
+   "esperado": "La planificación muestra la presentación del producto; cada maquinaria se despliega en sus unidades y solo se ofrecen las que entran por el acceso del destino; cada recurso indica si es de Operaciones, de Depósito o compartido.",
+   "rol": "Planificador",
+   "pasos": [
+    "Abrí OS-2026-0004 › Planificación: arriba aparece el <b>producto con su presentación</b> (granel sólido, líquido a granel o embolsado), la familia, la densidad y la calidad. La presentación define qué equipos, manos y depósitos son compatibles.",
+    "Mirá los chips de <b>ámbito</b> en cada recurso: OPS (Operaciones), DEP (Depósito) y OPS + DEP (compartido). El muelle y las grúas son de Operaciones; las celdas, los autoelevadores y la mano de big bags, de Depósito; las balanzas, los camiones y las palas, compartidos.",
+    "En <b>Destino en depósito</b> elegí el Galpón embolsado › Box B › Mini box B-1. En <b>Maquinaria</b>, desplegá \"Autoelevador 5 t\": se listan las tres unidades con marca, modelo, año, capacidad y medidas; la de torre alta queda deshabilitada porque no pasa por el pasillo del mini box (3,8 m de alto contra 3,2 m).",
+    "Elegí dos unidades: la cantidad de la maquinaria pasa a 2 y el % de uso se aplica sobre ellas. Cambiá el destino al Galpón embolsado y ahora las tres unidades entran.",
+    "En Datos maestros, M-12a Unidades de maquinaria muestra cada unidad y en qué ubicaciones entra; M-10a agrega el nivel y el acceso de cada ubicación."
+   ]
+  },
+  {
+   "n": 26,
+   "titulo": "Alta de lineup: el buque completa sus datos y abre una línea por bodega (agregado 17/09)",
+   "esperado": "Al elegir el buque del maestro se completan bandera, eslora, calado, equipos y cantidad de bodegas; el lineup se puede guardar sin ningún BL y completarse después.",
+   "rol": "Logística de arribo",
+   "pasos": [
+    "Como Logística de arribo, tocá <b>Nuevo lineup</b>.",
+    "Elegí un buque en <b>Buque (M-08)</b>: nombre, IMO, bandera, eslora, calado, equipos propios y bodegas se completan solos, y la lista de cargas pasa a tener una línea por bodega.",
+    "Guardá sin cargar ningún BL: la escala queda registrada con todas las bodegas vacías.",
+    "Volvé a abrirla con <b>Editar</b> y cargá el BL de la primera bodega con su cliente, producto, toneladas, puerto de descarga y operador."
+   ]
+  },
+  {
+   "n": 27,
+   "titulo": "Secuencia de puertos y evolución de ETA / ETB (agregado 17/09)",
+   "esperado": "El buque puede atracar en varios puertos, cada uno con sus fechas, y de cada fecha se ve el dato de origen y todos sus cambios.",
+   "rol": "Logística de arribo",
+   "pasos": [
+    "En el lineup mirá <b>Secuencia de puertos</b> de MV Nordic Sun o MV Ocean Harvest: además de nuestra terminal figuran las escalas siguientes con su ETA, ETB y ETC.",
+    "Abrí <b>Evolución de las fechas</b>: arriba el dato de origen, después cada cambio con su motivo y quién lo hizo, y al final el valor vigente.",
+    "Editá la escala, cambiá la ETA y escribí el motivo: el cambio se agrega a la evolución y la ventana de las órdenes vinculadas se actualiza.",
+    "Probá los filtros por <b>estado del buque</b> y por <b>puerto</b> de la parte superior."
+   ]
+  },
+  {
+   "n": 28,
+   "titulo": "Cantidades del buque, nominación por puerto y cargas sin operador (agregado 17/09)",
+   "esperado": "Se distingue lo declarado por el buque de lo nominado a nosotros, con el puerto de cada nominación, y se ven las cargas que opera un tercero o nadie.",
+   "rol": "Logística de arribo",
+   "pasos": [
+    "En la tarjeta del lineup mirá las cuatro cantidades: declarado por el buque, nominado a nosotros (con el puerto que sale de la orden de servicio), lo que opera un tercero y lo que no tiene operador.",
+    "En <b>Bodegas y cargas</b> identificá la carga marcada <b>Sin operador</b>: es una oportunidad para captar a ese cliente.",
+    "Cambiá al rol Comercial y creá una orden sobre una bodega con BL: al guardarla, la nominación y el puerto de descarga de esa bodega se actualizan solos."
+   ]
+  },
+  {
+   "n": 29,
+   "titulo": "Presentación de la mercadería y maquinaria por unidad (agregado 17/09)",
+   "esperado": "Comercial elige la presentación al crear la orden; el Planificador suma maquinaria desde una lista desplegable con el detalle de cada unidad y distingue camión propio de contratado.",
+   "rol": "Comercial / Backoffice",
+   "pasos": [
+    "Como Comercial, empezá una orden y elegí el producto: aparece <b>Presentación de la mercadería</b> ya propuesta desde el producto; confirmala o cambiala.",
+    "Terminá el alta y cambiá al rol Planificador: en el resumen y en la planificación se ve la presentación elegida.",
+    "En <b>Maquinaria</b>, desplegá la lista: cada unidad muestra interno, marca, modelo, capacidad y medidas, y las que no entran por el acceso del destino están deshabilitadas. Elegí una y tocá Agregar.",
+    "En <b>Logística (flota)</b> distinguí <b>camión propio</b> de <b>camión contratado</b>."
+   ]
+  },
+  {
+   "n": 25,
+   "titulo": "Operaciones y Depósito trabajan la orden en simultáneo (agregado 17/09)",
+   "esperado": "Mientras Operaciones descarga, Depósito recibe la mercadería y gestiona los recursos de su ámbito y los compartidos; cada movimiento queda con el rol que lo hizo.",
+   "rol": "Depósito",
+   "pasos": [
+    "Como Depósito, en Workflow · mi etapa aparece OS-2026-0006 <b>en ejecución</b> con el motivo \"Ingreso en curso\": ya no hay que esperar al traspaso formal.",
+    "Abrí la orden › Depósito: el panel <b>Recursos del ingreso</b> lista los recursos de ámbito Depósito y los compartidos, con quién los asignó.",
+    "Usá <b>Agregar recurso de depósito</b>: el selector solo ofrece lo que Depósito puede asignar (su ámbito y los compartidos); el muelle y las grúas no aparecen. El alta queda registrada con el rol Depósito.",
+    "Cambiá al rol Operaciones y abrí la sección Ejecución: la tabla de recursos muestra la columna <b>Ámbito</b> y el recurso que cargó Depósito, con su responsable y su rol. Operaciones puede gestionar todo; Depósito, lo suyo y lo compartido.",
+    "Liberá desde Depósito un recurso compartido (por ejemplo un camión interno) y mirá cómo queda la traza en el historial de la orden."
+   ]
+  }
+ ],
+ "seccionesExpediente": [
+  "Resumen",
+  "Origen",
+  "Contrato",
+  "Habilitaciones",
+  "Planificación",
+  "Ejecución",
+  "Depósito",
+  "Costos y cargos",
+  "Comparativas e historial"
+ ],
+ "secs": [
+  [
+   "resumen",
+   "Resumen"
+  ],
+  [
+   "origen",
+   "Origen"
+  ],
+  [
+   "contrato",
+   "Contrato"
+  ],
+  [
+   "habilitaciones",
+   "Habilitaciones"
+  ],
+  [
+   "planificacion",
+   "Planificación"
+  ],
+  [
+   "ejecucion",
+   "Ejecución"
+  ],
+  [
+   "deposito",
+   "Depósito"
+  ],
+  [
+   "costos",
+   "Costos y cargos"
+  ],
+  [
+   "historial",
+   "Comparativas e historial"
+  ]
+ ],
+ "lugares": [
+  {
+   "id": "PL-SN",
+   "nombre": "Planta San Nicolás (TyS)",
+   "tipo": "propia",
+   "grupo": "Plantas y puertos del grupo"
+  },
+  {
+   "id": "PU-SN",
+   "nombre": "Puerto San Nicolás — muelles Norte y Sur",
+   "tipo": "puerto",
+   "grupo": "Plantas y puertos del grupo"
+  },
+  {
+   "id": "PL-TT",
+   "nombre": "Terminal Timbúes",
+   "tipo": "planta del grupo",
+   "grupo": "Plantas y puertos del grupo"
+  },
+  {
+   "id": "SAT-USINA",
+   "nombre": "Satélite Usina",
+   "tipo": "satélite propio",
+   "grupo": "Plantas y puertos del grupo"
+  },
+  {
+   "id": "SAT-COMIRSA",
+   "nombre": "Satélite AFA / Comirsa (terceros)",
+   "tipo": "satélite de terceros",
+   "grupo": "Plantas y puertos del grupo"
+  },
+  {
+   "id": "CLI:CLI-01",
+   "nombre": "Planta Villa Constitución · Fertilizantes del Litoral SA",
+   "tipo": "cliente",
+   "grupo": "Lugares de clientes"
+  },
+  {
+   "id": "CLI:CLI-02",
+   "nombre": "Depósito Pergamino · Agroexport SA",
+   "tipo": "cliente",
+   "grupo": "Lugares de clientes"
+  },
+  {
+   "id": "CLI:CLI-03",
+   "nombre": "Planta de mezclas Ramallo · Nutrisur Químicos SRL",
+   "tipo": "cliente",
+   "grupo": "Lugares de clientes"
+  },
+  {
+   "id": "CLI:CLI-04",
+   "nombre": "Acopio Arrecifes · Cooperativa Agraria del Norte",
+   "tipo": "cliente",
+   "grupo": "Lugares de clientes"
+  },
+  {
+   "id": "CLI:CLI-05",
+   "nombre": "Planta Rosario Sur · Granos del Sur SRL",
+   "tipo": "cliente",
+   "grupo": "Lugares de clientes"
+  }
+ ],
+ "maquinarias": [
+  {
+   "id": "L-PALA",
+   "nombre": "Pala cargadora",
+   "cantidad": 4,
+   "costoHora": 60
+  },
+  {
+   "id": "L-AUTOEL",
+   "nombre": "Autoelevador 5 t",
+   "cantidad": 3,
+   "costoHora": 35
+  },
+  {
+   "id": "L-MINI",
+   "nombre": "Minicargadora",
+   "cantidad": 2,
+   "costoHora": 40
+  },
+  {
+   "id": "L-RETRO",
+   "nombre": "Retroexcavadora",
+   "cantidad": 1,
+   "costoHora": 70
+  },
+  {
+   "id": "L-GENER",
+   "nombre": "Grupo electrógeno 100 kVA",
+   "cantidad": 2,
+   "costoHora": 20
+  }
+ ],
+ "camiones": [
+  {
+   "id": "L-CAM",
+   "nombre": "Camión propio (tolva 30 t)",
+   "cantidad": 16,
+   "capacidadT": 30,
+   "tercero": false
+  },
+  {
+   "id": "L-CAM-3RO",
+   "nombre": "Camión contratado (transportista, 30 t)",
+   "cantidad": 30,
+   "capacidadT": 30,
+   "tercero": true
+  }
+ ],
+ "recursos": {
+  "muelles": [
+   "Muelle Norte (M1)",
+   "Muelle Sur (M2)",
+   "Muelle Timbúes (M3)"
+  ],
+  "equipos": [
+   "Grúa móvil Liebherr LHM 420 (G1, Grúa, 450 t/h)",
+   "Grúa móvil Gottwald HMK 280 (G2, Grúa, 320 t/h)",
+   "Grúa móvil Liebherr LHM 550 (G3, Grúa, 550 t/h)",
+   "Sistema de bombeo de líquidos (B1, Bombeo, 400 t/h)",
+   "Grúa móvil Liebherr LHM 420 (TT) (G4, Grúa, 450 t/h)",
+   "Sistema de bombeo de líquidos (TT) (B2, Bombeo, 350 t/h)"
+  ],
+  "depositos": [
+   "Celda 1 (D1, 45.000 t, fiscal)",
+   "Celda 2 (D2, 25.000 t)",
+   "Tanque T-1 (D3, 14.000 t, fiscal)",
+   "Galpón embolsado (D4, 10.000 t)",
+   "Silo 3 (D5, 25.000 t)",
+   "Celda 3 Timbúes (D6, 18.000 t, fiscal)",
+   "Box A — big bags (D4-B1, 4.000 t)",
+   "Box B — big bags (D4-B2, 3.500 t)",
+   "Mini box B-1 (D4-B2-M1, 800 t)",
+   "Mini box B-2 (D4-B2-M2, 700 t)",
+   "Box Norte — Celda 1 (D1-B1, 15.000 t, fiscal)",
+   "Box Sur — Celda 1 (D1-B2, 18.000 t, fiscal)"
+  ],
+  "balanzas": [
+   "Balanza 1 (fiscal) (BZ1)",
+   "Balanza 2 (BZ2)",
+   "Balanza Timbúes (fiscal) (BZ3)"
+  ],
+  "logistica": [
+   "Camión propio (tolva 30 t) (L-CAM × 16)",
+   "Pala cargadora (L-PALA × 4)",
+   "Autoelevador 5 t (L-AUTOEL × 3)",
+   "Minicargadora (L-MINI × 2)",
+   "Retroexcavadora (L-RETRO × 1)",
+   "Grupo electrógeno 100 kVA (L-GENER × 2)",
+   "Tolva de descarga (L-TOLVA × 3)",
+   "Cinta transportadora móvil (L-CINTA × 2)",
+   "Camión propio TT (tolva 30 t) (L-CAM-TT × 6)",
+   "Tolva de descarga TT (L-TOLVA-TT × 2)",
+   "Camión contratado (transportista, 30 t) (L-CAM-3RO × 30)",
+   "Camión contratado TT (transportista, 30 t) (L-CAM-3RO-TT × 15)"
+  ],
+  "manos": [
+   "Mano descarga granel (MANO-GRANEL)",
+   "Mano trasvase de líquidos (MANO-LIQ)",
+   "Mano estiba de big bags (MANO-EMB)",
+   "Mano carga de buque (MANO-CARGA)"
+  ],
+  "funciones": [
+   "Supervisor de operaciones (F-SUP, dotación 4)",
+   "Operador de grúa (F-GRU, dotación 6)",
+   "Balancero (F-BAL, dotación 4)",
+   "Auxiliar de depósito (F-DEP, dotación 8)",
+   "Operador de pala / cargadora (F-PAL, dotación 5)"
+  ]
+ },
+ "ordenesSeed": [
+  {
+   "id": "OS-2026-0001",
+   "estado": "Cerrada",
+   "servicio": "Descarga, transporte y depósito",
+   "medio": "Buque",
+   "destinatario": "Fertilizantes del Litoral SA",
+   "producto": "Urea granulada",
+   "toneladas": 15000,
+   "relacion": "Externa",
+   "entidad": "TyS",
+   "bu": "—"
+  },
+  {
+   "id": "OS-2026-0002",
+   "estado": "Planificada / pendiente de inicio",
+   "servicio": "Descarga, transporte y depósito",
+   "medio": "Buque",
+   "destinatario": "Agroexport SA",
+   "producto": "Fosfato diamónico (DAP)",
+   "toneladas": 12000,
+   "relacion": "Externa",
+   "entidad": "TyS",
+   "bu": "—"
+  },
+  {
+   "id": "OS-2026-0003",
+   "estado": "Borrador",
+   "servicio": "Descarga",
+   "medio": "Buque",
+   "destinatario": "Nutrisur Químicos SRL",
+   "producto": "UAN 32 (solución nitrogenada)",
+   "toneladas": 9000,
+   "relacion": "Externa",
+   "entidad": "TyS",
+   "bu": "—"
+  },
+  {
+   "id": "OS-2026-0004",
+   "estado": "Pendiente de planificación",
+   "servicio": "Descarga",
+   "medio": "Buque",
+   "destinatario": "Agroexport SA",
+   "producto": "NPK embolsado (big bags 1 t)",
+   "toneladas": 6000,
+   "relacion": "Externa",
+   "entidad": "TyS",
+   "bu": "—"
+  },
+  {
+   "id": "OS-2026-0005",
+   "estado": "Pendiente de planificación",
+   "servicio": "Descarga, transporte y depósito",
+   "medio": "Buque",
+   "destinatario": "Fertilizantes del Litoral SA",
+   "producto": "Urea granulada",
+   "toneladas": 20000,
+   "relacion": "Externa",
+   "entidad": "TyS",
+   "bu": "—"
+  },
+  {
+   "id": "OS-2026-0006",
+   "estado": "En ejecución",
+   "servicio": "Descarga, transporte y depósito",
+   "medio": "Buque",
+   "destinatario": "Fertilizantes del Litoral SA",
+   "producto": "Urea granulada",
+   "toneladas": 18000,
+   "relacion": "Externa",
+   "entidad": "TyS",
+   "bu": "—"
+  },
+  {
+   "id": "OS-2026-0007",
+   "estado": "Planificada / pendiente de inicio",
+   "servicio": "Descarga, transporte y depósito",
+   "medio": "Buque",
+   "destinatario": "Agroexport SA",
+   "producto": "Fosfato diamónico (DAP)",
+   "toneladas": 9000,
+   "relacion": "Externa",
+   "entidad": "TyS",
+   "bu": "—"
+  },
+  {
+   "id": "OS-2026-0008",
+   "estado": "Pendiente de cierre",
+   "servicio": "Descarga",
+   "medio": "Camión",
+   "destinatario": "Cooperativa Agraria del Norte",
+   "producto": "Maíz",
+   "toneladas": 1200,
+   "relacion": "Externa",
+   "entidad": "TyS",
+   "bu": "—"
+  },
+  {
+   "id": "OS-2026-0009",
+   "estado": "Pendiente de planificación",
+   "servicio": "Alquiler de maquinaria",
+   "medio": "Interna",
+   "destinatario": "Depósitos (BU · TyS)",
+   "producto": "—",
+   "toneladas": 0,
+   "relacion": "Interna",
+   "entidad": "TyS",
+   "bu": "Rental"
+  },
+  {
+   "id": "OS-2026-0010",
+   "estado": "Planificada / pendiente de inicio",
+   "servicio": "Servicios logísticos",
+   "medio": "Interna",
+   "destinatario": "Terminal Timbúes",
+   "producto": "Urea granulada",
+   "toneladas": 3000,
+   "relacion": "Grupo",
+   "entidad": "TyS",
+   "bu": "Logística"
+  },
+  {
+   "id": "OS-2026-0011",
+   "estado": "Pendiente de planificación",
+   "servicio": "Descarga, transporte y depósito",
+   "medio": "Buque",
+   "destinatario": "Fertilizantes del Litoral SA",
+   "producto": "Urea granulada",
+   "toneladas": 15000,
+   "relacion": "Externa",
+   "entidad": "TT",
+   "bu": "—"
+  }
+ ],
+ "areas": [
+  {
+   "id": "AR-LOG",
+   "nombre": "Logística",
+   "entidad": "TYS",
+   "departamento": "Planificación",
+   "bus": [
+    "Logística",
+    "Maquinarias"
+   ],
+   "tipos": [
+    "Logística (flota)",
+    "Maquinaria"
+   ],
+   "maestros": [
+    "M-12",
+    "M-12"
+   ],
+   "responsable": "Responsable de Logística",
+   "recursos": [
+    {
+     "id": "L-CAM",
+     "nombre": "Camión propio (tolva 30 t)",
+     "tipo": "logistica",
+     "capacidad": 16,
+     "um": "unidades"
+    },
+    {
+     "id": "L-CAM-3RO",
+     "nombre": "Camión contratado (transportista, 30 t)",
+     "tipo": "logistica",
+     "capacidad": 30,
+     "um": "unidades"
+    },
+    {
+     "id": "L-TOLVA",
+     "nombre": "Tolva de descarga",
+     "tipo": "maquinaria",
+     "capacidad": 3,
+     "um": "unidades"
+    },
+    {
+     "id": "L-CINTA",
+     "nombre": "Cinta transportadora móvil",
+     "tipo": "maquinaria",
+     "capacidad": 2,
+     "um": "unidades"
+    }
+   ]
+  },
+  {
+   "id": "AR-RENT",
+   "nombre": "Rental",
+   "entidad": "TYS",
+   "departamento": "Administración",
+   "bus": [
+    "Rental"
+   ],
+   "tipos": [
+    "Maquinaria"
+   ],
+   "maestros": [
+    "M-12"
+   ],
+   "responsable": "Responsable de Rental",
+   "recursos": [
+    {
+     "id": "L-PALA",
+     "nombre": "Pala cargadora",
+     "tipo": "maquinaria",
+     "capacidad": 4,
+     "um": "unidades"
+    },
+    {
+     "id": "L-AUTOEL",
+     "nombre": "Autoelevador 5 t",
+     "tipo": "maquinaria",
+     "capacidad": 3,
+     "um": "unidades"
+    },
+    {
+     "id": "L-MINI",
+     "nombre": "Minicargadora",
+     "tipo": "maquinaria",
+     "capacidad": 2,
+     "um": "unidades"
+    },
+    {
+     "id": "L-RETRO",
+     "nombre": "Retroexcavadora",
+     "tipo": "maquinaria",
+     "capacidad": 1,
+     "um": "unidades"
+    },
+    {
+     "id": "L-GENER",
+     "nombre": "Grupo electrógeno 100 kVA",
+     "tipo": "maquinaria",
+     "capacidad": 2,
+     "um": "unidades"
+    }
+   ]
+  },
+  {
+   "id": "AR-DEP",
+   "nombre": "Depósitos",
+   "entidad": "TYS",
+   "departamento": "Depósito",
+   "bus": [
+    "Depósitos"
+   ],
+   "tipos": [
+    "Depósitos y ubicaciones"
+   ],
+   "maestros": [
+    "M-10a"
+   ],
+   "responsable": "Responsable de Depósitos",
+   "recursos": [
+    {
+     "id": "D1",
+     "nombre": "Celda 1",
+     "tipo": "deposito",
+     "capacidad": 45000,
+     "um": "t"
+    },
+    {
+     "id": "D2",
+     "nombre": "Celda 2",
+     "tipo": "deposito",
+     "capacidad": 25000,
+     "um": "t"
+    },
+    {
+     "id": "D3",
+     "nombre": "Tanque T-1",
+     "tipo": "deposito",
+     "capacidad": 14000,
+     "um": "t"
+    },
+    {
+     "id": "D4",
+     "nombre": "Galpón embolsado",
+     "tipo": "deposito",
+     "capacidad": 10000,
+     "um": "t"
+    },
+    {
+     "id": "D5",
+     "nombre": "Silo 3",
+     "tipo": "deposito",
+     "capacidad": 25000,
+     "um": "t"
+    },
+    {
+     "id": "D4-B1",
+     "nombre": "Box A — big bags",
+     "tipo": "deposito",
+     "capacidad": 4000,
+     "um": "t"
+    },
+    {
+     "id": "D4-B2",
+     "nombre": "Box B — big bags",
+     "tipo": "deposito",
+     "capacidad": 3500,
+     "um": "t"
+    },
+    {
+     "id": "D4-B2-M1",
+     "nombre": "Mini box B-1",
+     "tipo": "deposito",
+     "capacidad": 800,
+     "um": "t"
+    },
+    {
+     "id": "D4-B2-M2",
+     "nombre": "Mini box B-2",
+     "tipo": "deposito",
+     "capacidad": 700,
+     "um": "t"
+    },
+    {
+     "id": "D1-B1",
+     "nombre": "Box Norte — Celda 1",
+     "tipo": "deposito",
+     "capacidad": 15000,
+     "um": "t"
+    },
+    {
+     "id": "D1-B2",
+     "nombre": "Box Sur — Celda 1",
+     "tipo": "deposito",
+     "capacidad": 18000,
+     "um": "t"
+    }
+   ]
+  },
+  {
+   "id": "AR-RRHH",
+   "nombre": "RRHH",
+   "entidad": "TYS",
+   "departamento": "Personal",
+   "bus": [],
+   "tipos": [
+    "Personal propio (puestos)",
+    "Manos de proveedores"
+   ],
+   "maestros": [
+    "M-05",
+    "M-13"
+   ],
+   "responsable": "Responsable de RRHH",
+   "recursos": [
+    {
+     "id": "F-SUP",
+     "nombre": "Supervisor de operaciones",
+     "tipo": "funcion",
+     "capacidad": 4,
+     "um": "personas"
+    },
+    {
+     "id": "F-GRU",
+     "nombre": "Operador de grúa",
+     "tipo": "funcion",
+     "capacidad": 6,
+     "um": "personas"
+    },
+    {
+     "id": "F-BAL",
+     "nombre": "Balancero",
+     "tipo": "funcion",
+     "capacidad": 4,
+     "um": "personas"
+    },
+    {
+     "id": "F-DEP",
+     "nombre": "Auxiliar de depósito",
+     "tipo": "funcion",
+     "capacidad": 8,
+     "um": "personas"
+    },
+    {
+     "id": "F-PAL",
+     "nombre": "Operador de pala / cargadora",
+     "tipo": "funcion",
+     "capacidad": 5,
+     "um": "personas"
+    },
+    {
+     "id": "MANO-GRANEL",
+     "nombre": "Mano descarga granel",
+     "tipo": "mano",
+     "capacidad": 4,
+     "um": "manos"
+    },
+    {
+     "id": "MANO-LIQ",
+     "nombre": "Mano trasvase de líquidos",
+     "tipo": "mano",
+     "capacidad": 4,
+     "um": "manos"
+    },
+    {
+     "id": "MANO-EMB",
+     "nombre": "Mano estiba de big bags",
+     "tipo": "mano",
+     "capacidad": 4,
+     "um": "manos"
+    },
+    {
+     "id": "MANO-CARGA",
+     "nombre": "Mano carga de buque",
+     "tipo": "mano",
+     "capacidad": 4,
+     "um": "manos"
+    }
+   ]
+  },
+  {
+   "id": "AR-BAL",
+   "nombre": "Portería y balanza",
+   "entidad": "TYS",
+   "departamento": "Operaciones",
+   "bus": [],
+   "tipos": [
+    "Balanzas"
+   ],
+   "maestros": [
+    "M-26"
+   ],
+   "responsable": "Responsable de Portería y balanza",
+   "recursos": [
+    {
+     "id": "BZ1",
+     "nombre": "Balanza 1 (fiscal)",
+     "tipo": "balanza",
+     "capacidad": 1,
+     "um": "unidad"
+    },
+    {
+     "id": "BZ2",
+     "nombre": "Balanza 2",
+     "tipo": "balanza",
+     "capacidad": 1,
+     "um": "unidad"
+    }
+   ]
+  },
+  {
+   "id": "AR-LOG-TT",
+   "nombre": "Logística TT",
+   "entidad": "TT",
+   "departamento": "Operaciones TT",
+   "bus": [
+    "Logística TT"
+   ],
+   "tipos": [
+    "Logística (flota)",
+    "Maquinaria"
+   ],
+   "maestros": [
+    "M-12",
+    "M-12"
+   ],
+   "responsable": "Responsable de Logística TT",
+   "recursos": [
+    {
+     "id": "L-CAM-TT",
+     "nombre": "Camión propio TT (tolva 30 t)",
+     "tipo": "logistica",
+     "capacidad": 6,
+     "um": "unidades"
+    },
+    {
+     "id": "L-CAM-3RO-TT",
+     "nombre": "Camión contratado TT (transportista, 30 t)",
+     "tipo": "logistica",
+     "capacidad": 15,
+     "um": "unidades"
+    },
+    {
+     "id": "L-TOLVA-TT",
+     "nombre": "Tolva de descarga TT",
+     "tipo": "maquinaria",
+     "capacidad": 2,
+     "um": "unidades"
+    }
+   ]
+  },
+  {
+   "id": "AR-DEP-TT",
+   "nombre": "Depósitos TT",
+   "entidad": "TT",
+   "departamento": "Operaciones TT",
+   "bus": [
+    "Depósitos TT"
+   ],
+   "tipos": [
+    "Depósitos y ubicaciones"
+   ],
+   "maestros": [
+    "M-10a"
+   ],
+   "responsable": "Responsable de Depósitos TT",
+   "recursos": [
+    {
+     "id": "D6",
+     "nombre": "Celda 3 Timbúes",
+     "tipo": "deposito",
+     "capacidad": 18000,
+     "um": "t"
+    }
+   ]
+  }
+ ],
+ "reservas": [
+  {
+   "id": "RA-001",
+   "area": "Depósitos",
+   "recurso": "Celda 2",
+   "cantidad": 20000,
+   "origen": "LU-2026-036 · MV Ocean Harvest",
+   "tipoOrigen": "lineup",
+   "desde": "2026-09-23T08:00:00.000Z",
+   "hasta": "2026-09-28T08:00:00.000Z",
+   "motivo": "Operativo comprometido con el cliente",
+   "estado": "Reservada",
+   "orden": null
+  },
+  {
+   "id": "RA-002",
+   "area": "Logística",
+   "recurso": "Camión propio (tolva 30 t)",
+   "cantidad": 8,
+   "origen": "LU-2026-036 · MV Ocean Harvest",
+   "tipoOrigen": "lineup",
+   "desde": "2026-09-23T08:00:00.000Z",
+   "hasta": "2026-09-26T08:00:00.000Z",
+   "motivo": "Pico de demanda previsto",
+   "estado": "Reservada",
+   "orden": null
+  },
+  {
+   "id": "RA-003",
+   "area": "RRHH",
+   "recurso": "Mano estiba de big bags",
+   "cantidad": 2,
+   "origen": "LU-2026-033 · MV Baltic Trader",
+   "tipoOrigen": "lineup",
+   "desde": "2026-09-17T20:00:00.000Z",
+   "hasta": "2026-09-19T08:00:00.000Z",
+   "motivo": "Operativo comprometido con el cliente",
+   "estado": "Reservada",
+   "orden": null
+  },
+  {
+   "id": "RA-004",
+   "area": "Portería y balanza",
+   "recurso": "Balanza 2",
+   "cantidad": 1,
+   "origen": "LU-2026-032 · MV Río Carcarañá",
+   "tipoOrigen": "lineup",
+   "desde": "2026-09-19T08:00:00.000Z",
+   "hasta": "2026-09-21T20:00:00.000Z",
+   "motivo": "Mantenimiento programado del resto de la flota",
+   "estado": "A revalidar",
+   "orden": "OS-2026-0002"
+  },
+  {
+   "id": "RA-005",
+   "area": "Rental",
+   "recurso": "Pala cargadora",
+   "cantidad": 2,
+   "origen": "LU-2026-038 · MV Southern Wind",
+   "tipoOrigen": "lineup",
+   "desde": "2026-09-27T08:00:00.000Z",
+   "hasta": "2026-09-29T20:00:00.000Z",
+   "motivo": "Capacidad comprometida con otra área",
+   "estado": "Reservada",
+   "orden": null
+  },
+  {
+   "id": "RA-006",
+   "area": "Portería y balanza",
+   "recurso": "Balanza 1 (fiscal)",
+   "cantidad": 1,
+   "origen": "CU-2026-118 · cupo de 38 camiones",
+   "tipoOrigen": "cupo",
+   "desde": "2026-09-18T06:00:00.000Z",
+   "hasta": "2026-09-18T18:00:00.000Z",
+   "motivo": "Pico de demanda previsto",
+   "estado": "Reservada",
+   "orden": null
+  }
+ ],
+ "estadosReserva": [
+  "Reservada",
+  "Aplicada",
+  "A revalidar",
+  "Liberada"
+ ],
+ "lineupNominacion": [
+  {
+   "id": "LU-2026-028",
+   "buque": "MV Paraná Spirit",
+   "totalBuque": 15000,
+   "paraTys": 15000,
+   "nominado": true,
+   "operativo": "OS-2026-0001",
+   "alcance": "solo San Nicolás"
+  },
+  {
+   "id": "LU-2026-031",
+   "buque": "MV Nordic Sun",
+   "totalBuque": 34000,
+   "paraTys": 27000,
+   "nominado": true,
+   "operativo": "OS-2026-0006 · OS-2026-0007",
+   "alcance": "San Nicolás + upriver"
+  },
+  {
+   "id": "LU-2026-032",
+   "buque": "MV Río Carcarañá",
+   "totalBuque": 12000,
+   "paraTys": 12000,
+   "nominado": true,
+   "operativo": "OS-2026-0002",
+   "alcance": "solo San Nicolás"
+  },
+  {
+   "id": "LU-2026-033",
+   "buque": "MV Baltic Trader",
+   "totalBuque": 8500,
+   "paraTys": 6000,
+   "nominado": true,
+   "operativo": "OS-2026-0004",
+   "alcance": "solo San Nicolás"
+  },
+  {
+   "id": "LU-2026-034",
+   "buque": "MT Delta Queen",
+   "totalBuque": 9000,
+   "paraTys": 9000,
+   "nominado": true,
+   "operativo": "OS-2026-0003",
+   "alcance": "San Nicolás + upriver"
+  },
+  {
+   "id": "LU-2026-036",
+   "buque": "MV Ocean Harvest",
+   "totalBuque": 33000,
+   "paraTys": 20000,
+   "nominado": true,
+   "operativo": "OS-2026-0005",
+   "alcance": "solo San Nicolás"
+  },
+  {
+   "id": "LU-2026-035",
+   "buque": "MV Pampa Star",
+   "totalBuque": 30000,
+   "paraTys": 0,
+   "nominado": false,
+   "operativo": "—",
+   "alcance": "solo San Nicolás"
+  },
+  {
+   "id": "LU-2026-037",
+   "buque": "MV Costa Brava",
+   "totalBuque": 15000,
+   "paraTys": 15000,
+   "nominado": true,
+   "operativo": "OS-2026-0011",
+   "alcance": "solo San Nicolás"
+  },
+  {
+   "id": "LU-2026-038",
+   "buque": "MV Southern Wind",
+   "totalBuque": 14000,
+   "paraTys": 0,
+   "nominado": false,
+   "operativo": "—",
+   "alcance": "San Nicolás + upriver"
+  }
+ ],
+ "atributosM17": [
+  {
+   "n": 1,
+   "atributo": "codigo",
+   "star": false,
+   "tipo": "Código (12)",
+   "obligatorio": "Sí",
+   "regla": "—"
+  },
+  {
+   "n": 2,
+   "atributo": "puerto",
+   "star": false,
+   "tipo": "Ref. M-09",
+   "obligatorio": "Sí",
+   "regla": "—"
+  },
+  {
+   "n": 3,
+   "atributo": "buque",
+   "star": false,
+   "tipo": "Ref. M-08",
+   "obligatorio": "Condicional",
+   "regla": "—"
+  },
+  {
+   "n": 4,
+   "atributo": "operador",
+   "star": false,
+   "tipo": "Enumerado",
+   "obligatorio": "Sí",
+   "regla": "—"
+  },
+  {
+   "n": 5,
+   "atributo": "cliente",
+   "star": false,
+   "tipo": "Ref. M-06",
+   "obligatorio": "Condicional",
+   "regla": "—"
+  },
+  {
+   "n": 6,
+   "atributo": "shipper",
+   "star": false,
+   "tipo": "Texto (80)",
+   "obligatorio": "No",
+   "regla": "—"
+  },
+  {
+   "n": 7,
+   "atributo": "agencia",
+   "star": false,
+   "tipo": "Ref. M-21",
+   "obligatorio": "Condicional",
+   "regla": "—"
+  },
+  {
+   "n": 8,
+   "atributo": "producto",
+   "star": false,
+   "tipo": "Ref. M-07",
+   "obligatorio": "Condicional",
+   "regla": "—"
+  },
+  {
+   "n": 9,
+   "atributo": "tipo_operacion",
+   "star": false,
+   "tipo": "Enumerado",
+   "obligatorio": "Sí",
+   "regla": "—"
+  },
+  {
+   "n": 10,
+   "atributo": "plano_de_carga",
+   "star": true,
+   "tipo": "Texto (120) · Ref. M-08.plan_bodegas",
+   "obligatorio": "No",
+   "regla": "Distribución de la carga por bodega tal como la declara la agencia; se usa para estimar la secuencia de descarga y los equipos por bodega."
+  },
+  {
+   "n": 11,
+   "atributo": "toneladas_nominadas_total_buque",
+   "star": true,
+   "tipo": "Decimal (tn)",
+   "obligatorio": "Sí",
+   "regla": "Toneladas totales nominadas del buque (todas las terminales de la escala). Lo que opera TyS va en toneladas_para_tys, que ahora se alimenta de las órdenes de servicio creadas sobre las cargas de la escala (revisión 16/09)."
+  },
+  {
+   "n": 12,
+   "atributo": "toneladas_para_tys",
+   "star": false,
+   "tipo": "Decimal (tn)",
+   "obligatorio": "No",
+   "regla": "—"
+  },
+  {
+   "n": 13,
+   "atributo": "alcance_geografico",
+   "star": false,
+   "tipo": "Enumerado",
+   "obligatorio": "Sí",
+   "regla": "—"
+  },
+  {
+   "n": 14,
+   "atributo": "origen",
+   "star": false,
+   "tipo": "Texto (60)",
+   "obligatorio": "No",
+   "regla": "—"
+  },
+  {
+   "n": 15,
+   "atributo": "destino",
+   "star": false,
+   "tipo": "Texto (60)",
+   "obligatorio": "No",
+   "regla": "—"
+  },
+  {
+   "n": 16,
+   "atributo": "eta_original",
+   "star": true,
+   "tipo": "Fecha y hora",
+   "obligatorio": "No",
+   "regla": "ETA de la primera versión del lineup. No se pisa: cada cambio de fecha de arribo (S15) mueve eta / etb / etc y deja eta_original como referencia para medir el desvío del arribo."
+  },
+  {
+   "n": 17,
+   "atributo": "eta",
+   "star": false,
+   "tipo": "Fecha y hora",
+   "obligatorio": "Sí",
+   "regla": "—"
+  },
+  {
+   "n": 18,
+   "atributo": "eta_",
+   "star": true,
+   "tipo": "Fecha y hora",
+   "obligatorio": "No",
+   "regla": "ATENCIÓN: el nombre del atributo llegó truncado en la planilla del 16/09 (¿eta_confirmada, eta_actualizada, eta_real?). Está definido en el modelo y sin uso en el circuito hasta confirmar su significado (S23)."
+  },
+  {
+   "n": 19,
+   "atributo": "etb",
+   "star": false,
+   "tipo": "Fecha y hora",
+   "obligatorio": "No",
+   "regla": "Tramo portuario (Planificación)."
+  },
+  {
+   "n": 20,
+   "atributo": "sitio_atraque",
+   "star": false,
+   "tipo": "Ref. M-25 · Texto (60)",
+   "obligatorio": "No",
+   "regla": "Tramo portuario (Planificación)."
+  },
+  {
+   "n": 21,
+   "atributo": "operativo_vinculado",
+   "star": false,
+   "tipo": "Texto (14)",
+   "obligatorio": "No",
+   "regla": "Calculado al abrir el operativo"
+  },
+  {
+   "n": 22,
+   "atributo": "fuente",
+   "star": false,
+   "tipo": "Enumerado",
+   "obligatorio": "Sí",
+   "regla": "—"
+  },
+  {
+   "n": 23,
+   "atributo": "fecha_version",
+   "star": false,
+   "tipo": "Fecha",
+   "obligatorio": "Sí",
+   "regla": "—"
+  },
+  {
+   "n": 24,
+   "atributo": "estado",
+   "star": false,
+   "tipo": "Enumerado",
+   "obligatorio": "Sí",
+   "regla": "Tramo portuario (Planificación)."
+  },
+  {
+   "n": 25,
+   "atributo": "etc",
+   "star": true,
+   "tipo": "Fecha y hora",
+   "obligatorio": "No",
+   "regla": "Fin estimado de la operación"
+  },
+  {
+   "n": 26,
+   "atributo": "orden_puerto",
+   "star": true,
+   "tipo": "Entero",
+   "obligatorio": "No",
+   "regla": "Secuencia de atraque en el mismo sitio: gobierna el inicio de la descarga"
+  },
+  {
+   "n": 27,
+   "atributo": "buque_texto_fuente",
+   "star": true,
+   "tipo": "Texto (80)",
+   "obligatorio": "No",
+   "regla": "Texto de la fuente hasta homologar contra 8 Buques"
+  },
+  {
+   "n": 28,
+   "atributo": "cliente_texto_fuente",
+   "star": true,
+   "tipo": "Texto (80)",
+   "obligatorio": "No",
+   "regla": "Texto de la fuente hasta homologar"
+  },
+  {
+   "n": 29,
+   "atributo": "producto_texto_fuente",
+   "star": true,
+   "tipo": "Texto (60)",
+   "obligatorio": "No",
+   "regla": "Texto de la fuente hasta homologar"
+  },
+  {
+   "n": 30,
+   "atributo": "homologado",
+   "star": true,
+   "tipo": "Lógico",
+   "obligatorio": "No",
+   "regla": "Calculado: buque, cliente, producto y agencia resueltos"
+  },
+  {
+   "n": 31,
+   "atributo": "nominado_a_tys",
+   "star": true,
+   "tipo": "Lógico",
+   "obligatorio": "No",
+   "regla": "Calculado: pasa a Sí al registrar el aviso"
+  },
+  {
+   "n": 32,
+   "atributo": "observaciones",
+   "star": true,
+   "tipo": "Texto (250)",
+   "obligatorio": "No",
+   "regla": "PROPUESTO POR EL SIMULADOR"
+  },
+  {
+   "n": 33,
+   "atributo": "cargas",
+   "star": true,
+   "tipo": "Estructura (BL · cliente · producto · calidad · t)",
+   "obligatorio": "Sí",
+   "regla": "Un lineup puede tener varias cargas (BL / cliente / producto); cada carga puede originar una o más órdenes (A2). La calidad se conserva en la orden."
+  }
+ ],
+ "atributosM21": [
+  {
+   "n": 1,
+   "atributo": "codigo",
+   "star": false,
+   "tipo": "Código (10)",
+   "obligatorio": "Sí",
+   "regla": "—"
+  },
+  {
+   "n": 2,
+   "atributo": "nombre",
+   "star": false,
+   "tipo": "Texto (120)",
+   "obligatorio": "Sí",
+   "regla": "—"
+  },
+  {
+   "n": 3,
+   "atributo": "identificacion_fiscal",
+   "star": false,
+   "tipo": "Texto (30)",
+   "obligatorio": "Sí",
+   "regla": "—"
+  },
+  {
+   "n": 4,
+   "atributo": "rol",
+   "star": false,
+   "tipo": "Enumerado",
+   "obligatorio": "Sí",
+   "regla": "—"
+  },
+  {
+   "n": 5,
+   "atributo": "agencia_domicilio",
+   "star": true,
+   "tipo": "Texto (120)",
+   "obligatorio": "No",
+   "regla": "Domicilio de la agencia para notificaciones y documentación de la escala."
+  },
+  {
+   "n": 6,
+   "atributo": "agencia_telefono",
+   "star": true,
+   "tipo": "Texto (30)",
+   "obligatorio": "No",
+   "regla": "Teléfono de guardia de la agencia (coordinación del arribo y del cambio de fecha, S15)."
+  },
+  {
+   "n": 7,
+   "atributo": "agencia_email1",
+   "star": true,
+   "tipo": "Texto (80)",
+   "obligatorio": "No",
+   "regla": "Correo principal: destinatario de los avisos de lineup y de los cambios de ETA / ETB / ETC."
+  },
+  {
+   "n": 8,
+   "atributo": "agencia_email2",
+   "star": true,
+   "tipo": "Texto (80)",
+   "obligatorio": "No",
+   "regla": "Correo alternativo (copia)."
+  },
+  {
+   "n": 9,
+   "atributo": "estado",
+   "star": false,
+   "tipo": "Enumerado",
+   "obligatorio": "Sí",
+   "regla": "—"
+  }
+ ],
+ "motivosReserva": [
+  "Operativo comprometido con el cliente",
+  "Mantenimiento programado del resto de la flota",
+  "Pico de demanda previsto",
+  "Capacidad comprometida con otra área",
+  "Otro"
+ ],
+ "motivosLiberacion": [
+  "El operativo se planificó con otra opción",
+  "Cambio de fecha del arribo",
+  "La orden se anuló",
+  "Capacidad necesaria para otro operativo",
+  "Otro"
+ ],
+ "metodosSeguros": [
+  {
+   "id": "MS-FERT-SOL",
+   "nombre": "Manipulación de fertilizantes sólidos a granel",
+   "aplica": "Fertilizante sólido a granel",
+   "vigencia": "2027-04-03",
+   "accion": "bloquear el recurso",
+   "aviso": 30
+  },
+  {
+   "id": "MS-FERT-LIQ",
+   "nombre": "Trasvase de fertilizantes líquidos",
+   "aplica": "UAN 32 (solución nitrogenada)",
+   "vigencia": "2026-09-02",
+   "accion": "bloquear el recurso",
+   "aviso": 30
+  },
+  {
+   "id": "MS-EMB",
+   "nombre": "Estiba y manipulación de big bags",
+   "aplica": "Fertilizante embolsado",
+   "vigencia": "2027-02-02",
+   "accion": "bloquear el recurso",
+   "aviso": 30
+  },
+  {
+   "id": "MS-EQUIPOS",
+   "nombre": "Operación de grúas móviles y equipos de descarga",
+   "aplica": "",
+   "vigencia": "2027-05-15",
+   "accion": "bloquear el recurso",
+   "aviso": 30
+  },
+  {
+   "id": "MS-BOMBEO",
+   "nombre": "Operación de sistemas de bombeo y conexión de mangueras",
+   "aplica": "",
+   "vigencia": "2027-03-16",
+   "accion": "bloquear el recurso",
+   "aviso": 30
+  },
+  {
+   "id": "MS-MUELLE",
+   "nombre": "Amarre, atraque y trabajo en muelle",
+   "aplica": "",
+   "vigencia": "2027-07-14",
+   "accion": "bloquear el recurso",
+   "aviso": 30
+  },
+  {
+   "id": "MS-BALANZA",
+   "nombre": "Pesaje y circulación en balanza",
+   "aplica": "",
+   "vigencia": "2026-10-09",
+   "accion": "alertar y registrar desvío",
+   "aviso": 30
+  },
+  {
+   "id": "MS-DEPOSITO",
+   "nombre": "Acopio, segregación y emergencias en depósito",
+   "aplica": "",
+   "vigencia": "2027-10-22",
+   "accion": "bloquear el recurso",
+   "aviso": 30
+  },
+  {
+   "id": "MS-TRANSP",
+   "nombre": "Circulación de unidades de transporte en planta",
+   "aplica": "",
+   "vigencia": "2027-02-14",
+   "accion": "bloquear el recurso",
+   "aviso": 30
+  },
+  {
+   "id": "MS-MANOS",
+   "nombre": "Trabajo de manos de estiba en bodega y EPP",
+   "aplica": "",
+   "vigencia": "2027-06-04",
+   "accion": "bloquear el recurso",
+   "aviso": 30
+  },
+  {
+   "id": "MS-OPER-GRUA",
+   "nombre": "Habilitación de operador de grúa móvil",
+   "aplica": "",
+   "vigencia": "2027-04-05",
+   "accion": "bloquear el recurso",
+   "aviso": 30
+  },
+  {
+   "id": "MS-OPER-PALA",
+   "nombre": "Habilitación de operador de pala / autoelevador",
+   "aplica": "",
+   "vigencia": "2027-02-14",
+   "accion": "bloquear el recurso",
+   "aviso": 30
+  },
+  {
+   "id": "MS-OPS-DESCARGA",
+   "nombre": "Procedimiento general de descarga y carga de buques",
+   "aplica": "",
+   "vigencia": "2027-09-17",
+   "accion": "alertar y registrar desvío",
+   "aviso": 30
+  }
+ ]
+}

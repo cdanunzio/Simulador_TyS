@@ -86,15 +86,14 @@ const MD_EXT = {
     { m: 'M-39', n: 4, atributo: 'departamento', star: true, tipo: 'Ref. M-05', obligatorio: 'No', dominio: '—', parametro: 'No', regla: 'Departamento al que reporta el área.', origen: 'Revisión 16/09', caracter: 'propio', equivV22: '—', revision: 'Pendiente' },
     { m: 'M-39', n: 5, atributo: 'bus', star: true, tipo: 'Ref. M-35 (múltiple)', obligatorio: 'No', dominio: '—', parametro: 'No', regla: 'Unidades de negocio cuyos recursos administra el área; vacío = todos los de la entidad para los tipos indicados.', origen: 'Revisión 16/09', caracter: 'propio', equivV22: '—', revision: 'Pendiente' },
     { m: 'M-39', n: 6, atributo: 'tipos', star: true, tipo: 'Lista de enumerados', obligatorio: 'Sí', dominio: 'logistica · deposito · balanza · muelle · equipo · funcion · mano', parametro: 'No', regla: 'Tipos de recurso que el área administra: definen su capacidad total y sobre qué maestros hace el ABM (M-12, M-10a, M-26, M-05, M-13).', origen: 'Revisión 16/09', caracter: 'propio', equivV22: '—', revision: 'Pendiente' },
-    { m: 'M-39', n: 7, atributo: 'responsable_usuario', star: true, tipo: 'Ref. M-38', obligatorio: 'No', dominio: '—', parametro: 'No', regla: 'Responsable del área; en el sistema real determina qué área ve cada usuario (en la maqueta se elige en el módulo).', origen: 'Revisión 16/09', caracter: 'propio', equivV22: '—', revision: 'Pendiente' },
+    { m: 'M-39', n: 7, atributo: 'responsable', star: true, tipo: 'Ref. M-38', obligatorio: 'No', dominio: '—', parametro: 'No', regla: 'Rol responsable del área; en el sistema real determina qué área ve cada usuario (en la maqueta se elige en el módulo).', origen: 'Revisión 16/09', caracter: 'propio', equivV22: '—', revision: 'Pendiente' },
     { m: 'M-39', n: 8, atributo: 'estado', star: true, tipo: 'Enumerado', obligatorio: 'Sí', dominio: 'activa · inactiva', parametro: 'No', regla: '—', origen: 'Revisión 16/09', caracter: 'propio', equivV22: '—', revision: 'Pendiente' },
     { m: 'M-38', n: 1, atributo: 'codigo', star: false, tipo: 'Código (8)', obligatorio: 'Sí', dominio: 'COM · PLAN · OPS · DEP · LAR', parametro: 'No', regla: '—', origen: 'Maqueta v2 (15/09)', caracter: 'propio', equivV22: '—', revision: 'Pendiente' },
     { m: 'M-38', n: 2, atributo: 'nombre', star: false, tipo: 'Texto (60)', obligatorio: 'Sí', dominio: '—', parametro: 'No', regla: '—', origen: 'Maqueta v2 (15/09)', caracter: 'propio', equivV22: '—', revision: 'Pendiente' },
     { m: 'M-38', n: 3, atributo: 'etapa_workflow', star: false, tipo: 'Entero', obligatorio: 'No', dominio: '1..4 · vacío = sin etapa', parametro: 'No', regla: 'Etapa del workflow de la orden que trabaja el rol (Logística de arribo no tiene etapa, S10).', origen: 'Maqueta v2 (15/09)', caracter: 'propio', equivV22: '—', revision: 'Pendiente' },
     { m: 'M-38', n: 4, atributo: 'departamento', star: false, tipo: 'Ref. M-05', obligatorio: 'Sí', dominio: 'registro de tipo área', parametro: 'No', regla: '—', origen: 'Maqueta v2 (15/09)', caracter: 'propio', equivV22: '—', revision: 'Pendiente' },
     { m: 'M-38', n: 5, atributo: 'permisos', star: false, tipo: 'Texto (250)', obligatorio: 'Sí', dominio: '—', parametro: 'No', regla: 'Qué puede hacer el rol sobre la orden y los maestros.', origen: 'Maqueta v2 (15/09)', caracter: 'propio', equivV22: '—', revision: 'Pendiente' },
-    { m: 'M-38', n: 6, atributo: 'usuario_demo', star: false, tipo: 'Texto (60)', obligatorio: 'No', dominio: '—', parametro: 'No', regla: 'Usuario de demostración que firma las acciones del rol en la maqueta.', origen: 'Maqueta v2 (15/09)', caracter: 'propio', equivV22: '—', revision: 'Pendiente' },
-  ],
+      ],
   /* mapeo de la estructura nueva (15/09) sobre el modelo v3.1 */
   cruce: [
     { estructura: 'Grupo de empresas', modelo: '— (atributo M-01.grupo_economico)', nota: 'El grupo consolida la información de las entidades; no es un maestro.' },
@@ -222,6 +221,70 @@ const MD_EXT = {
     const id = 'BQ-' + String(nb++).padStart(2, '0');
     M.buques.push({ id, numero_imo: b.imo, nombre: lu.buque, eslora_m: lu.eslora, calado_m: lu.calado, cantidad_bodegas: b.bodegas, plan_bodegas: '—', estado: 'activo', equipos_propios: b.eq });
     lu.buqueId = id; delete lu.equiposBuque;
+  }
+
+  /* =====================================================================
+     Logística de arribo (revisión 17/09): puertos de la rotación, operadores
+     de las demás cargas, una línea de carga por bodega, secuencia de puertos
+     y evolución de las fechas declaradas.
+     ===================================================================== */
+  /* M-09b ★ Puertos: propios y de terceros. El puerto propio referencia la planta de M-09. */
+  M.puertos = [
+    { id: 'PU-SN', nombre: 'San Nicolás', zona: 'Paraná inferior', pais: 'Argentina', propio: true, planta: 'PU-SN', terminal: 'TYS', operador: 'TYS', estado: 'activo' },
+    { id: 'PU-TT', nombre: 'Timbúes', zona: 'Gran Rosario', pais: 'Argentina', propio: true, planta: 'PL-TT', terminal: 'TT', operador: 'TT', estado: 'activo' },
+    { id: 'PU-VC', nombre: 'Villa Constitución', zona: 'Paraná inferior', pais: 'Argentina', propio: false, planta: null, terminal: null, operador: 'OP-VC', estado: 'activo' },
+    { id: 'PU-SL', nombre: 'San Lorenzo', zona: 'Gran Rosario', pais: 'Argentina', propio: false, planta: null, terminal: null, operador: 'OP-SL', estado: 'activo' },
+    { id: 'PU-ROS', nombre: 'Rosario', zona: 'Gran Rosario', pais: 'Argentina', propio: false, planta: null, terminal: null, operador: null, estado: 'activo' },
+    { id: 'PU-BB', nombre: 'Bahía Blanca', zona: 'Atlántico', pais: 'Argentina', propio: false, planta: null, terminal: null, operador: null, estado: 'activo' },
+    { id: 'PU-NEC', nombre: 'Quequén', zona: 'Atlántico', pais: 'Argentina', propio: false, planta: null, terminal: null, operador: null, estado: 'activo' },
+    { id: 'PU-MVD', nombre: 'Montevideo', zona: 'Río de la Plata', pais: 'Uruguay', propio: false, planta: null, terminal: null, operador: null, estado: 'activo' },
+  ];
+  /* Operadores de las cargas del buque: nosotros, el grupo o terceros. Sin operador = oportunidad comercial. */
+  M.operadores = [
+    { id: 'TYS', nombre: 'TyS', propio: true },
+    { id: 'TT', nombre: 'Terminal Timbúes', grupo: true },
+    { id: 'OP-VC', nombre: 'Terminal Villa Constitución' },
+    { id: 'OP-SL', nombre: 'Operador San Lorenzo' },
+    { id: 'OP-OTRO', nombre: 'Otro operador' },
+  ];
+  /* M-08: bandera y agencia habitual del buque, para que el alta del lineup complete solo */
+  for (const b of M.buques) { const l0 = O.lineups.find(l => l.buqueId === b.id); b.bandera = l0?.bandera || '—'; b.agencia_habitual = l0?.agencia || 'AG-01'; }
+
+  /* cargas adicionales del buque que opera otro (o nadie): se agregan al final para no mover los índices ya vinculados a órdenes */
+  const otrasCargas = {
+    'LU-2026-031': [{ bl: 'BL-4475', cliente: 'CLI-05', producto: 'SOJA', toneladas: 7000, calidad: 'Cámara', puertoDescarga: 'PU-SL', operador: 'OP-SL' }],
+    'LU-2026-036': [{ bl: 'BL-4502', cliente: 'CLI-01', producto: 'UREA', toneladas: 8000, calidad: 'Perlada 46 % N', puertoDescarga: 'PU-SL', operador: null },
+                    { bl: 'BL-4503', cliente: 'CLI-04', producto: 'DAP', toneladas: 5000, calidad: 'Grado estándar 18-46-0', puertoDescarga: 'PU-VC', operador: 'OP-VC' }],
+    'LU-2026-033': [{ bl: 'BL-4491', cliente: 'CLI-02', producto: 'NPK-BB', toneladas: 2500, calidad: 'NPK 15-15-15 big bag', puertoDescarga: 'PU-ROS', operador: null }],
+  };
+  /* segunda escala del buque (rotación de puertos) */
+  const rotacion = {
+    'LU-2026-031': [{ puerto: 'PU-SL', dias: 4 }],
+    'LU-2026-036': [{ puerto: 'PU-SL', dias: 4 }, { puerto: 'PU-VC', dias: 7 }],
+    'LU-2026-033': [{ puerto: 'PU-ROS', dias: 3 }],
+  };
+  /* cambios de fecha ya ocurridos, para mostrar la evolución del dato */
+  const evolucion = {
+    'LU-2026-031': [{ campo: 'ETA', de: iso(-2, 6), a: iso(-1, 6), motivo: 'Demora en la bajada del río informada por la agencia', dias: -3 }],
+    'LU-2026-032': [{ campo: 'ETB', de: iso(1, 8), a: iso(2, 8), motivo: 'Reprogramación de amarre por congestión', dias: -1 }],
+    'LU-2026-036': [{ campo: 'ETA', de: iso(4, 0), a: iso(5, 0), motivo: 'Salida demorada en el puerto de origen', dias: -5 },
+                    { campo: 'ETA', de: iso(5, 0), a: iso(6, 0), motivo: 'Mal tiempo en la rada', dias: -2 }],
+  };
+  for (const lu of O.lineups) {
+    const bq = M.buques.find(b => b.id === lu.buqueId); const nBod = bq?.cantidad_bodegas || 5;
+    const puertoPropio = lu.terminal === 'TT' ? 'PU-TT' : 'PU-SN'; const operPropio = lu.terminal === 'TT' ? 'TT' : 'TYS';
+    /* una línea por bodega: las que no tienen BL quedan vacías y se completan con el tiempo */
+    (lu.cargas || []).forEach((c, i) => Object.assign(c, { bodega: i + 1, puertoDescarga: c.puertoDescarga || puertoPropio, operador: c.operador === undefined ? operPropio : c.operador }));
+    for (const c of (otrasCargas[lu.id] || [])) lu.cargas.push(Object.assign({ bodega: lu.cargas.length + 1 }, c));
+    while (lu.cargas.length < nBod) lu.cargas.push({ bodega: lu.cargas.length + 1, bl: '', cliente: null, producto: null, calidad: '', toneladas: 0, puertoDescarga: null, operador: null });
+    /* secuencia de puertos: la escala propia y las siguientes de la rotación */
+    lu.escalas = [{ n: 1, puerto: puertoPropio, eta: lu.eta, etb: lu.etb, etc: lu.etc, estado: lu.estado, propia: true }];
+    (rotacion[lu.id] || []).forEach((r, i) => lu.escalas.push({ n: i + 2, puerto: r.puerto, eta: addHours(lu.etc, 24 * r.dias), etb: addHours(lu.etc, 24 * r.dias + 8), etc: addHours(lu.etc, 24 * r.dias + 48), estado: 'Anunciado', propia: false }));
+    /* evolución de las fechas: el dato de origen y cada cambio en el orden en que se produjo */
+    lu.fechasLog = (evolucion[lu.id] || []).map(e => ({ ts: iso(e.dias, 9), rol: 'LAR', puerto: puertoPropio, campo: e.campo, de: e.de, a: e.a, motivo: e.motivo }));
+    lu.eta_original = lu.fechasLog.find(f => f.campo === 'ETA')?.de || lu.eta;
+    lu.etb_original = lu.fechasLog.find(f => f.campo === 'ETB')?.de || lu.etb;
+    lu.etc_original = lu.fechasLog.find(f => f.campo === 'ETC')?.de || lu.etc;
   }
 
   /* M-09 Plantas */

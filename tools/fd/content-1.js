@@ -69,12 +69,13 @@ module.exports = function (d, M, L) {
   out.push(p('La administración permite crear entidades, BU y departamentos; definir servicios, presupuestos y estructuras de costos por BU; registrar servicios internos y externos; y **convertir una BU en entidad fiscal** conservando su historial. Criterio adoptado (A4): la conversión tiene una **fecha de vigencia** y cada orden guarda la entidad / BU vigente al crearla, del mismo modo en que congela las condiciones contractuales aplicadas. Las operaciones anteriores conservan su entidad original.'));
 
   /* ───────── 3. Roles y usuarios ───────── */
-  out.push(h1('3. Roles, usuarios y contexto de trabajo'));
+  out.push(h1('3. Roles y contexto de trabajo'));
   out.push(h2('3.1 Contexto activo'));
   out.push(p('Toda la aplicación trabaja con un **contexto activo** formado por tres selectores en la barra superior: **entidad** (una entidad fiscal o "Grupo (consolidado)"), **unidad de negocio** ("Todas las BU" o una BU de la entidad) y **rol**. El contexto filtra las órdenes, las bandejas, los recursos y el menú visible (capítulo 10). En la maqueta el selector de rol permite recorrer los casos como cada participante; en el sistema real el rol proviene del usuario autenticado (M-38).'));
   out.push(h2('3.2 Roles'));
   out.push(p('El circuito define **cuatro roles de etapa** y **tres roles de soporte** que no tienen etapa en el workflow de la orden y la consultan únicamente para visualizarla.'));
-  out.push(table(['Rol', 'Nombre', 'Etapa del workflow', 'Estados que trabaja', 'Usuario de demostración'], d.roles.map(r => [r.id, r.nombre, r.etapa ? `Etapa ${r.etapa}` : 'Soporte (sin etapa)', r.etapas.length ? join(r.etapas, ' · ') : 'Consulta las órdenes', r.usuario]), [0.08, 0.24, 0.16, 0.34, 0.18]));
+  out.push(table(['Rol', 'Nombre', 'Etapa del workflow', 'Estados que trabaja'], d.roles.map(r => [r.id, r.nombre, r.etapa ? `Etapa ${r.etapa}` : 'Soporte (sin etapa)', r.etapas.length ? join(r.etapas, ' · ') : 'Consulta las órdenes']), [0.1, 0.3, 0.2, 0.4]));
+  out.push(note('La trazabilidad es **por rol**: cada acción queda registrada con el rol que la hizo, sin nombres de personas (S39). En el sistema real el usuario autenticado pertenece a un rol y a un área, y su identidad completará la traza.'));
   out.push(spacer());
   out.push(ul([
     '**Comercial / Backoffice (COM)** — crea la orden, registra la nacionalización, carga instrumentos o adendas, define toneladas y ventana del servicio; recibe devoluciones del Planificador.',
@@ -195,6 +196,9 @@ module.exports = function (d, M, L) {
   ]));
   out.push(p('**Acción principal:** «Crear y enviar a planificación». La orden sale de la bandeja de Comercial y entra en la del Planificador; Comercial la sigue consultando desde Operaciones · órdenes.'));
 
+  out.push(note('**Presentación de la mercadería (revisión 17/09).** Al elegir el producto, Comercial confirma la **presentación** con la que se opera —granel sólido, líquido a granel, embolsado en big bag o en bolsa, contenedor—. La propone el producto (M-07) y queda guardada en la orden: la planificación, la ejecución y el depósito trabajan con la presentación real del operativo (S36).'));
+  out.push(spacer());
+
   out.push(h2('6.2 Etapa 2 — Planificador'));
   out.push(p('**Objetivo:** definir cómo se realizará el servicio y reservar los recursos dentro de la ventana del servicio.'));
   out.push(table(['Recurso', 'Selección y regla'], [
@@ -252,6 +256,19 @@ module.exports = function (d, M, L) {
 
   out.push(h2('6.5 Rol de soporte — Logística de arribo'));
   out.push(p('Administra los tres orígenes operativos de los servicios a terceros: **lineup** (escalas de buques con ETA / ETB / ETC, muelle previsto, cargas por cliente / producto / BL con toneladas y calidad, equipos propios del buque), **cupos de camiones** (franja, cantidad, cliente, producto, toneladas) y **operativos ferroviarios** (día, formación, cliente, producto, toneladas), con alta, modificación, estado y **registro de cambios** (quién, cuándo, qué, motivo). Los cambios de fecha de arribo hechos por el Planificador aparecen aquí con la orden como motivo. Logística de arribo no interviene en las operaciones y consulta las órdenes solo para visualizarlas; los demás roles consultan los arribos (S10). La pantalla muestra las escalas como tarjetas legibles en escritorio y móvil.'));
+
+  out.push(h3('6.5.1 El lineup: buque, bodegas, puertos y nominación (revisión 17/09)'));
+  out.push(ul([
+    '**El buque manda los datos.** La escala referencia un buque de **M-08**: al elegirlo se completan bandera, eslora, calado, equipos propios y **cantidad de bodegas**. Si el buque no existe se da de alta provisoriamente hasta homologar el IMO.',
+    '**Una línea de carga por bodega.** El lineup abre tantas líneas como bodegas declara el buque. Pueden quedar **vacías** y la escala se registra **sin ningún BL**: el detalle llega de la agencia y se completa con el tiempo.',
+    '**Puerto de descarga y operador por carga.** Cada línea indica en qué puerto se descarga y **quién opera esa carga**: nosotros, otro operador portuario o **ninguno**. Las cargas sin operador se muestran como **oportunidad comercial**.',
+    '**Cantidades separadas.** La tarjeta distingue lo **declarado por el buque**, lo **nominado a nosotros** —que sale de las órdenes de servicio, con el puerto de cada una—, lo que **opera un tercero** y lo que está **sin operador**. Una misma combinación de cliente y producto puede nominarse a puertos distintos.',
+    '**Secuencia de puertos.** Un buque puede atracar en más de un puerto: la escala guarda la rotación y **cada puerto tiene su propia ETA, ETB y ETC**. La escala de nuestra terminal es la que manda la ventana de las órdenes vinculadas.',
+    '**Evolución de las fechas.** De ETA, ETB y ETC se conserva el **dato de origen** y **todos los cambios** en el orden en que se produjeron, con motivo y rol; el valor vigente queda al final.',
+    '**Filtros.** La pantalla filtra por **estado del buque** (anunciado, confirmado, en rada, en operación, zarpó, cancelado) y por **puerto** de la rotación.',
+  ]));
+  out.push(note('Supuestos S37 y S38. Queda por definir de dónde llega el detalle de las cargas de terceros (manifiesto de la agencia o carga manual) y si los puertos de terceros se toman de un maestro común (M-09 ampliado) o de una interfaz con la agencia.'));
+  out.push(spacer());
 
   out.push(h2('6.6 Rol de soporte — Responsable de área'));
   out.push(p('Cada área administra la capacidad de su propio sector desde el módulo **Mi área**: ve su capacidad total y la comprometida, hace el ABM de sus recursos —con el mismo formulario y el mismo workflow que la master data: el alta nace en validación y Máster data la publica— y **reserva capacidad para operativos futuros** referenciando un lineup, un cupo o un operativo ferroviario. Esas reservas se informan expresamente al Planificador y a Operaciones, y el área las revalida cuando la planificación elige otra opción. El detalle está en el capítulo 10 bis.'));

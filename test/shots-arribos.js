@@ -1,5 +1,5 @@
 const { chromium } = require('playwright'); const path = require('path');
-const FILE = 'file://' + path.resolve(__dirname, '../dist/TyS - Maqueta ERP v2.0 - Orden de servicio.html');
+const FILE = 'file://' + path.resolve(__dirname, '../dist/Maqueta ERP v2.14 - Orden de servicio.html');
 (async () => {
   const browser = await chromium.launch();
   for (const [w, h, n] of [[1380, 900, 'd'], [1266, 800, 'z'], [390, 844, 'm']]) {

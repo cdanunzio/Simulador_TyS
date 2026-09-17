@@ -96,6 +96,32 @@ Tres puntos de corte en `src/01-head.html`: **escritorio** (> 1180 px, barra lat
 
 El código quedó preparado como repositorio git (rama `main`, commit inicial v2.8) para subir a GitHub y desplegar en Vercel: `package.json` (scripts build / test / start, sin dependencias de producción), `vercel.json` (sin framework, `bash build.sh` como build, `public/` como salida, install vacío), `.gitignore` (dist/, public/, node_modules/, capturas), `.gitattributes`, workflow `.github/workflows/ci.yml` (build + Playwright + `test/walk.js` en cada push y PR, con el archivo único como artefacto) y README con los pasos. `build.sh` ahora también escribe `public/index.html`. Entregado como `tys-maqueta-erp - repositorio git (v2.8).zip`. Cada push a `main` redeploya producción en Vercel; los PR generan vistas previas.
 
+## Lineup por bodegas, puertos y nominación · interfaz sin nombres ni supuestos (17/09, v2.14)
+
+**Identidad revertida.** La v2.13 (logo y paleta de una sola empresa) se revirtió con `git revert`: el sistema es multiempresa. De esa iteración se conservó solo el ajuste de `overflow-wrap` (`anywhere` → `break-word`) para que las tablas no corten las palabras a la mitad.
+
+**Sin nombres de usuario (S39).** `userOf(rol)` devuelve el nombre del rol; se quitó el atributo `usuario` de M-38 y `responsable_usuario` de M-39 pasó a `responsable` con el rol responsable. Se limpiaron los lugares donde la interfaz mostraba la persona: selector de rol, contexto, historiales de la orden, de master data y de Logística de arribo, matrices de módulos y permisos, Administración › Usuarios y el navegador de M-38 / M-39.
+
+**Sin leyenda SUPUESTO.** `sup(id)` devuelve cadena vacía: las marcas desaparecen de las pantallas sin tocar las 44 entradas, que se siguen consultando en la pantalla Supuestos y alimentan el FD. También se quitaron los sufijos "(supuesto)" de los selectores.
+
+**Marca neutra.** La barra superior dice **Maqueta ERP**; la versión (`VERSION`) se escribe en `#brand-ver` al iniciar, así deja de quedar desactualizada en el HTML.
+
+**Puertos y operadores.** Nuevas colecciones `md().puertos` (propios y de terceros, con `planta` para enlazar M-09) y `md().operadores`. Helpers en el motor: `puertoMD`, `puertoNombre`, `puertoDeTerminal`, `operadorNombre`, `esOperadorPropio`.
+
+**Lineup por bodegas (S37).** `extendSeed` completa M-08 con bandera y agencia habitual, agrega a cada carga `bodega`, `puertoDescarga` y `operador`, suma cargas de terceros y sin operador **al final** del arreglo (los índices ya vinculados a órdenes no se mueven) y rellena hasta la cantidad de bodegas del buque con líneas vacías. `cargasConBL`, `bodegasVacias` y `resumenLineup` calculan lo declarado, lo nominado, lo de terceros y lo que no tiene operador; `recalcularNominacion` escribe el puerto y el operador de la carga nominada desde la orden. `arribosSinOrden` y el selector de origen de Comercial ignoran las bodegas vacías y las cargas de terceros.
+
+**Secuencia de puertos y evolución de fechas (S38).** `lu.escalas` con `escalasDe`, `escalaPropia` y `puertosDeLineup`; la escala propia sincroniza `eta/etb/etc` del lineup. `lu.fechasLog` + `registrarCambioFecha` y `fechaOriginal` guardan el dato de origen y cada cambio con motivo y rol; `editarLineup` los registra y sigue propagando la ventana a las órdenes no iniciadas.
+
+**Pantalla.** `filtrosLineup` (chips por estado con contador + select de puerto, en `S.ctx.luEst` / `S.ctx.luPuerto`) y `luCard` rehecha: cuatro mini-KPIs de cantidades, tabla de secuencia de puertos, `<details>` de evolución de fechas y tabla de bodegas con puerto, operador y orden. CSS nuevo: `.filtros`, `.fchip`, `.lu-qs`, `.lu-ev`, `tr.dimrow`.
+
+**Alta y edición del lineup.** `formLineup` se rehízo sobre un borrador (`LUF`) que se relee del DOM (`leerFormLineup`) y se redibuja (`pintarFormLineup`, diferido con `setTimeout` para no chocar con el evento en curso). Elegir el buque dispara `lufAplicarBuque` —completa datos y ajusta las bodegas con `lufBodegas`—; hay alta y baja de escalas y de bodegas. Se puede guardar sin ningún BL; si una bodega tiene toneladas se exigen cliente y producto.
+
+**Presentación (S36).** `PRESENTACION_OPCIONES`, `presentacionesDe`, `presentacionSugerida` y `presentacionOrden`; el asistente de Comercial suma el campo (se propone al elegir el producto) y la orden guarda `presentacion`, que usan el resumen y la planificación.
+
+**Flota y maquinaria.** `L-CAM` pasa a **Camión propio** y `L-CAM-3RO` a **Camión contratado** (ídem TT). `maquinariaBlock` se rehízo como lista desplegable agrupada por máquina con el detalle de cada unidad (las que no entran por el acceso quedan deshabilitadas), botón Agregar y tarjetas de lo elegido con % de uso y Quitar; el alta y la baja usan `toggleUnidadMaq`, compartido con el checkbox anterior.
+
+Casos guiados 26–29, supuestos S36–S39, **322 comprobaciones** en `test/walk.js`, 0 errores.
+
 ## Presentación, unidades de maquinaria y trabajo simultáneo (17/09, v2.12)
 
 **Presentación del producto (S35).** `presentacionProducto` / `presentacionTxt` normalizan el valor de M-07 (`granel`, `tanque`, `big bag`) a una etiqueta legible y lo combinan con familia, estado físico y densidad; se muestran en el encabezado del formulario del Planificador y en Expediente › Resumen.

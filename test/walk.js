@@ -1,7 +1,8 @@
 /* Recorrido automatizado de los 9 casos sobre la maqueta (Chromium headless) */
+const toLocalIn = isoStr => { const d = new Date(isoStr); const p2 = x => String(x).padStart(2, '0'); return d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate()) + 'T' + p2(d.getHours()) + ':' + p2(d.getMinutes()); };
 const { chromium } = require('playwright');
 const path = require('path');
-const FILE = 'file://' + path.resolve(__dirname, '../dist/TyS - Maqueta ERP v2.0 - Orden de servicio.html');
+const FILE = 'file://' + path.resolve(__dirname, '../dist/Maqueta ERP v2.14 - Orden de servicio.html');
 const errors = []; const log = (...a) => console.log(...a);
 const hoursBetween = (a, b) => (new Date(b) - new Date(a)) / 36e5;
 const fmtN0 = n => (Math.round(n * 10) / 10).toString();
@@ -205,8 +206,12 @@ const esEquipoBuqueTest = (rid) => typeof rid === 'string' && rid.startsWith('EQ
   await setRol('COM'); await page.evaluate(() => go('arribos')); await page.waitForTimeout(50);
   check((await page.$('[data-action="lu-nuevo"]')) === null, 'C11: Comercial no ve el alta de lineup (consulta)');
   await setRol('LAR'); await page.evaluate(() => go('arribos')); await page.waitForTimeout(50);
-  await page.click('[data-action="lu-nuevo"]'); await page.fill('#m-buque', 'MV Prueba Uno'); await page.fill('#modal-root .m-bl', 'BL-9001'); await page.selectOption('#m-eqb-tipo', 'Grúa'); await page.fill('#m-eqb-n', '3'); await page.click('[data-action="modal-ok"]'); await page.waitForTimeout(80);
-  const luN = await page.evaluate(() => S.ops.lineups[S.ops.lineups.length - 1]); check(luN.buque === 'MV Prueba Uno' && luN.cargas.length === 1 && luN.cargas[0].bl === 'BL-9001', 'C11: lineup nuevo registrado (' + luN.id + ')');
+  await page.click('[data-action="lu-nuevo"]'); await page.fill('#lf-nombre', 'MV Prueba Uno'); await page.fill('#lf-bodegas', '6');
+  await page.dispatchEvent('#lf-bodegas', 'change'); await page.waitForTimeout(60);
+  await page.fill('#modal-root .lf-bod .lf-bl', 'BL-9001'); await page.selectOption('#modal-root .lf-bod .lf-cli', 'CLI-01'); await page.selectOption('#modal-root .lf-bod .lf-prod', 'UREA'); await page.fill('#modal-root .lf-bod .lf-t', '5000');
+  await page.selectOption('#lf-eq-tipo', 'Grúa'); await page.fill('#lf-eq-n', '3'); await page.click('[data-action="modal-ok"]'); await page.waitForTimeout(100);
+  const luN = await page.evaluate(() => S.ops.lineups[S.ops.lineups.length - 1]);
+  check(luN.buque === 'MV Prueba Uno' && luN.cargas.length === 6 && luN.cargas[0].bl === 'BL-9001', 'C11: lineup nuevo con una línea por bodega (' + luN.id + ': ' + luN.cargas.length + ' bodegas, ' + luN.cargas.filter(c => c.bl).length + ' con BL)');
   const bqN = await page.evaluate(id => buqueDeLineup(byId(S.ops.lineups, id)), luN.id); check(bqN && bqN.equipos_propios && bqN.equipos_propios.tipo === 'Grúa' && bqN.equipos_propios.cantidad === 3 && bqN.estado.startsWith('alta provisoria'), 'C12: LAR declara los equipos del buque en el maestro M-08 (alta provisoria sin IMO: ' + (bqN && bqN.id) + ')');
   /* Caso 13: master data completa (modelo v3.1) */
   await page.evaluate(() => { S.ctx.screen = 'md'; S.ctx.mdTab = 'MAESTROS'; S.ctx.mdM = 'M-34'; S.ctx.mdSub = 'REG'; render(); }); await page.waitForTimeout(40);
@@ -223,8 +228,12 @@ const esEquipoBuqueTest = (rid) => typeof rid === 'string' && rid.startsWith('EQ
   check((await page.evaluate(() => S.arriboLog.length)) >= 1 && (await text('#main')).includes('Registro de cambios'), 'C11: registro de cambios con quién/cuándo');
   await page.click('[data-action="cu-nuevo"]'); await page.click('[data-action="modal-ok"]'); await page.waitForTimeout(80);
   check((await page.evaluate(() => S.ops.cupos.length)) === 5, 'C11: cupo nuevo registrado');
-  await page.click('[data-action="lu-editar"][data-id="' + luN.id + '"]'); await page.selectOption('#m-est', 'Confirmado'); await page.click('[data-action="modal-ok"]'); await page.waitForTimeout(80);
+  await page.click('[data-action="lu-editar"][data-id="' + luN.id + '"]'); await page.selectOption('#lf-estado', 'Confirmado');
+  await page.fill('#modal-root .lf-esc .lf-esc-eta', toLocalIn(await page.evaluate(() => iso(8, 6)))); await page.fill('#lf-motivo', 'Demora en la bajada del río');
+  await page.click('[data-action="modal-ok"]'); await page.waitForTimeout(100);
   check((await page.evaluate(id => byId(S.ops.lineups, id).estado, luN.id)) === 'Confirmado', 'C11: edición de lineup registrada');
+  const evo = await page.evaluate(id => { const l = byId(S.ops.lineups, id); return { n: (l.fechasLog || []).length, campo: l.fechasLog?.[0]?.campo, motivo: l.fechasLog?.[0]?.motivo, orig: fechaOriginal(l, 'ETA'), vig: l.eta }; }, luN.id);
+  check(evo.n === 1 && evo.campo === 'ETA' && /bajada del río/.test(evo.motivo) && evo.orig !== evo.vig, 'C27: el cambio de ETA queda en la evolución de fechas, con el dato de origen y el motivo');
   check((await page.evaluate(() => contadores().bandeja)) > 0, 'C11: workflow de LAR muestra arribos sin orden');
   /* Caso 12c: equipo ocupado → cambiar fecha de arribo del servicio (o13 · MV Pampa Star, sin equipos propios) */
   await setRol('PLAN'); await open(o13.id, 'planificacion');
@@ -260,7 +269,7 @@ const esEquipoBuqueTest = (rid) => typeof rid === 'string' && rid.startsWith('EQ
   await page.click('[data-action="md-nuevo"][data-m="M-29"]'); await page.waitForTimeout(60);
   check((await page.$('#md-id')) !== null && (await page.$('#md-nombre')) !== null && (await page.$('#md-imputable_a')) !== null, 'C14: formulario genérico armado con los atributos del maestro (codigo, nombre, imputable_a…)');
   await page.fill('#md-id', 'CD-99'); await page.fill('#md-nombre', 'Corte de energía en planta'); await page.click('[data-action="modal-ok"]'); await page.waitForTimeout(80);
-  const cd99 = await page.evaluate(() => byId(md().causasDemora, 'CD-99')); check(cd99 && cd99._aud.estado_registro === 'vigente' && cd99._aud.origen === 'manual' && cd99._aud.creado_por === 'L. Benítez', 'C14: alta de Máster data nace vigente con auditoría (manual · L. Benítez)');
+  const cd99 = await page.evaluate(() => byId(md().causasDemora, 'CD-99')); check(cd99 && cd99._aud.estado_registro === 'vigente' && cd99._aud.origen === 'manual' && cd99._aud.creado_por === 'Máster data', 'C14: alta de Máster data nace vigente con auditoría (manual · registrada por el rol, sin nombres de usuario)');
   check((await page.evaluate(() => S.mdLog[0].accion + ':' + S.mdLog[0].maestro + ':' + S.mdLog[0].registro)) === 'Alta:M-29:CD-99', 'C14: registro de cambios con quién, cuándo, maestro y registro');
   await page.click('[data-action="md-editar"][data-m="M-29"][data-id="CD-99"]'); await page.waitForTimeout(60); await page.fill('#md-nombre', 'Corte de energía en planta (EPE)'); await page.click('[data-action="modal-ok"]'); await page.waitForTimeout(80);
   check((await page.evaluate(() => { const c = byId(md().causasDemora, 'CD-99'); return c.nombre + ':' + c._aud.version; })) === 'Corte de energía en planta (EPE):2' && (await page.evaluate(() => S.mdLog[0].accion)) === 'Modificación', 'C14: modificación versiona el registro (v2) y queda en el registro de cambios');
@@ -277,14 +286,14 @@ const esEquipoBuqueTest = (rid) => typeof rid === 'string' && rid.startsWith('EQ
   /* alta de un rol con permiso ABM → en validación */
   await setRol('OPS'); await page.evaluate(() => { S.ctx.mdM = 'M-29'; S.ctx.mdSub = 'REG'; render(); }); await page.waitForTimeout(40);
   await page.click('[data-action="md-nuevo"][data-m="M-29"]'); await page.fill('#md-id', 'CD-98'); await page.fill('#md-nombre', 'Espera de muestreo de calidad'); await page.click('[data-action="modal-ok"]'); await page.waitForTimeout(80);
-  const cd98 = await page.evaluate(() => byId(md().causasDemora, 'CD-98')); check(cd98 && cd98._aud.estado_registro === 'en validación' && cd98._aud.creado_por === 'R. Ocampo', 'C14: alta de Operaciones nace "en validación"');
+  const cd98 = await page.evaluate(() => byId(md().causasDemora, 'CD-98')); check(cd98 && cd98._aud.estado_registro === 'en validación' && cd98._aud.creado_por === 'Operaciones', 'C14: alta de Operaciones nace "en validación"');
   await open('OS-2026-0006', 'ejecucion'); await page.click('[data-action="demora-form"]'); await page.waitForTimeout(40);
   check((await page.$('#m-causa option[value="CD-98"]')) === null && (await page.$('#m-causa option[value="CD-99"]')) !== null, 'C14: el circuito no usa el registro en validación (sí el vigente CD-99)');
   await page.click('[data-action="modal-cancel"] >> nth=-1').catch(() => null); await page.keyboard.press('Escape'); await page.waitForTimeout(30);
   await setRol('MD'); await page.evaluate(() => go('bandeja')); await page.waitForTimeout(50);
   check((await text('#main')).includes('CD-98') && (await page.evaluate(() => contadores().bandeja)) === 1, 'C14: Workflow de Máster data lista el registro en validación (contador 1)');
   await page.click('[data-action="md-validar"][data-m="M-29"][data-id="CD-98"]'); await page.fill('#m-det', 'Verificado con Operaciones'); await page.click('[data-action="modal-ok"]'); await page.waitForTimeout(80);
-  check((await page.evaluate(() => byId(md().causasDemora, 'CD-98')._aud.estado_registro + ':' + byId(md().causasDemora, 'CD-98')._aud.validado_por)) === 'vigente:L. Benítez' && (await page.evaluate(() => contadores().bandeja)) === 0, 'C14: Máster data valida y publica → vigente');
+  check((await page.evaluate(() => byId(md().causasDemora, 'CD-98')._aud.estado_registro + ':' + byId(md().causasDemora, 'CD-98')._aud.validado_por)) === 'vigente:Máster data' && (await page.evaluate(() => contadores().bandeja)) === 0, 'C14: Máster data valida y publica → vigente');
   /* baja lógica de un recurso */
   await page.evaluate(() => { S.ctx.screen = 'md'; S.ctx.mdTab = 'MAESTROS'; S.ctx.mdM = 'M-26'; S.ctx.mdSub = 'REG'; render(); }); await page.waitForTimeout(40);
   await page.click('[data-action="md-nuevo"][data-m="M-26"]'); await page.fill('#md-id', 'BZ9'); await page.fill('#md-nombre', 'Balanza 9 (prueba)'); await page.selectOption('#md-entidad', 'TYS').catch(() => null); await page.fill('#md-capacidadT', '80'); await page.click('[data-action="modal-ok"]'); await page.waitForTimeout(80);
@@ -502,6 +511,58 @@ const esEquipoBuqueTest = (rid) => typeof rid === 'string' && rid.startsWith('EQ
   const bloqueado = await page.evaluate(id => { const o = orden(id); return { dep: puedeGestionarRecurso('M1', 'DEP'), ops: puedeEjecutar(o, 'OPS'), depEj: puedeEjecutar(o, 'DEP') }; }, ordEjec);
   check(!bloqueado.dep && bloqueado.ops && bloqueado.depEj, 'C25: Depósito no toca los recursos exclusivos de Operaciones, pero ambos trabajan la orden');
 
+  /* ---------- C27: Logística de arribo (buque desde M-08, puertos, cantidades y filtros) ---------- */
+  await setRol('LAR'); await page.evaluate(() => go('arribos')); await page.waitForTimeout(80);
+  const lu31 = await page.evaluate(() => { const l = byId(S.ops.lineups, 'LU-2026-031'); const bq = buqueDeLineup(l); const R = resumenLineup(l);
+    return { bodegas: l.cargas.length, bodegasBuque: bq.cantidad_bodegas, conBL: R.conBL, vacias: R.vacias, total: R.total, nominado: R.nominado, terceros: R.terceros, sinOp: R.sinOperador, escalas: escalasDe(l).map(e => e.puerto), puertos: Object.keys(R.porPuerto) }; });
+  check(lu31.bodegas === lu31.bodegasBuque, 'C27: la cantidad de líneas de carga es la cantidad de bodegas del buque (' + lu31.bodegas + ')');
+  check(lu31.vacias > 0 && lu31.conBL > 0, 'C27: conviven bodegas con BL (' + lu31.conBL + ') y bodegas vacías (' + lu31.vacias + ')');
+  check(lu31.total > lu31.nominado && lu31.terceros > 0, 'C27: cantidad del buque ' + lu31.total + ' t separada de la nominada a nosotros ' + lu31.nominado + ' t (terceros: ' + lu31.terceros + ' t)');
+  check(lu31.escalas.length > 1, 'C27: el buque atraca en más de un puerto (' + lu31.escalas.join(' → ') + ')');
+  const sinOp = await page.evaluate(() => { const l = byId(S.ops.lineups, 'LU-2026-036'); const R = resumenLineup(l); return { t: R.sinOperador, n: l.cargas.filter(c => c.toneladas > 0 && !c.operador).length }; });
+  check(sinOp.t > 0 && sinOp.n > 0, 'C27: se identifican las cargas sin operador como oportunidad comercial (' + sinOp.t + ' t)');
+  const escDist = await page.evaluate(() => { const es = escalasDe(byId(S.ops.lineups, 'LU-2026-036')); return es[0].etb !== es[1].etb && es[1].etb !== es[2].etb; });
+  check(escDist, 'C27: cada escala del buque tiene su propia ETA / ETB / ETC');
+  await page.click('[data-action="lu-filtro"][data-est="Confirmado"]'); await page.waitForTimeout(80);
+  const nConf = await page.evaluate(() => S.ops.lineups.filter(l => (S.ctx.entidad === 'ALL' || l.terminal === S.ctx.entidad) && l.estado === 'Confirmado').length);
+  check((await page.$$('#main .lu')).length === nConf && (await page.$('.fchip.on')) !== null, 'C27: filtro por estado del buque (' + nConf + ' confirmados)');
+  await page.click('[data-action="lu-filtro"][data-est="ALL"]'); await page.waitForTimeout(60);
+  await page.selectOption('#lu-puerto', 'PU-SL'); await page.waitForTimeout(80);
+  const nSL = await page.evaluate(() => S.ops.lineups.filter(l => (S.ctx.entidad === 'ALL' || l.terminal === S.ctx.entidad) && puertosDeLineup(l).includes('PU-SL')).length);
+  check((await page.$$('#main .lu')).length === nSL && nSL > 0, 'C27: filtro por puerto de la rotación (' + nSL + ' escalas por San Lorenzo)');
+  await page.evaluate(() => { S.ctx.luPuerto = 'ALL'; render(); }); await page.waitForTimeout(60);
+  const evoTxt = await text('#main');
+  check(/Evolución de las fechas/.test(evoTxt) && /cambio/.test(evoTxt), 'C27: la tarjeta muestra el dato de origen y la evolución de ETA / ETB / ETC');
+
+  /* ---------- C28: sin nombres de usuario, sin leyenda de supuesto y marca neutra ---------- */
+  const limpio = await page.evaluate(() => ({
+    marca: (document.querySelector('.brand b') || {}).textContent || '',
+    sup: document.querySelectorAll('.sup').length,
+    roles: [...document.querySelectorAll('#ctx-rol option')].map(o => o.textContent).join(' '),
+    userOf: userOf('COM'),
+  }));
+  check(limpio.marca === 'Maqueta ERP', 'C28: la barra superior dice "Maqueta ERP"');
+  check(limpio.sup === 0, 'C28: sin leyendas SUPUESTO en la interfaz');
+  check(!/·/.test(limpio.roles) && limpio.userOf === 'Comercial / Backoffice', 'C28: los roles no llevan nombre de usuario');
+
+  /* ---------- C29: presentación elegida por Comercial y maquinaria desplegable ---------- */
+  const presOrden = await page.evaluate(() => { const o = orden('OS-2026-0006'); return { p: presentacionOrden(o), prod: presentacionTxt(o.producto) }; });
+  check(!!presOrden.p && presOrden.p !== '—', 'C29: la orden lleva la presentación de la mercadería (' + presOrden.p + ')');
+  await setRol('COM'); await page.evaluate(() => { W = null; go('nueva'); }); await page.waitForTimeout(80);
+  await page.selectOption('#w-entidad', 'TYS'); await page.waitForTimeout(60); await page.selectOption('#w-servicio', 'SRV-DTD'); await page.waitForTimeout(60);
+  await page.selectOption('#w-medio', 'BUQ'); await page.waitForTimeout(60); await page.selectOption('#w-dest', 'cliente:CLI-01'); await page.waitForTimeout(60); await page.selectOption('#w-producto', 'UREA'); await page.waitForTimeout(80);
+  check((await page.$('#w-presentacion')) !== null && (await page.inputValue('#w-presentacion')).length > 3, 'C29: Comercial elige la presentación, propuesta desde el producto (' + (await page.inputValue('#w-presentacion')) + ')');
+  await setRol('PLAN'); await page.evaluate(() => { W = null; go('ordenes'); }); await page.waitForTimeout(60);
+  const oPlan = await page.evaluate(() => (S.orders.find(o => o.estado === 'PEND_PLAN' && o.servicio !== 'SRV-ALQM') || {}).id);
+  await open(oPlan, 'planificacion'); await page.waitForTimeout(200);
+  const maq = await page.evaluate(() => ({ sel: !!document.getElementById('pf-maq-sel'), opts: document.querySelectorAll('#pf-maq-sel option').length, grupos: document.querySelectorAll('#pf-maq-sel optgroup').length, add: !!document.querySelector('[data-action="pf-maq-add"]') }));
+  check(maq.sel && maq.add && maq.opts > 5 && maq.grupos > 1, 'C29: la maquinaria se elige de una lista desplegable con el detalle de cada unidad (' + maq.opts + ' unidades en ' + maq.grupos + ' grupos)');
+  await page.selectOption('#pf-maq-sel', { index: 1 }); await page.click('[data-action="pf-maq-add"]'); await page.waitForTimeout(100);
+  const elegida = await page.evaluate(id => { const R = pfInit(orden(id)); return { u: Object.values(R.maqUnidades || {}).flat().length, n: Object.keys(R.logistica || {}).filter(k => esMaquinaria(k)).length }; }, oPlan);
+  check(elegida.u >= 1, 'C29: agregar desde la lista asigna la unidad elegida');
+  const cam = await page.evaluate(() => md().logistica.filter(l => /Camión/.test(l.nombre)).map(l => l.nombre).join(' | '));
+  check(/Camión propio/.test(cam) && /Camión contratado/.test(cam) && !/Camión interno/.test(cam), 'C29: camión propio y camión contratado (' + cam + ')');
+
   /* ---------- C23: calidad por Operaciones ---------- */
   await setRol('OPS'); await open('OS-2026-0006', 'ejecucion'); await page.waitForTimeout(80);
   check((await text('#main')).includes('Calidad de la mercadería'), 'C23: la ejecución muestra la calidad y pide registrarla');
@@ -551,7 +612,7 @@ const esEquipoBuqueTest = (rid) => typeof rid === 'string' && rid.startsWith('EQ
   check(!rvMal.ok, 'C21: no se puede reservar un recurso de otro sector');
   await setRol('PLAN'); await open(objetivo.id, 'planificacion'); await page.waitForTimeout(80);
   const alertRes = await page.$$eval('#main .alert', as => as.map(a => a.textContent).join(' '));
-  check(/Capacidad reservada por las áreas/.test(alertRes) && /Camión interno/.test(alertRes), 'C21: la planificación informa expresamente lo reservado por el área');
+  check(/Capacidad reservada por las áreas/.test(alertRes) && /Camión propio/.test(alertRes), 'C21: la planificación informa expresamente lo reservado por el área');
   check((await page.$$('[data-action="pf-usar-reservas"]')).length === 1, 'C21: botón para tomar lo reservado por las áreas');
   await page.click('[data-action="pf-usar-reservas"]'); await page.waitForTimeout(80);
   check((await page.evaluate(id => (pfInit(orden(id)).logistica || {})['L-CAM'], objetivo.id)) === 5, 'C21: el botón toma lo reservado en la asignación');
